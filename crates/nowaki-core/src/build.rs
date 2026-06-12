@@ -92,7 +92,8 @@ pub fn build_client(core: &NowakiCore, dist: &Path) -> Result<BuildReport> {
 pub fn build_server(core: &NowakiCore, dist: &Path) -> Result<usize> {
     let server_dir = dist.join("server");
     let mut count = 0;
-    for sub in ["routes", "islands"] {
+    // routes/islands に加え、共有のサーバーモジュール (components/, lib/) も出力する。
+    for sub in ["routes", "islands", "components", "lib"] {
         let src_root = core.root.join(sub);
         if !src_root.is_dir() {
             continue;

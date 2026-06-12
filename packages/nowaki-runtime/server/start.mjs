@@ -130,7 +130,7 @@ const server = createServer(async (req, res) => {
 
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(`<!DOCTYPE html>
-<html>
+<html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />

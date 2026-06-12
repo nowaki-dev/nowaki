@@ -4,9 +4,13 @@ import { useState } from "preact/hooks";
 export default function CopyCommand({
   cmd,
   primary = false,
+  labelCopy = "copy",
+  labelCopied = "copied ✓",
 }: {
   cmd: string;
   primary?: boolean;
+  labelCopy?: string;
+  labelCopied?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -32,7 +36,7 @@ export default function CopyCommand({
       </span>
       <code class="copybar__cmd">{cmd}</code>
       <span class="copybar__state" aria-hidden="true">
-        {copied ? "copied ✓" : "copy"}
+        {copied ? labelCopied : labelCopy}
       </span>
     </button>
   );

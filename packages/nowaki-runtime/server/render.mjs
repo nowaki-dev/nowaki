@@ -76,7 +76,7 @@ export async function renderPage(mod, ctx) {
     h(Page, { data, params: ctx.params, url: ctx.url }),
   );
   return `<!DOCTYPE html>
-<html>
+<html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
