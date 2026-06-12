@@ -1,5 +1,6 @@
 pub mod build;
 pub mod cache;
+pub mod env;
 pub mod resolve;
 pub mod transform;
 
@@ -24,14 +25,18 @@ pub struct NowakiCore {
     pub root: PathBuf,
     resolver: Resolver,
     cache: cache::ModuleCache,
+    /// import.meta.env.PUBLIC_* / MODE のクライアント向け定数置換ペア（.envから）
+    pub(crate) client_defines: Vec<(String, String)>,
 }
 
 impl NowakiCore {
     pub fn new(root: PathBuf) -> Self {
+        let client_defines = env::load_client_defines(&root);
         Self {
             root,
             resolver: resolve::make_resolver(),
             cache: cache::ModuleCache::default(),
+            client_defines,
         }
     }
 
@@ -48,7 +53,14 @@ impl NowakiCore {
             }
         }
 
-        let code = transform::transform_file(&self.root, abs, &source, mode, &self.resolver)?;
+        let code = transform::transform_file(
+            &self.root,
+            abs,
+            &source,
+            mode,
+            &self.resolver,
+            &self.client_defines,
+        )?;
         self.cache.insert(
             key,
             cache::CachedModule {

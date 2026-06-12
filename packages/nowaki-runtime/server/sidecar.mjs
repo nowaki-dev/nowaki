@@ -3,6 +3,10 @@
 
 import { createServer } from "node:http";
 import { register } from "node:module";
+import { loadEnv } from "./env.mjs";
+
+// .env を process.env に読み込む（ルート/loader が読めるように、ルート読込より前に）
+loadEnv();
 
 // 以降のdynamic importする .tsx/.ts はRustの変換エンドポイント経由で読み込まれる
 register(new URL("./loader-hooks.mjs", import.meta.url));

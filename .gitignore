@@ -6,6 +6,11 @@ dist/
 # prerendered landing output (regenerate with site/scripts/prerender.sh)
 site/public/
 
+# env files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
 # impeccable design skill (installed via `npx impeccable skills install`)
 .github/skills/
 .impeccable/

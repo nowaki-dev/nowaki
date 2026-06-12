@@ -108,7 +108,7 @@ pub fn build_server(core: &NowakiCore, dist: &Path) -> Result<usize> {
             let out_path = server_dir.join(with_js_ext(rel));
             let source = fs::read_to_string(&path)
                 .with_context(|| format!("読み込み失敗: {}", path.display()))?;
-            let code = transform_for_server(&path, &source)?;
+            let code = transform_for_server(&path, &source, core)?;
             if let Some(parent) = out_path.parent() {
                 fs::create_dir_all(parent)?;
             }
@@ -122,7 +122,7 @@ pub fn build_server(core: &NowakiCore, dist: &Path) -> Result<usize> {
 /// SSR向け変換: TS除去 + JSX(automatic, preact)。相対ローカルimportの拡張子を
 /// .js へ書き換える。bare import (npm) はそのまま（Nodeが解決する）。minifyしない
 /// （SSRのスタックトレース可読性のため）。
-fn transform_for_server(path: &Path, source: &str) -> Result<String> {
+fn transform_for_server(path: &Path, source: &str, core: &NowakiCore) -> Result<String> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_else(|_| SourceType::tsx());
 
@@ -141,6 +141,12 @@ fn transform_for_server(path: &Path, source: &str) -> Result<String> {
         .build(&program)
         .semantic
         .into_scoping();
+    let scoping = crate::transform::apply_client_defines(
+        &allocator,
+        scoping,
+        &mut program,
+        &core.client_defines,
+    );
 
     let mut options = TransformOptions::default();
     options.jsx.runtime = JsxRuntime::Automatic;
@@ -278,6 +284,12 @@ fn transform_for_bundle(path: &Path, source: &str, core: &NowakiCore) -> Result<
         .build(&program)
         .semantic
         .into_scoping();
+    let scoping = crate::transform::apply_client_defines(
+        &allocator,
+        scoping,
+        &mut program,
+        &core.client_defines,
+    );
 
     let mut options = TransformOptions::default();
     options.jsx.runtime = JsxRuntime::Automatic;

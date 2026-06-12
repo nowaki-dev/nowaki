@@ -6,9 +6,10 @@ use oxc::ast::ast::{Program, Statement};
 use oxc::codegen::Codegen;
 use oxc::diagnostics::{GraphicalReportHandler, GraphicalTheme, NamedSource, OxcDiagnostic};
 use oxc::parser::Parser;
-use oxc::semantic::SemanticBuilder;
+use oxc::semantic::{Scoping, SemanticBuilder};
 use oxc::span::SourceType;
 use oxc::transformer::{JsxRuntime, TransformOptions, Transformer};
+use oxc::transformer_plugins::{ReplaceGlobalDefines, ReplaceGlobalDefinesConfig};
 use oxc_resolver::Resolver;
 
 use crate::cache::Mode;
@@ -21,6 +22,7 @@ pub fn transform_file(
     source: &str,
     mode: Mode,
     resolver: &Resolver,
+    client_defines: &[(String, String)],
 ) -> Result<String> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_else(|_| SourceType::tsx());
@@ -38,6 +40,7 @@ pub fn transform_file(
         .build(&program)
         .semantic
         .into_scoping();
+    let scoping = apply_client_defines(&allocator, scoping, &mut program, client_defines);
 
     let mut options = TransformOptions::default();
     options.jsx.runtime = JsxRuntime::Automatic;
@@ -82,6 +85,27 @@ fn rewrite_imports<'a>(
         };
         lit.value = allocator.alloc_str(&url).into();
         lit.raw = None;
+    }
+}
+
+/// import.meta.env.PUBLIC_* / MODE などの定数置換を適用する（client_defines が空なら素通し）。
+/// 3つの変換経路（dev transform / build client / build server）で共有する。
+pub(crate) fn apply_client_defines<'a>(
+    allocator: &'a Allocator,
+    scoping: Scoping,
+    program: &mut Program<'a>,
+    defines: &[(String, String)],
+) -> Scoping {
+    if defines.is_empty() {
+        return scoping;
+    }
+    match ReplaceGlobalDefinesConfig::new(defines) {
+        Ok(config) => {
+            ReplaceGlobalDefines::new(allocator, config)
+                .build(scoping, program)
+                .scoping
+        }
+        Err(_) => scoping, // 設定不正時は素通し
     }
 }
 

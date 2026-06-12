@@ -8,6 +8,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { h, options } from "preact";
 import { renderToStringAsync } from "preact-render-to-string";
+import { loadEnv } from "./env.mjs";
+
+loadEnv();
 
 const { scanRoutes, matchRoute } = await import("./router.mjs");
 
