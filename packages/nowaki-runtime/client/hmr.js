@@ -1,7 +1,29 @@
 // HMRクライアント + エラーオーバーレイ (dev)。
-// 現状は live reload。Phase 3 でモジュール単位の update + prefresh に置き換える。
+// islands/ の変更は島だけをホットスワップ（"update"）、それ以外はフルリロード（"reload"）。
+// 注: 現状の update は島モジュールを再importして再renderするため、コンポーネントの
+// ローカルstateはリセットされる（prefresh相当のstate保持は将来対応）。
+
+import { h, render } from "preact";
 
 const OVERLAY_ID = "__nowaki_error_overlay";
+
+/// islands/ 配下が変更されたとき、各 <nowaki-island> を再importして再renderする。
+async function hotUpdateIslands() {
+  const version = Date.now();
+  for (const el of document.querySelectorAll("nowaki-island")) {
+    const rawSrc = el.getAttribute("src");
+    if (!rawSrc) continue;
+    const props = JSON.parse(el.getAttribute("props") || "{}");
+    const sep = rawSrc.includes("?") ? "&" : "?";
+    const src = `${rawSrc}${sep}v=${version}`;
+    try {
+      const mod = await import(src);
+      render(h(mod.default, props), el);
+    } catch (err) {
+      console.error(`[nowaki] island再読み込み失敗 ${rawSrc}:`, err);
+    }
+  }
+}
 
 function escapeHtml(s) {
   return String(s).replace(
@@ -51,6 +73,9 @@ ws.addEventListener("message", (e) => {
   const msg = JSON.parse(e.data);
   if (msg.type === "error") {
     showOverlay(msg.message);
+  } else if (msg.type === "update") {
+    clearOverlay();
+    hotUpdateIslands();
   } else if (msg.type === "reload") {
     clearOverlay();
     location.reload();

@@ -72,14 +72,18 @@ fn start_watcher(root: &Path, state: Arc<DevState>) -> Result<notify::Recommende
         ) {
             return;
         }
-        let relevant = event.paths.iter().any(|p| {
-            let s = p.to_string_lossy();
-            !s.contains("/node_modules/")
-                && !s.contains("/.git/")
-                && !s.contains("/dist/")
-                && !s.contains("/target/")
-        });
-        if !relevant {
+        let relevant: Vec<_> = event
+            .paths
+            .iter()
+            .filter(|p| {
+                let s = p.to_string_lossy();
+                !s.contains("/node_modules/")
+                    && !s.contains("/.git/")
+                    && !s.contains("/dist/")
+                    && !s.contains("/target/")
+            })
+            .collect();
+        if relevant.is_empty() {
             return;
         }
         {
@@ -90,7 +94,12 @@ fn start_watcher(root: &Path, state: Arc<DevState>) -> Result<notify::Recommende
             *last = Instant::now();
         }
         state.ssr_version.fetch_add(1, Ordering::SeqCst);
-        let _ = state.hmr_tx.send(json!({ "type": "reload" }).to_string());
+        // 変更が islands/ のみなら島をホットスワップ、それ以外はフルリロード
+        let island_only = relevant
+            .iter()
+            .all(|p| p.to_string_lossy().contains("/islands/"));
+        let kind = if island_only { "update" } else { "reload" };
+        let _ = state.hmr_tx.send(json!({ "type": kind }).to_string());
     })?;
     watcher.watch(&root_owned, RecursiveMode::Recursive)?;
     Ok(watcher)
