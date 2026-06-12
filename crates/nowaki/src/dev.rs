@@ -157,6 +157,24 @@ async fn serve_or_proxy(State(state): State<Arc<DevState>>, req: Request) -> Res
 }
 
 async fn serve_file(state: Arc<DevState>, abs: PathBuf) -> Response {
+    // .css は <style> を注入する JS シムとして配信する（import で副作用適用）
+    if nowaki_core::css::is_css(&abs) {
+        return match tokio::fs::read_to_string(&abs).await {
+            Ok(css) => {
+                let id = abs.to_string_lossy();
+                let shim = nowaki_core::css::css_shim(&id, &css);
+                (
+                    [
+                        (header::CONTENT_TYPE, "text/javascript; charset=utf-8"),
+                        (header::CACHE_CONTROL, "no-cache"),
+                    ],
+                    shim,
+                )
+                    .into_response()
+            }
+            Err(_) => (StatusCode::NOT_FOUND, "not found").into_response(),
+        };
+    }
     if is_transformable(&abs) {
         return transform_response(state, abs, Mode::Browser).await;
     }

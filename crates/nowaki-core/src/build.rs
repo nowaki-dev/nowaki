@@ -184,6 +184,10 @@ fn rewrite_server_spec(spec: &str) -> Option<String> {
     if !spec.starts_with('.') {
         return None; // bare import (npm) はそのまま
     }
+    if spec.ends_with(".css") {
+        // SSR では .css を no-op に（CSS はクライアント専用）
+        return Some(crate::css::CSS_NOOP_SPECIFIER.to_string());
+    }
     for ext in [".tsx", ".jsx", ".ts"] {
         if let Some(stem) = spec.strip_suffix(ext) {
             return Some(format!("{stem}.js"));
@@ -223,6 +227,22 @@ fn emit(
 ) -> Result<String> {
     if let Some(name) = emitted.get(abs) {
         return Ok(name.clone());
+    }
+    // .css は <style> 注入の JS シムとして出力（依存なし）
+    if crate::css::is_css(abs) {
+        let css =
+            fs::read_to_string(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
+        let id = abs
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("style.css");
+        let code = crate::css::css_shim(id, &css);
+        let hash = xxh3_64(code.as_bytes()) as u32;
+        let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("style");
+        let filename = format!("{stem}.css.{hash:08x}.js");
+        fs::write(out_dir.join(&filename), &code)?;
+        emitted.insert(abs.to_path_buf(), filename.clone());
+        return Ok(filename);
     }
     if visiting.contains(abs) {
         bail!(

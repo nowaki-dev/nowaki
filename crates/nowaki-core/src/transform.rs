@@ -57,6 +57,9 @@ pub fn transform_file(
 
     if mode == Mode::Browser {
         rewrite_imports(&allocator, root, path, &mut program, resolver);
+    } else {
+        // SSR: .css import は no-op に（CSS はクライアント専用）
+        noop_css_imports(&allocator, &mut program);
     }
 
     Ok(Codegen::new().build(&program).code)
@@ -142,6 +145,18 @@ fn map_specifier(spec: &str, dir: &Path, root: &Path, resolver: &Resolver) -> Op
         Err(err) => {
             eprintln!("[nowaki] 解決失敗 {spec} (from {}): {err}", dir.display());
             None
+        }
+    }
+}
+
+/// SSR向け: `.css` の副作用 import を空モジュールに置き換える（サーバーに DOM は無い）。
+fn noop_css_imports<'a>(allocator: &'a Allocator, program: &mut Program<'a>) {
+    for stmt in program.body.iter_mut() {
+        if let Statement::ImportDeclaration(decl) = stmt {
+            if decl.source.value.as_str().ends_with(".css") {
+                decl.source.value = allocator.alloc_str(crate::css::CSS_NOOP_SPECIFIER).into();
+                decl.source.raw = None;
+            }
         }
     }
 }
