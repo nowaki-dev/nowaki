@@ -20,6 +20,8 @@ importers:
         specifier: ^6.5.13
         version: 6.7.0(preact@10.29.2)
 
+  packages/create-nowaki: {}
+
   packages/nowaki-runtime:
     devDependencies:
       preact:

@@ -1,0 +1,10 @@
+{
+  "name": "nowaki-app",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@nowaki/runtime": "^0.1.0",
+    "preact": "^10.25.4",
+    "preact-render-to-string": "^6.5.13"
+  }
+}
