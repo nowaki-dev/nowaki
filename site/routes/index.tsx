@@ -2,16 +2,16 @@ import WindHero from "../islands/WindHero.tsx";
 import CopyCommand from "../islands/CopyCommand.tsx";
 
 export const title =
-  "Nowaki: the full-stack web framework that ships almost no JavaScript";
+  "Nowaki: a full-stack web framework with Rust-grade speed";
 
 const DESC =
-  "Nowaki (野分) pairs a Rust toolchain with islands architecture: server-render the page, hydrate only the components you mark, start your dev server in milliseconds.";
+  "Nowaki (野分) is a full-stack web framework with routing, server loaders, SSR and API routes, on a Rust toolchain. Dev server ready in ~90ms, millisecond rebuilds. Full-stack like Next.js, fast like Rust.";
 
 export const head = `
 <meta name="description" content="${DESC}" />
 <meta name="theme-color" content="#0b1220" />
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Nowaki: ship almost no JavaScript" />
+<meta property="og:title" content="Nowaki: full-stack like Next.js, fast like Rust" />
 <meta property="og:description" content="${DESC}" />
 <meta property="og:url" content="https://nowaki.dev" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -185,15 +185,17 @@ function Hero() {
           class="hero-title reveal"
           style="margin-top:1.4rem;max-width:16ch;animation-delay:.05s"
         >
-          The web framework that ships <span class="mark">almost no JavaScript</span>.
+          Full-stack like Next.js.{" "}
+          <span class="mark">Fast like Rust.</span>
         </h1>
         <p
           class="lead reveal on-storm-muted"
           style="margin-top:1.5rem;max-width:54ch;color:var(--on-storm-muted);animation-delay:.12s"
         >
-          Nowaki pairs a Rust toolchain with islands architecture. Server-render the
-          page, hydrate only the components you mark, and start your dev server in
-          milliseconds.
+          A full-stack web framework with file-based routing, server loaders, SSR, and
+          API routes. Powered by a Rust toolchain (oxc): dev server ready in about 90
+          milliseconds, rebuilds in single milliseconds. Build dynamic apps without the
+          wait.
         </p>
 
         <div
@@ -217,47 +219,39 @@ function Hero() {
   );
 }
 
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <div style="font-size:clamp(2.1rem,1.4rem + 2.6vw,3.3rem);font-weight:800;letter-spacing:-0.03em;color:var(--primary-strong);line-height:1">
+        {value}
+      </div>
+      <p style="margin-top:.6rem;color:var(--muted);max-width:26ch">{label}</p>
+    </div>
+  );
+}
+
 function SpeedProof() {
   return (
     <section class="section wrap">
-      <div style="display:grid;gap:clamp(2rem,5vw,4rem);grid-template-columns:1fr" class="md:grid-cols-2">
-        <div>
-          <h2 class="h-sec">Send what the page needs. Nothing more.</h2>
-          <p class="lead measure" style="margin-top:1.1rem">
-            Most frameworks ship the whole component tree to the browser and hydrate
-            all of it. Nowaki ships HTML for the page and JavaScript only for the
-            islands you mark. The rest never crosses the wire.
-          </p>
-          <p style="margin-top:1.5rem;font-family:'JetBrains Mono',monospace;font-size:.95rem">
-            <strong style="font-size:1.6rem;font-weight:800;color:var(--primary-strong)">~90&thinsp;ms</strong>
-            <span style="color:var(--muted)">  example dev server, ready</span>
-          </p>
-        </div>
-
-        <div style="align-self:center;display:flex;flex-direction:column;gap:1.3rem">
-          <div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:.45rem;font-size:.9rem">
-              <span style="font-weight:700">Nowaki, islands only</span>
-              <span style="color:var(--muted);font-family:'JetBrains Mono',monospace">marked components</span>
-            </div>
-            <div class="bar-track">
-              <div class="bar-fill" style="width:15%;background:var(--primary)" />
-            </div>
-          </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:.45rem;font-size:.9rem">
-              <span style="font-weight:700">All-hydrate frameworks</span>
-              <span style="color:var(--muted);font-family:'JetBrains Mono',monospace">whole tree</span>
-            </div>
-            <div class="bar-track">
-              <div class="bar-fill" style="width:100%;background:oklch(0.7 0.03 60)" />
-            </div>
-          </div>
-          <p style="font-size:.82rem;color:var(--muted)">
-            Illustrative. The page shell and loaders ship zero JavaScript; only islands
-            are sent and hydrated.
-          </p>
-        </div>
+      <h2 class="h-sec" style="max-width:18ch">Speed you feel on every keystroke.</h2>
+      <p class="lead measure" style="margin-top:1.1rem">
+        Next.js gives you a full-stack framework on a JavaScript toolchain. Nowaki gives
+        you the same kind of framework on Rust (oxc), so the dev server boots, transforms,
+        and rebuilds before a JavaScript bundler has finished warming up.
+      </p>
+      <div
+        style="margin-top:2.8rem;display:grid;gap:2.2rem;grid-template-columns:1fr"
+        class="sm:grid-cols-3"
+      >
+        <Stat value="~90 ms" label="Dev server ready, measured on the example app." />
+        <Stat
+          value="milliseconds"
+          label="To re-transform a changed file with oxc. No JavaScript bundler warm-up."
+        />
+        <Stat
+          value="0 KB"
+          label="JavaScript for the page shell and server loaders. Only islands ship."
+        />
       </div>
     </section>
   );
@@ -335,27 +329,34 @@ function Features() {
   return (
     <section style="background:var(--surface);border-block:1px solid var(--line)">
       <div class="section wrap">
-        <h2 class="h-sec" style="max-width:14ch">What's under the hood.</h2>
+        <h2 class="h-sec" style="max-width:16ch">A real framework, not a static-site generator.</h2>
+        <p class="lead measure" style="margin-top:1.1rem">
+          Nowaki is built for dynamic apps in the Next.js and Remix lineage, with the
+          parts you actually ship a product on.
+        </p>
         <div
-          style="margin-top:1.6rem;display:grid;grid-template-columns:1fr;column-gap:3rem"
+          style="margin-top:2rem;display:grid;grid-template-columns:1fr;column-gap:3rem"
           class="md:grid-cols-2"
         >
           <div style="border-top:1px solid var(--line)">
+            <Feature title="Full-stack, dynamic by default">
+              File-based <code style="color:var(--ink)">routes/</code>, server{" "}
+              <code style="color:var(--ink)">loader</code>s, SSR on every request, and{" "}
+              <code style="color:var(--ink)">routes/api/</code> handlers. Not just static
+              pages.
+            </Feature>
+          </div>
+          <div style="border-top:1px solid var(--line)">
             <Feature title="Rust toolchain (oxc)">
-              Parsing, transforming, resolving and bundling run in Rust, for fast cold starts
-              and millisecond rebuilds.
+              Parsing, transforming, resolving and bundling run in Rust, for fast cold
+              starts and millisecond rebuilds. This is the part that makes it quick.
             </Feature>
           </div>
           <div style="border-top:1px solid var(--line)">
             <Feature title="Islands by default">
               Pages render to HTML on the server. Only components under{" "}
-              <code style="color:var(--ink)">islands/</code> ship and hydrate.
-            </Feature>
-          </div>
-          <div style="border-top:1px solid var(--line)">
-            <Feature title="File-based routing + loaders">
-              <code style="color:var(--ink)">routes/</code> maps to URLs; a Remix-style{" "}
-              <code style="color:var(--ink)">loader</code> fetches data on the server.
+              <code style="color:var(--ink)">islands/</code> ship and hydrate, so apps stay
+              light without extra work.
             </Feature>
           </div>
           <div style="border-top:1px solid var(--line)">
