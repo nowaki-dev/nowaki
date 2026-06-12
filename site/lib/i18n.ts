@@ -7,20 +7,20 @@ export const NPM = "https://www.npmjs.com/package/create-nowaki";
 
 export const STRINGS = {
   en: {
-    title: "Nowaki: a full-stack web framework with Rust-grade speed",
-    desc: "Nowaki (野分) is a full-stack web framework with routing, server loaders, SSR and API routes, on a Rust toolchain. Dev server ready in ~90ms, millisecond rebuilds. Full-stack like Next.js, fast like Rust.",
-    ogTitle: "Nowaki: full-stack like Next.js, fast like Rust",
+    title: "Nowaki: a full-stack web framework with islands and a Rust toolchain",
+    desc: "Nowaki (野分) is a full-stack web framework with routing, server loaders, SSR and API routes, on a Rust toolchain. It renders to HTML and hydrates only the islands you mark. Dev server ready in ~90ms, millisecond rebuilds. Full-stack like Next.js, islands like Astro.",
+    ogTitle: "Nowaki: full-stack like Next.js, islands like Astro",
     nav: { docs: "Docs", github: "GitHub" },
     hero: {
       badge: "v0.1 · alpha",
       h1a: "Full-stack like Next.js.",
-      h1b: "Fast like Rust.",
-      sub: "A full-stack web framework with file-based routing, server loaders, SSR, and API routes. Powered by a Rust toolchain (oxc): dev server ready in about 90 milliseconds, rebuilds in single milliseconds. Build dynamic apps without the wait.",
+      h1b: "Islands like Astro.",
+      sub: "A full-stack web framework with file-based routing, server loaders, SSR, and API routes. It renders to HTML and hydrates only the islands you mark, on a Rust toolchain (oxc): dev server ready in about 90 milliseconds, rebuilds in single milliseconds.",
       alpha: "Alpha. Not for production yet, but real, and really fast.",
     },
     speed: {
       h2: "Speed you feel on every keystroke.",
-      lead: "Next.js gives you a full-stack framework on a JavaScript toolchain. Nowaki gives you the same kind of framework on Rust (oxc), so the dev server boots, transforms, and rebuilds before a JavaScript bundler has finished warming up.",
+      lead: "Most JavaScript frameworks boot, transform, and rebuild on a JavaScript toolchain. Nowaki runs that whole pipeline in Rust (oxc), so the dev server is serving before a JavaScript bundler has finished warming up.",
       stats: [
         { value: "~90 ms", label: "Dev server ready, measured on the example app." },
         { value: "milliseconds", label: "To re-transform a changed file with oxc. No JavaScript bundler warm-up." },
@@ -65,26 +65,26 @@ export const STRINGS = {
       tagline: "A Rust-toolchain full-stack web framework. Zero JS by default.",
       copyright: "MIT © 2026 Voredge",
       windName: "野分 · an autumn typhoon wind",
-      trademark: "Next.js is a trademark of Vercel, Inc. Nowaki is an independent project and is not affiliated with or endorsed by Vercel.",
+      trademark: "Next.js is a trademark of Vercel, Inc. Astro is a trademark of The Astro Technology Company. Nowaki is an independent project, not affiliated with or endorsed by either.",
     },
     copy: { copy: "copy", copied: "copied ✓" },
   },
 
   ja: {
     title: "Nowaki: Rust製ツールチェーンの爆速フルスタックWebフレームワーク",
-    desc: "Nowaki（野分）は routing・server loader・SSR・API routes を備えたフルスタックWebフレームワーク。Rust ツールチェーン上で動き、dev 起動 約90ms、再ビルドは数ミリ秒。Next.js のようなフルスタック、Rust の速さ。",
-    ogTitle: "Nowaki: Next.js のようなフルスタック、Rust の速さ",
+    desc: "Nowaki（野分）は routing・server loader・SSR・API routes を備えたフルスタックWebフレームワーク。ページを HTML に描画し、印した島だけをハイドレート。Rust ツールチェーン上で動き、dev 起動 約90ms、再ビルドは数ミリ秒。Next.js のようなフルスタック、Astro のような Islands。",
+    ogTitle: "Nowaki: Next.js のようなフルスタック、Astro のような Islands",
     nav: { docs: "ドキュメント", github: "GitHub" },
     hero: {
       badge: "v0.1 · alpha",
       h1a: "Next.js のようなフルスタック。",
-      h1b: "Rust の速さ。",
-      sub: "routing・server loader・SSR・API routes を備えたフルスタックWebフレームワーク。Rust ツールチェーン（oxc）が dev 起動を約90ミリ秒、再ビルドを数ミリ秒に。動的なアプリを、待たずに作れます。",
+      h1b: "Astro のような Islands。",
+      sub: "routing・server loader・SSR・API routes を備えたフルスタックWebフレームワーク。ページを HTML に描画し、印した島だけをハイドレート。Rust ツールチェーン（oxc）が dev 起動を約90ミリ秒、再ビルドを数ミリ秒にします。",
       alpha: "alpha 版。まだ本番向けではありませんが、実在し、本当に速い。",
     },
     speed: {
       h2: "打鍵ごとに感じる速さ。",
-      lead: "Next.js は JavaScript ツールチェーン上のフルスタック。Nowaki は同じ種類のフレームワークを Rust（oxc）の上で動かすので、JavaScript バンドラーが温まりきる前に、dev サーバーは起動し、変換し、再ビルドを終えています。",
+      lead: "多くの JavaScript フレームワークは、起動・変換・再ビルドを JavaScript ツールチェーンの上で行います。Nowaki はそのパイプライン全体を Rust（oxc）で動かすので、JavaScript バンドラーが温まりきる前に dev サーバーは応答しています。",
       stats: [
         { value: "~90 ms", label: "サンプルアプリで実測した dev サーバー起動。" },
         { value: "数ミリ秒", label: "oxc による変更ファイルの再変換。JS バンドラーのウォームアップなし。" },
@@ -129,7 +129,7 @@ export const STRINGS = {
       tagline: "Rust ツールチェーンのフルスタックWebフレームワーク。デフォルトで JS ゼロ。",
       copyright: "MIT © 2026 Voredge",
       windName: "野分 · 秋の台風の風",
-      trademark: "Next.js は Vercel, Inc. の商標です。Nowaki は独立したプロジェクトであり、Vercel との提携・公認関係はありません。",
+      trademark: "Next.js は Vercel, Inc.、Astro は The Astro Technology Company の商標です。Nowaki は独立したプロジェクトであり、いずれとも提携・公認関係はありません。",
     },
     copy: { copy: "コピー", copied: "コピー済 ✓" },
   },

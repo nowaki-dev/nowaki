@@ -53,8 +53,9 @@ export default function Landing({ locale }: { locale: Locale }) {
           <span class="eyetag" style="border:1px solid oklch(0.78 0.1 256 / 0.4);color:var(--cyan)">
             {s.hero.badge}
           </span>
-          <h1 class="hero-title" style="margin-top:1.4rem;max-width:16ch">
-            {s.hero.h1a} <span class="mark">{s.hero.h1b}</span>
+          <h1 class="hero-title" style="margin-top:1.4rem;max-width:20ch">
+            <span style="display:block">{s.hero.h1a}</span>
+            <span class="mark" style="display:block">{s.hero.h1b}</span>
           </h1>
           <p class="lead" style="margin-top:1.5rem;max-width:54ch;color:var(--on-storm);font-weight:450">
             {s.hero.sub}
