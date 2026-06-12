@@ -168,7 +168,8 @@ async fn serve_file(state: Arc<DevState>, abs: PathBuf) -> Response {
 
 async fn transform_response(state: Arc<DevState>, abs: PathBuf, mode: Mode) -> Response {
     // oxc変換はCPUバウンドなのでblockingプールで実行
-    let result = tokio::task::spawn_blocking(move || state.core.load_module(&abs, mode)).await;
+    let core_state = state.clone();
+    let result = tokio::task::spawn_blocking(move || core_state.core.load_module(&abs, mode)).await;
     match result {
         Ok(Ok(code)) => (
             [
@@ -179,8 +180,13 @@ async fn transform_response(state: Arc<DevState>, abs: PathBuf, mode: Mode) -> R
         )
             .into_response(),
         Ok(Err(err)) => {
-            eprintln!("[nowaki] 変換エラー: {err:#}");
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("{err:#}")).into_response()
+            let msg = format!("{err:#}");
+            eprintln!("[nowaki] 変換エラー: {msg}");
+            // エラーオーバーレイ用に HMR クライアントへ通知
+            let _ = state
+                .hmr_tx
+                .send(json!({ "type": "error", "message": msg }).to_string());
+            (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
         }
         Err(join_err) => (StatusCode::INTERNAL_SERVER_ERROR, join_err.to_string()).into_response(),
     }

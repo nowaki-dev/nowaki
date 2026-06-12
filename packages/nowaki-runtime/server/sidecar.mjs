@@ -8,7 +8,7 @@ import { register } from "node:module";
 register(new URL("./loader-hooks.mjs", import.meta.url));
 
 const { scanRoutes, matchRoute } = await import("./router.mjs");
-const { loadIslandRegistry, renderPage } = await import("./render.mjs");
+const { loadIslandRegistry, renderPage, errorPage } = await import("./render.mjs");
 const { pathToFileURL } = await import("node:url");
 
 const appRoot = process.cwd();
@@ -49,8 +49,8 @@ const server = createServer(async (req, res) => {
     res.end(html);
   } catch (err) {
     console.error("[nowaki ssr]", err);
-    res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
-    res.end(String(err?.stack ?? err));
+    res.writeHead(500, { "content-type": "text/html; charset=utf-8" });
+    res.end(errorPage(String(err?.stack ?? err)));
   }
 });
 

@@ -97,3 +97,19 @@ function escapeHtml(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 }
+
+// dev: SSR エラーを表示する 500 ページ。hmr.js を含むので修正後に自動リロードする。
+export function errorPage(message) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><title>Nowaki — build error</title></head>
+<body style="margin:0;background:#0a0c12;color:#e6e6e6;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace">
+<div style="max-width:920px;margin:0 auto;padding:2.5rem 2rem">
+<div style="color:#ff6b6b;font-weight:700;font-size:15px;margin-bottom:1rem">Nowaki — build error</div>
+<pre style="white-space:pre-wrap;margin:0">${escapeHtml(message)}</pre>
+<div style="margin-top:1.5rem;color:#8a8f98">Fix the error and save; the page reloads automatically.</div>
+</div>
+<script type="module" src="/node_modules/@nowaki-dev/runtime/client/hmr.js"></script>
+</body>
+</html>`;
+}
