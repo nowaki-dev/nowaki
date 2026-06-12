@@ -13,10 +13,10 @@ pub struct Sidecar {
 }
 
 pub async fn spawn(root: &Path, rust_port: u16) -> Result<Sidecar> {
-    let entry = root.join("node_modules/@nowaki/runtime/server/sidecar.mjs");
+    let entry = root.join("node_modules/@nowaki-dev/runtime/server/sidecar.mjs");
     if !entry.exists() {
         return Err(anyhow!(
-            "@nowaki/runtime が見つかりません ({}). アプリで `pnpm install` を実行してください",
+            "@nowaki-dev/runtime が見つかりません ({}). アプリで `pnpm install` を実行してください",
             entry.display()
         ));
     }

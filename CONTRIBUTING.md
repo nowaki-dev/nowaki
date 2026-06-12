@@ -31,7 +31,7 @@ cargo build -p nowaki
 |---|---|
 | `crates/nowaki-core` | Bundler core: oxc-based transform pipeline, resolver, module cache |
 | `crates/nowaki` | CLI binary: dev server (axum), HMR, sidecar management |
-| `packages/nowaki-runtime` | `@nowaki/runtime`: islands hydration client, SSR sidecar, Node loader hooks |
+| `packages/nowaki-runtime` | `@nowaki-dev/runtime`: islands hydration client, SSR sidecar, Node loader hooks |
 | `examples/hello` | Example app used for end-to-end verification |
 | `DESIGN.md` | Architecture and roadmap (Japanese; translation welcome!) |
 

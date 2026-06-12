@@ -39,7 +39,7 @@ pub fn build_client(core: &NowakiCore, dist: &Path) -> Result<BuildReport> {
     // エントリ1: islandsハイドレーションランタイム
     let runtime = core
         .root
-        .join("node_modules/@nowaki/runtime/client/islands.js");
+        .join("node_modules/@nowaki-dev/runtime/client/islands.js");
     let runtime_out = if runtime.exists() {
         Some(emit(
             core,

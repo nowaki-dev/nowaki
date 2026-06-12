@@ -84,8 +84,8 @@ export async function renderPage(mod, ctx) {
 </head>
 <body>
 ${body}
-<script type="module" src="/node_modules/@nowaki/runtime/client/islands.js"></script>
-<script type="module" src="/node_modules/@nowaki/runtime/client/hmr.js"></script>
+<script type="module" src="/node_modules/@nowaki-dev/runtime/client/islands.js"></script>
+<script type="module" src="/node_modules/@nowaki-dev/runtime/client/hmr.js"></script>
 </body>
 </html>`;
 }

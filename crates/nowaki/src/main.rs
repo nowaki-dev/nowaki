@@ -66,9 +66,9 @@ fn main() -> anyhow::Result<()> {
         }
         Command::Start { dir, port } => {
             let root = dir.canonicalize()?;
-            let entry = root.join("node_modules/@nowaki/runtime/server/start.mjs");
+            let entry = root.join("node_modules/@nowaki-dev/runtime/server/start.mjs");
             if !entry.exists() {
-                anyhow::bail!("@nowaki/runtime が見つかりません: {}", entry.display());
+                anyhow::bail!("@nowaki-dev/runtime が見つかりません: {}", entry.display());
             }
             if !root.join("dist/client/manifest.json").exists() {
                 anyhow::bail!(

@@ -52,7 +52,7 @@ Next.js の体感的な遅さには構造的な原因がある:
 │  └─ moduleローダーフック: .tsx/.ts は /__nowaki/ssr-module から変換済JSを取得      │
 └────────────────────────────────────────────────────────────────────────────────┘
 
-ブラウザ: SSR HTML + <script type="module" src="/@nowaki/client.js">
+ブラウザ: SSR HTML + <script type="module" src="/@nowaki-dev/client.js">
           → マーカー走査 → 島モジュールをdynamic import → hydrate(props)
 ```
 
@@ -65,7 +65,7 @@ nowaki/
 │   ├── nowaki-core/              # バンドラー本体 (transform / resolve / graph / cache)
 │   └── nowaki/                   # CLIバイナリ (dev / build / start) + devサーバー + sidecar管理
 ├── packages/
-│   └── nowaki-runtime/           # npm: @nowaki/runtime
+│   └── nowaki-runtime/           # npm: @nowaki-dev/runtime
 │       ├── client/             #   islandsハイドレーション + HMRクライアント
 │       └── server/             #   SSRサイドカー + Nodeローダーフック
 ├── examples/

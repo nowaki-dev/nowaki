@@ -84,7 +84,7 @@ export default function Home({ data }) {
 ```
 crates/nowaki-core       バンドラーコア (変換 / 解決 / キャッシュ)
 crates/nowaki            CLI + 開発サーバー (axum) + HMR + サイドカー管理
-packages/nowaki-runtime  @nowaki/runtime (islandsクライアント / SSRサイドカー / Nodeローダーフック)
+packages/nowaki-runtime  @nowaki-dev/runtime (islandsクライアント / SSRサイドカー / Nodeローダーフック)
 examples/hello           サンプルアプリ
 ```
 

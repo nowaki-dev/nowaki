@@ -38,7 +38,7 @@
 **Exit基準**: 誰でも `npm create nowaki` → `nowaki dev` が動き、リポジトリ・パッケージ・ドキュメントが公開されている。
 
 - [ ] crates.io 公開（`nowaki-core` → `nowaki`）
-- [ ] npm 公開（org `@nowaki`, `@nowaki/runtime`, `create-nowaki`）
+- [ ] npm 公開（org `@nowaki-dev`, `@nowaki-dev/runtime`, `create-nowaki`）
 - [ ] `nowaki.dev` 取得（Cloudflare）+ 最小ランディング/ドキュメント
 - [ ] GitHub repo を public 化、`nowaki-dev/maintainers` チーム、ブランチ保護
 - [ ] `cargo install nowaki` / `npx create-nowaki` の導線確認
@@ -131,8 +131,8 @@
 
 > 出力不安定化の可能性があるため、publish/購入は手元の `! コマンド` 実行が安全。順序は用意可能。
 
-1. **名前確保（最優先・早い者勝ち）**: crates.io `nowaki`/`nowaki-core`, npm `@nowaki`/`create-nowaki`, `nowaki.dev`
-2. **publish**: crates.io は `nowaki-core` → `nowaki` の順, npm は `@nowaki/runtime` → `create-nowaki`
+1. **名前確保（最優先・早い者勝ち）**: crates.io `nowaki`/`nowaki-core`, npm `@nowaki-dev`/`create-nowaki`, `nowaki.dev`
+2. **publish**: crates.io は `nowaki-core` → `nowaki` の順, npm は `@nowaki-dev/runtime` → `create-nowaki`
 3. **GitHub**: public 化, `nowaki-dev/maintainers`, ブランチ保護(PR必須+CI必須), Discussions 有効化
 4. **ドキュメント**: Getting Started, `nowaki.dev` ランディング
 5. **告知**: alpha・本番非推奨を明記した上で公開

@@ -10,7 +10,7 @@ importers:
 
   examples/hello:
     dependencies:
-      '@nowaki/runtime':
+      '@nowaki-dev/runtime':
         specifier: workspace:*
         version: link:../../packages/nowaki-runtime
       preact:
