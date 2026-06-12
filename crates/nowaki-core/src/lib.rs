@@ -1,3 +1,4 @@
+pub mod build;
 pub mod cache;
 pub mod resolve;
 pub mod transform;
@@ -56,5 +57,10 @@ impl NowakiCore {
             },
         );
         Ok(code)
+    }
+
+    /// 本番ビルド: クライアントグラフを dist/client/ へ出力する。
+    pub fn build_client(&self, dist: &Path) -> Result<build::BuildReport> {
+        build::build_client(self, dist)
     }
 }

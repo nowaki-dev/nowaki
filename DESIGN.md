@@ -100,7 +100,7 @@ oxc_parser (TSX) → oxc_transformer { TS型剥がし, JSX automatic (importSour
 
 ### 3.3 本番ビルド (`nowaki build`) — 段階的戦略
 
-- **Phase 1 (MVP+)**: エントリ（クライアントランタイム + 各island）からグラフを辿り、各モジュールを変換 + oxc_minifier で圧縮 + 相対URLをコンテンツハッシュ付ファイル名に書き換えて `dist/client/` へ出力（unbundled ESM emit, HTTP/2前提）。`<link rel="modulepreload">` マニフェスト生成で滝壺リクエストを回避。サーバー側は `dist/server/` にESM出力し、`nowaki start` がNodeで実行。
+- **Phase 1 (MVP+) — ✅実装済み (`crates/nowaki-core/src/build.rs`)**: エントリ（islandsランタイム + 各island）から後順DFSでグラフを辿り、各モジュールを変換 + codegen minify + import指定子をコンテンツハッシュ付ファイル名に書き換えて `dist/client/` へ出力（unbundled ESM emit）。共有依存（preact等）はパス単位でdedup。`manifest.json`（runtime + island名→ハッシュ名）を生成。後順DFSなので依存のハッシュ確定後に親を確定し、コンテンツハッシュが最終内容と一致する。**既知の残り**: (1) island の動的ロードはmanifest駆動のHTML/SSR配線が必要（`nowaki start` + prod SSR）、(2) 循環依存は現状エラー、(3) `modulepreload` マニフェスト出力。
 - **Phase 3**: スコープホイスティングによる真のチャンクバンドリング（island単位エントリチャンク + 共有チャンク）。rayonでチャンク並列コード生成。
 
 ## 4. フレームワーク規約 (ユーザーから見た姿)
@@ -151,7 +151,7 @@ export default function Home({ data }: PageProps<typeof loader>) {
 ## 7. ロードマップ
 
 - **Phase 1 (MVP)**: 本書 §2–§5 の dev 体験一式 — `nowaki dev`, oxc変換, /@modules/, Islands SSR, loader, live-reload HMR, サンプルアプリ
-- **Phase 1.5**: `nowaki build` / `nowaki start` (hashed ESM emit), エラーオーバーレイ, `create-nowaki` scaffolding
+- **Phase 1.5**: ✅`nowaki build`（クライアントグラフのhashed ESM emit + manifest）と ✅`create-nowaki` scaffolding は実装済み。残り: `nowaki start`（prod SSR配線）, エラーオーバーレイ
 - **Phase 2**: TSRXブリッジ, API routes拡充, ミドルウェア, 環境変数
 - **Phase 3**: チャンクバンドリング(スコープホイスティング), prefresh部分HMR, 永続ディスクキャッシュ, クライアントルーター(島間SPA遷移)
 - **Phase 4**: Bun/Denoサイドカー対応, Edgeランタイムビルド, RSC的サーバー関数 (`"use server"` RPC)

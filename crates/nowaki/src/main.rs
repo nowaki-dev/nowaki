@@ -25,6 +25,12 @@ enum Command {
         #[arg(short, long, default_value_t = 3000)]
         port: u16,
     },
+    /// 本番用にクライアントモジュールグラフをビルドする
+    Build {
+        /// アプリのルートディレクトリ
+        #[arg(default_value = ".")]
+        dir: PathBuf,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -36,6 +42,18 @@ fn main() -> anyhow::Result<()> {
                 .enable_all()
                 .build()?
                 .block_on(dev::run(root, port))
+        }
+        Command::Build { dir } => {
+            let root = dir.canonicalize()?;
+            let core = nowaki_core::NowakiCore::new(root.clone());
+            let report = core.build_client(&root.join("dist"))?;
+            println!(
+                "[nowaki] build完了: {} modules, {} islands → {}",
+                report.modules,
+                report.islands,
+                report.out_dir.display()
+            );
+            Ok(())
         }
     }
 }

@@ -47,6 +47,10 @@ cargo build -p nowaki
 # サンプルアプリで開発サーバー起動
 ./target/debug/nowaki dev examples/hello
 # → http://127.0.0.1:3000
+
+# 本番用にクライアントグラフをビルド（content-hash付きESM + manifest）
+./target/debug/nowaki build examples/hello
+# → examples/hello/dist/client/ に出力
 ```
 
 ## 書き味
