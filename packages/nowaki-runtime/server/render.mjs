@@ -85,8 +85,7 @@ ${typeof mod.head === "string" ? mod.head : ""}
 </head>
 <body>
 ${body}
-<script type="module" src="/node_modules/@nowaki-dev/runtime/client/islands.js"></script>
-<script type="module" src="/node_modules/@nowaki-dev/runtime/client/hmr.js"></script>
+${body.includes("<nowaki-island") ? '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/islands.js"></script>\n' : ""}<script type="module" src="/node_modules/@nowaki-dev/runtime/client/hmr.js"></script>
 </body>
 </html>`;
 }

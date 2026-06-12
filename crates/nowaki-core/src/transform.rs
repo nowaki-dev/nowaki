@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use oxc::allocator::Allocator;
 use oxc::ast::ast::{Program, Statement};
 use oxc::codegen::Codegen;
+use oxc::diagnostics::{GraphicalReportHandler, GraphicalTheme, NamedSource, OxcDiagnostic};
 use oxc::parser::Parser;
 use oxc::semantic::SemanticBuilder;
 use oxc::span::SourceType;
@@ -26,11 +27,9 @@ pub fn transform_file(
 
     let parsed = Parser::new(&allocator, source, source_type).parse();
     if !parsed.errors.is_empty() {
-        let msgs: Vec<String> = parsed.errors.iter().map(|e| e.to_string()).collect();
         return Err(anyhow!(
-            "parse error in {}: {}",
-            path.display(),
-            msgs.join("; ")
+            "parse error\n{}",
+            render_diagnostics(path, source, &parsed.errors)
         ));
     }
     let mut program = parsed.program;
@@ -47,11 +46,9 @@ pub fn transform_file(
     let transformed =
         Transformer::new(&allocator, path, &options).build_with_scoping(scoping, &mut program);
     if !transformed.errors.is_empty() {
-        let msgs: Vec<String> = transformed.errors.iter().map(|e| e.to_string()).collect();
         return Err(anyhow!(
-            "transform error in {}: {}",
-            path.display(),
-            msgs.join("; ")
+            "transform error\n{}",
+            render_diagnostics(path, source, &transformed.errors)
         ));
     }
 
@@ -86,6 +83,28 @@ fn rewrite_imports<'a>(
         lit.value = allocator.alloc_str(&url).into();
         lit.raw = None;
     }
+}
+
+/// oxc 診断を、file:line:col + 該当行 + キャレットのコードフレームへ整形する（色なし）。
+fn render_diagnostics(path: &Path, source: &str, diags: &[OxcDiagnostic]) -> String {
+    let handler = GraphicalReportHandler::new_themed(GraphicalTheme::unicode_nocolor());
+    let name = path.to_string_lossy().to_string();
+    let mut out = String::new();
+    for diag in diags {
+        let report = diag
+            .clone()
+            .with_source_code(NamedSource::new(name.clone(), source.to_string()));
+        let _ = handler.render_report(&mut out, report.as_ref());
+    }
+    if out.trim().is_empty() {
+        // フレーム化できない診断はメッセージ連結にフォールバック
+        out = diags
+            .iter()
+            .map(|d| d.to_string())
+            .collect::<Vec<_>>()
+            .join("; ");
+    }
+    out
 }
 
 /// 指定子をURLへ解決する。書き換え不要/不能なら None。

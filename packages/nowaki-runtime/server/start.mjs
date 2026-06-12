@@ -124,7 +124,23 @@ const server = createServer(async (req, res) => {
     const body = await renderToStringAsync(
       h(Page, { data, params: match.params, url }),
     );
-    const runtime = manifest.runtime
+    // ページに島があるときだけ runtime を読み込み、その島と runtime を modulepreload する。
+    const islandNames = [...body.matchAll(/<nowaki-island name="([^"]+)"/g)].map(
+      (m) => m[1],
+    );
+    const hasIslands = islandNames.length > 0 && manifest.runtime;
+    const preloadFiles = hasIslands
+      ? [
+          ...new Set([
+            manifest.runtime,
+            ...islandNames.map((n) => manifest.islands?.[n]).filter(Boolean),
+          ]),
+        ]
+      : [];
+    const preload = preloadFiles
+      .map((f) => `<link rel="modulepreload" href="/_nowaki/${f}" />`)
+      .join("\n");
+    const runtime = hasIslands
       ? `<script type="module" src="/_nowaki/${manifest.runtime}"></script>`
       : "";
 
@@ -135,6 +151,7 @@ const server = createServer(async (req, res) => {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(mod.title ?? "Nowaki App")}</title>
+${preload}
 ${typeof mod.head === "string" ? mod.head : ""}
 </head>
 <body>

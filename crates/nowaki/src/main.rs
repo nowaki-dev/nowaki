@@ -8,6 +8,7 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(
     name = "nowaki",
+    version,
     about = "Nowaki — Rust製ツールチェーンのフルスタックフレームワーク"
 )]
 struct Cli {
