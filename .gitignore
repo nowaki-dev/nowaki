@@ -3,6 +3,9 @@ node_modules/
 dist/
 .DS_Store
 
+# prerendered landing output (regenerate with site/scripts/prerender.sh)
+site/public/
+
 # impeccable design skill (installed via `npx impeccable skills install`)
 .github/skills/
 .impeccable/
