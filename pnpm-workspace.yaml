@@ -1,3 +1,5 @@
 packages:
   - "packages/*"
   - "examples/*"
+minimumReleaseAgeExclude:
+  - create-nowaki@0.1.0

@@ -1,0 +1,37 @@
+{
+  "name": "create-nowaki-app",
+  "version": "0.1.0",
+  "description": "Scaffold a new Nowaki app (alias of create-nowaki, for `npx create-nowaki-app`)",
+  "license": "MIT",
+  "author": "Voredge <dev@voredge.com>",
+  "homepage": "https://nowaki.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nowaki-dev/nowaki.git",
+    "directory": "packages/create-nowaki-app"
+  },
+  "bugs": "https://github.com/nowaki-dev/nowaki/issues",
+  "keywords": [
+    "nowaki",
+    "create",
+    "scaffold",
+    "starter",
+    "web-framework"
+  ],
+  "type": "module",
+  "bin": {
+    "create-nowaki-app": "index.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "dependencies": {
+    "create-nowaki": "^0.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

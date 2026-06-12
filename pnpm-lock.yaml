@@ -22,6 +22,12 @@ importers:
 
   packages/create-nowaki: {}
 
+  packages/create-nowaki-app:
+    dependencies:
+      create-nowaki:
+        specifier: ^0.1.0
+        version: 0.1.0
+
   packages/nowaki-runtime:
     devDependencies:
       preact:
@@ -33,6 +39,11 @@ importers:
 
 packages:
 
+  create-nowaki@0.1.0:
+    resolution: {integrity: sha512-dmZDuaGPwWUGxq3xMKNA6/QjGCBbFZ8yF7PPTMjbyiTwOitWMj32yMa1+FmwJ1N0PjHYNqxtIlXZfwGx89N/VQ==}
+    engines: {node: '>=22'}
+    hasBin: true
+
   preact-render-to-string@6.7.0:
     resolution: {integrity: sha512-Z4WR8fmLMRpdYqJ9i7vrlXSsSrxVJydwrkEXHapexfARbWfGb7vGcnvNQnIzN0cXciMVOlz/XLoiMCi9gUsy9Q==}
     peerDependencies:
@@ -42,6 +53,8 @@ packages:
     resolution: {integrity: sha512-7tNmwg/7mzzAoB/8kSg6Hl37JraAZw3Z3A0JSY7VXlZwo82Xn0G7wKbNNs2qoF4ZEEsQGTwDAroNdqKs1ofJxQ==}
 
 snapshots:
+
+  create-nowaki@0.1.0: {}
 
   preact-render-to-string@6.7.0(preact@10.29.2):
     dependencies:
