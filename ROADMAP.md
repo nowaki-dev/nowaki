@@ -25,9 +25,10 @@
 - ✅ OSS整備 — LICENSE(MIT, ©Voredge), README, CONTRIBUTING(DCO), CODE_OF_CONDUCT, SECURITY, CI, Issue/PRテンプレ
 - ✅ GitHub — `nowaki-dev/nowaki`（private）
 
-- ✅ **公開アーティファクト** — crates.io（`nowaki-core`/`nowaki` 0.1.0）, npm（`@nowaki-dev/runtime`/`create-nowaki` 0.1.0）, `nowaki.dev` 取得済み。`npm create nowaki` → `npm install` の公開導線を検証済み
+- ✅ **公開アーティファクト** — crates.io（`nowaki-core`/`nowaki` **0.1.1**）, npm（`@nowaki-dev/runtime` 0.1.0, `create-nowaki`/`create-nowaki-app` 0.1.0）, `nowaki.dev` 取得済み
+- ✅ **公開導線を実証** — `npm create nowaki`/`npx create-nowaki-app` → `pnpm install` → `cargo install nowaki`(0.1.1) → `nowaki dev` をドッグフーディングアプリ（`~/Desktop/Projects/nowaki-showcase`）で end-to-end 検証
 
-**未達**: GitHub 公開リポジトリ化（現状private）, ランディング/ドキュメントサイト, 実アプリでのドッグフーディング, `cargo install nowaki` 導線確認。
+**未達**: GitHub 公開リポジトリ化（現状private）, ランディング/ドキュメントサイト, ドッグフーディングの継続。
 
 ---
 
@@ -39,13 +40,14 @@
 **テーマ**: 世に出す。最小限だが本物が触れる状態で公開する。
 **Exit基準**: 誰でも `npm create nowaki` → `nowaki dev` が動き、リポジトリ・パッケージ・ドキュメントが公開されている。
 
-- [x] crates.io 公開（`nowaki-core` 0.1.0 → `nowaki` 0.1.0）
-- [x] npm 公開（`@nowaki-dev/runtime` 0.1.0, `create-nowaki` 0.1.0）
+- [x] crates.io 公開（`nowaki-core` → `nowaki` **0.1.1**）
+- [x] npm 公開（`@nowaki-dev/runtime`, `create-nowaki`, `create-nowaki-app`）
 - [x] `nowaki.dev` ドメイン取得
 - [x] `npm create nowaki` の公開導線を検証（生成 → `npm install` でランタイム取得まで）
+- [x] `cargo install nowaki` の導線確認（crates.io 経由ビルド → ショーケースアプリで実証）
 - [ ] GitHub repo を public 化、`nowaki-dev/maintainers` チーム、ブランチ保護
-- [ ] `cargo install nowaki` の導線確認（crates.io 経由ビルド）
 - [ ] `nowaki.dev` 最小ランディング + Getting Started（5分で動くまで）
+- [ ] `nowaki --version` 対応（小）, 壊れた crates 0.1.0 の yank（任意）
 
 ### v0.2 「Breeze」— DX & 正しさ
 **テーマ**: 毎日使える開発体験。
