@@ -100,7 +100,7 @@ oxc_parser (TSX) → oxc_transformer { TS型剥がし, JSX automatic (importSour
 
 ### 3.3 本番ビルド (`nowaki build`) — 段階的戦略
 
-- **Phase 1 (MVP+) — ✅実装済み (`crates/nowaki-core/src/build.rs`)**: エントリ（islandsランタイム + 各island）から後順DFSでグラフを辿り、各モジュールを変換 + codegen minify + import指定子をコンテンツハッシュ付ファイル名に書き換えて `dist/client/` へ出力（unbundled ESM emit）。共有依存（preact等）はパス単位でdedup。`manifest.json`（runtime + island名→ハッシュ名）を生成。後順DFSなので依存のハッシュ確定後に親を確定し、コンテンツハッシュが最終内容と一致する。**既知の残り**: (1) island の動的ロードはmanifest駆動のHTML/SSR配線が必要（`nowaki start` + prod SSR）、(2) 循環依存は現状エラー、(3) `modulepreload` マニフェスト出力。
+- **Phase 1 (MVP+) — ✅実装済み (`crates/nowaki-core/src/build.rs`)**: エントリ（islandsランタイム + 各island）から後順DFSでグラフを辿り、各モジュールを変換 + codegen minify + import指定子をコンテンツハッシュ付ファイル名に書き換えて `dist/client/` へ出力（unbundled ESM emit）。共有依存（preact等）はパス単位でdedup。`manifest.json`（runtime + island名→ハッシュ名）を生成。後順DFSなので依存のハッシュ確定後に親を確定し、コンテンツハッシュが最終内容と一致する。サーバー側は `build_server` が routes/ と islands/ を SSRモード変換（相対importの.tsx→.js書き換え）して `dist/server/` へ出力。配信は `nowaki start`（`packages/nowaki-runtime/server/start.mjs`）が `/_nowaki/` で静的配信しつつ、`dist/server` の built ルートで prod SSR、manifest経由でislandを正しいハッシュ済みクライアントファイルへ配線する。**既知の残り**: 循環依存は現状エラー、`modulepreload` マニフェスト出力、islandの無いページでのruntime省略。
 - **Phase 3**: スコープホイスティングによる真のチャンクバンドリング（island単位エントリチャンク + 共有チャンク）。rayonでチャンク並列コード生成。
 
 ## 4. フレームワーク規約 (ユーザーから見た姿)
@@ -151,7 +151,7 @@ export default function Home({ data }: PageProps<typeof loader>) {
 ## 7. ロードマップ
 
 - **Phase 1 (MVP)**: 本書 §2–§5 の dev 体験一式 — `nowaki dev`, oxc変換, /@modules/, Islands SSR, loader, live-reload HMR, サンプルアプリ
-- **Phase 1.5**: ✅`nowaki build`（クライアントグラフのhashed ESM emit + manifest）と ✅`create-nowaki` scaffolding は実装済み。残り: `nowaki start`（prod SSR配線）, エラーオーバーレイ
+- **Phase 1.5**: ✅`nowaki build`（client hashed ESM + manifest / server SSR ESM）, ✅`nowaki start`（静的配信 + prod SSR、manifest駆動でislandをハイドレート）, ✅`create-nowaki` scaffolding は実装済み。残り: エラーオーバーレイ, islandの無いページでのruntime省略最適化, modulepreload
 - **Phase 2**: TSRXブリッジ, API routes拡充, ミドルウェア, 環境変数
 - **Phase 3**: チャンクバンドリング(スコープホイスティング), prefresh部分HMR, 永続ディスクキャッシュ, クライアントルーター(島間SPA遷移)
 - **Phase 4**: Bun/Denoサイドカー対応, Edgeランタイムビルド, RSC的サーバー関数 (`"use server"` RPC)

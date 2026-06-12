@@ -31,6 +31,14 @@ enum Command {
         #[arg(default_value = ".")]
         dir: PathBuf,
     },
+    /// ビルド済みアプリを本番モードで配信する
+    Start {
+        /// アプリのルートディレクトリ
+        #[arg(default_value = ".")]
+        dir: PathBuf,
+        #[arg(short, long, default_value_t = 3000)]
+        port: u16,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -46,13 +54,36 @@ fn main() -> anyhow::Result<()> {
         Command::Build { dir } => {
             let root = dir.canonicalize()?;
             let core = nowaki_core::NowakiCore::new(root.clone());
-            let report = core.build_client(&root.join("dist"))?;
+            let report = core.build(&root.join("dist"))?;
             println!(
-                "[nowaki] build完了: {} modules, {} islands → {}",
+                "[nowaki] build完了: client {} modules / {} islands, server {} modules → {}",
                 report.modules,
                 report.islands,
+                report.server_modules,
                 report.out_dir.display()
             );
+            Ok(())
+        }
+        Command::Start { dir, port } => {
+            let root = dir.canonicalize()?;
+            let entry = root.join("node_modules/@nowaki/runtime/server/start.mjs");
+            if !entry.exists() {
+                anyhow::bail!("@nowaki/runtime が見つかりません: {}", entry.display());
+            }
+            if !root.join("dist/client/manifest.json").exists() {
+                anyhow::bail!(
+                    "dist が未ビルドです。先に `nowaki build {}` を実行してください",
+                    dir.display()
+                );
+            }
+            let status = std::process::Command::new("node")
+                .arg(&entry)
+                .current_dir(&root)
+                .env("PORT", port.to_string())
+                .status()?;
+            if !status.success() {
+                anyhow::bail!("nowaki start が異常終了しました");
+            }
             Ok(())
         }
     }

@@ -22,6 +22,7 @@ use crate::NowakiCore;
 pub struct BuildReport {
     pub modules: usize,
     pub islands: usize,
+    pub server_modules: usize,
     pub out_dir: PathBuf,
 }
 
@@ -79,8 +80,128 @@ pub fn build_client(core: &NowakiCore, dist: &Path) -> Result<BuildReport> {
     Ok(BuildReport {
         modules: emitted.len(),
         islands: islands.len(),
+        server_modules: 0,
         out_dir: client_dir,
     })
+}
+
+/// サーバー側ビルド: routes/ と islands/ を SSRモードで変換し、
+/// dist/server/ へ Node が直接実行できる ESM として出力する。
+/// 相対importの .tsx/.ts/.jsx を .js へ書き換える（bare importはNode解決に任せる）。
+/// 出力モジュール数を返す。
+pub fn build_server(core: &NowakiCore, dist: &Path) -> Result<usize> {
+    let server_dir = dist.join("server");
+    let mut count = 0;
+    for sub in ["routes", "islands"] {
+        let src_root = core.root.join(sub);
+        if !src_root.is_dir() {
+            continue;
+        }
+        for path in walk_files(&src_root)? {
+            if !crate::is_transformable(&path) {
+                continue;
+            }
+            let rel = path
+                .strip_prefix(&core.root)
+                .with_context(|| format!("rel化失敗: {}", path.display()))?;
+            let out_path = server_dir.join(with_js_ext(rel));
+            let source = fs::read_to_string(&path)
+                .with_context(|| format!("読み込み失敗: {}", path.display()))?;
+            let code = transform_for_server(&path, &source)?;
+            if let Some(parent) = out_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&out_path, code)?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+/// SSR向け変換: TS除去 + JSX(automatic, preact)。相対ローカルimportの拡張子を
+/// .js へ書き換える。bare import (npm) はそのまま（Nodeが解決する）。minifyしない
+/// （SSRのスタックトレース可読性のため）。
+fn transform_for_server(path: &Path, source: &str) -> Result<String> {
+    let allocator = Allocator::default();
+    let source_type = SourceType::from_path(path).unwrap_or_else(|_| SourceType::tsx());
+
+    let parsed = Parser::new(&allocator, source, source_type).parse();
+    if !parsed.errors.is_empty() {
+        let msgs: Vec<String> = parsed.errors.iter().map(|e| e.to_string()).collect();
+        return Err(anyhow!(
+            "parse error in {}: {}",
+            path.display(),
+            msgs.join("; ")
+        ));
+    }
+    let mut program = parsed.program;
+
+    let scoping = SemanticBuilder::new()
+        .build(&program)
+        .semantic
+        .into_scoping();
+
+    let mut options = TransformOptions::default();
+    options.jsx.runtime = JsxRuntime::Automatic;
+    options.jsx.import_source = Some("preact".to_string());
+    let ret =
+        Transformer::new(&allocator, path, &options).build_with_scoping(scoping, &mut program);
+    if !ret.errors.is_empty() {
+        let msgs: Vec<String> = ret.errors.iter().map(|e| e.to_string()).collect();
+        return Err(anyhow!(
+            "transform error in {}: {}",
+            path.display(),
+            msgs.join("; ")
+        ));
+    }
+
+    for stmt in program.body.iter_mut() {
+        let source_lit = match stmt {
+            Statement::ImportDeclaration(d) => Some(&mut d.source),
+            Statement::ExportNamedDeclaration(d) => d.source.as_mut(),
+            Statement::ExportAllDeclaration(d) => Some(&mut d.source),
+            _ => None,
+        };
+        let Some(lit) = source_lit else { continue };
+        if let Some(rewritten) = rewrite_server_spec(lit.value.as_str()) {
+            lit.value = allocator.alloc_str(&rewritten).into();
+            lit.raw = None;
+        }
+    }
+
+    Ok(Codegen::new().build(&program).code)
+}
+
+/// 相対ローカルimportの TS拡張子を .js へ。bare/absolute/.js は触らない。
+fn rewrite_server_spec(spec: &str) -> Option<String> {
+    if !spec.starts_with('.') {
+        return None; // bare import (npm) はそのまま
+    }
+    for ext in [".tsx", ".jsx", ".ts"] {
+        if let Some(stem) = spec.strip_suffix(ext) {
+            return Some(format!("{stem}.js"));
+        }
+    }
+    None
+}
+
+/// 相対パスの拡張子を .js に変えて返す。
+fn with_js_ext(rel: &Path) -> PathBuf {
+    rel.with_extension("js")
+}
+
+/// ディレクトリ以下のファイルを再帰的に集める。
+fn walk_files(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    for entry in fs::read_dir(dir)? {
+        let path = entry?.path();
+        if path.is_dir() {
+            out.extend(walk_files(&path)?);
+        } else {
+            out.push(path);
+        }
+    }
+    Ok(out)
 }
 
 /// 1モジュールを（依存を先に処理してから）出力し、出力ファイル名を返す。

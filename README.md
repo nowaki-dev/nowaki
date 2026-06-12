@@ -48,9 +48,13 @@ cargo build -p nowaki
 ./target/debug/nowaki dev examples/hello
 # → http://127.0.0.1:3000
 
-# 本番用にクライアントグラフをビルド（content-hash付きESM + manifest）
+# 本番用にビルド（client: content-hash付きESM + manifest / server: SSR用ESM）
 ./target/debug/nowaki build examples/hello
-# → examples/hello/dist/client/ に出力
+# → examples/hello/dist/{client,server}/ に出力
+
+# ビルド済みアプリを本番モードで配信
+./target/debug/nowaki start examples/hello --port 3000
+# → http://127.0.0.1:3000 （静的配信 + prod SSR、HMRなし）
 ```
 
 ## 書き味

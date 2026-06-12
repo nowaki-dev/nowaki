@@ -59,8 +59,11 @@ impl NowakiCore {
         Ok(code)
     }
 
-    /// 本番ビルド: クライアントグラフを dist/client/ へ出力する。
-    pub fn build_client(&self, dist: &Path) -> Result<build::BuildReport> {
-        build::build_client(self, dist)
+    /// 本番ビルド: クライアントグラフを dist/client/ へ、サーバーモジュールを
+    /// dist/server/ へ出力する。
+    pub fn build(&self, dist: &Path) -> Result<build::BuildReport> {
+        let mut report = build::build_client(self, dist)?;
+        report.server_modules = build::build_server(self, dist)?;
+        Ok(report)
     }
 }
