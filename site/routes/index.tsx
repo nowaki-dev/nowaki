@@ -465,6 +465,13 @@ function Footer() {
           <span>MIT © 2026 Voredge</span>
           <span>野分 · an autumn typhoon wind</span>
         </div>
+        <p
+          class="on-storm-muted"
+          style="margin-top:1.1rem;font-size:.76rem;color:var(--on-storm-muted);max-width:64ch"
+        >
+          Next.js is a trademark of Vercel, Inc. Nowaki is an independent project and is
+          not affiliated with or endorsed by Vercel.
+        </p>
       </div>
     </footer>
   );
