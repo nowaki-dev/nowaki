@@ -46,7 +46,17 @@ git push origin v0.1.2
 - `publish-wrapper` ジョブ: 全ビルド後に wrapper `nowaki` を publish。
 - 手動実行（workflow_dispatch）で `dry_run=true` にするとビルドのみ。
 
-### npm runtime / create-nowaki（手動）
+### npm runtime / create-nowaki
+
+各 `package.json` の version を上げてから、`Publish npm packages`
+ワークフロー（`.github/workflows/publish-npm.yml`）を手動実行する。`package`
+入力で対象を選ぶ（既定 `all` = runtime + create-nowaki + create-nowaki-app）。
+release.yml と同じ `NPM_TOKEN` を使う。
+
+注: `@nowaki-dev/runtime` は CLI とバージョンを揃える（同じコミットから出すため）。
+scaffold テンプレートの `@nowaki-dev/runtime` 依存も合わせて上げる。
+
+ローカルから手で publish する場合（npm にログイン済みなら）:
 
 ```bash
 cd packages/nowaki-runtime && npm publish

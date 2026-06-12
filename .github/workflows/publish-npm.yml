@@ -1,0 +1,53 @@
+name: Publish npm packages
+
+# プラットフォーム非依存の npm パッケージ（runtime / create-nowaki / create-nowaki-app）を
+# publish する。プラットフォーム別 CLI バイナリは release.yml が担当。
+# 事前に package.json の version を上げてからこのワークフローを手動実行すること。
+# NPM_TOKEN（2FAバイパスの Automation/Granular トークン）を repo Secrets に設定済みであること。
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "publish するパッケージ"
+        type: choice
+        default: all
+        options:
+          - all
+          - runtime
+          - create-nowaki
+          - create-nowaki-app
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish @nowaki-dev/runtime
+        if: ${{ inputs.package == 'all' || inputs.package == 'runtime' }}
+        run: npm publish --access public
+        working-directory: packages/nowaki-runtime
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish create-nowaki
+        if: ${{ inputs.package == 'all' || inputs.package == 'create-nowaki' }}
+        run: npm publish --access public
+        working-directory: packages/create-nowaki
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish create-nowaki-app
+        if: ${{ inputs.package == 'all' || inputs.package == 'create-nowaki-app' }}
+        run: npm publish --access public
+        working-directory: packages/create-nowaki-app
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
