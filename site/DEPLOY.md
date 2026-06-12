@@ -7,10 +7,11 @@ Nowaki) and deploy to Cloudflare Pages.
 ## 1. Pre-render to static files
 
 ```bash
-bash site/scripts/prerender.sh
+nowaki prerender site --out public
 ```
 
-Outputs `site/public/`:
+(`site/scripts/prerender.sh` is the equivalent manual flow if you don't have
+the `nowaki` binary on PATH.) Outputs `site/public/`:
 
 - `index.html` (`/`), `ja/index.html` (`/ja`)
 - `_nowaki/*` — content-hashed client assets (islands runtime + island chunks)

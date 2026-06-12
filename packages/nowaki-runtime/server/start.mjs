@@ -178,6 +178,8 @@ function escapeHtml(s) {
 }
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`NOWAKI_START_READY ${PORT}`);
-  console.log(`[nowaki] 本番配信: http://127.0.0.1:${PORT}`);
+  // PORT=0 のときは実際に割り当てられたポートを報告する（prerender 等が利用）
+  const actual = server.address().port;
+  console.log(`NOWAKI_START_READY ${actual}`);
+  console.log(`[nowaki] 本番配信: http://127.0.0.1:${actual}`);
 });

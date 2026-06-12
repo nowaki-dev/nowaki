@@ -1,4 +1,5 @@
 mod dev;
+mod prerender;
 mod sidecar;
 
 use std::path::PathBuf;
@@ -39,6 +40,15 @@ enum Command {
         dir: PathBuf,
         #[arg(short, long, default_value_t = 3000)]
         port: u16,
+    },
+    /// 静的サイトとして事前レンダリングする (SSG)
+    Prerender {
+        /// アプリのルートディレクトリ
+        #[arg(default_value = ".")]
+        dir: PathBuf,
+        /// 出力ディレクトリ (dir からの相対 or 絶対)
+        #[arg(short, long, default_value = "dist/static")]
+        out: PathBuf,
     },
 }
 
@@ -86,6 +96,18 @@ fn main() -> anyhow::Result<()> {
                 anyhow::bail!("nowaki start が異常終了しました");
             }
             Ok(())
+        }
+        Command::Prerender { dir, out } => {
+            let root = dir.canonicalize()?;
+            let out = if out.is_absolute() {
+                out
+            } else {
+                root.join(out)
+            };
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()?
+                .block_on(prerender::run(root, out))
         }
     }
 }
