@@ -25,7 +25,9 @@
 - ✅ OSS整備 — LICENSE(MIT, ©Voredge), README, CONTRIBUTING(DCO), CODE_OF_CONDUCT, SECURITY, CI, Issue/PRテンプレ
 - ✅ GitHub — `nowaki-dev/nowaki`（private）
 
-**未達**: crates.io / npm / `nowaki.dev` の名前確保、公開リポジトリ化、ドキュメントサイト、実アプリ検証。
+- ✅ **公開アーティファクト** — crates.io（`nowaki-core`/`nowaki` 0.1.0）, npm（`@nowaki-dev/runtime`/`create-nowaki` 0.1.0）, `nowaki.dev` 取得済み。`npm create nowaki` → `npm install` の公開導線を検証済み
+
+**未達**: GitHub 公開リポジトリ化（現状private）, ランディング/ドキュメントサイト, 実アプリでのドッグフーディング, `cargo install nowaki` 導線確認。
 
 ---
 
@@ -33,16 +35,17 @@
 
 各マイルストーンは「テーマ」「Exit基準（これが満たせたら次へ）」「主要成果物」で定義する。
 
-### v0.1 「Gust」— Public Alpha ローンチ ← 次の関門
+### v0.1 「Gust」— Public Alpha ローンチ ← 進行中（ほぼ達成）
 **テーマ**: 世に出す。最小限だが本物が触れる状態で公開する。
 **Exit基準**: 誰でも `npm create nowaki` → `nowaki dev` が動き、リポジトリ・パッケージ・ドキュメントが公開されている。
 
-- [ ] crates.io 公開（`nowaki-core` → `nowaki`）
-- [ ] npm 公開（org `@nowaki-dev`, `@nowaki-dev/runtime`, `create-nowaki`）
-- [ ] `nowaki.dev` 取得（Cloudflare）+ 最小ランディング/ドキュメント
+- [x] crates.io 公開（`nowaki-core` 0.1.0 → `nowaki` 0.1.0）
+- [x] npm 公開（`@nowaki-dev/runtime` 0.1.0, `create-nowaki` 0.1.0）
+- [x] `nowaki.dev` ドメイン取得
+- [x] `npm create nowaki` の公開導線を検証（生成 → `npm install` でランタイム取得まで）
 - [ ] GitHub repo を public 化、`nowaki-dev/maintainers` チーム、ブランチ保護
-- [ ] `cargo install nowaki` / `npx create-nowaki` の導線確認
-- [ ] Getting Started ドキュメント（5分で動くまで）
+- [ ] `cargo install nowaki` の導線確認（crates.io 経由ビルド）
+- [ ] `nowaki.dev` 最小ランディング + Getting Started（5分で動くまで）
 
 ### v0.2 「Breeze」— DX & 正しさ
 **テーマ**: 毎日使える開発体験。
@@ -131,11 +134,11 @@
 
 > 出力不安定化の可能性があるため、publish/購入は手元の `! コマンド` 実行が安全。順序は用意可能。
 
-1. **名前確保（最優先・早い者勝ち）**: crates.io `nowaki`/`nowaki-core`, npm `@nowaki-dev`/`create-nowaki`, `nowaki.dev`
-2. **publish**: crates.io は `nowaki-core` → `nowaki` の順, npm は `@nowaki-dev/runtime` → `create-nowaki`
-3. **GitHub**: public 化, `nowaki-dev/maintainers`, ブランチ保護(PR必須+CI必須), Discussions 有効化
-4. **ドキュメント**: Getting Started, `nowaki.dev` ランディング
-5. **告知**: alpha・本番非推奨を明記した上で公開
+1. ✅ **名前確保**: crates.io `nowaki`/`nowaki-core`, npm `@nowaki-dev/runtime`/`create-nowaki`, `nowaki.dev`
+2. ✅ **publish**: crates.io（`nowaki-core`→`nowaki`）, npm（`@nowaki-dev/runtime`, `create-nowaki`）— 全て公開済み・API裏取り済み
+3. ⬜ **GitHub**: public 化, `nowaki-dev/maintainers`, ブランチ保護(PR必須+CI必須), Discussions 有効化
+4. ⬜ **ドキュメント**: Getting Started, `nowaki.dev` ランディング
+5. ⬜ **告知**: alpha・本番非推奨を明記した上で公開
 
 ---
 
