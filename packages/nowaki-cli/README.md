@@ -1,6 +1,6 @@
 # nowaki
 
-The **Nowaki** CLI — a Rust-powered bundler, dev server, and static-site generator for the [Nowaki](https://nowaki.dev) web framework.
+The Nowaki CLI: a Rust-powered bundler, dev server, and static-site generator for the [Nowaki](https://nowaki.dev) web framework.
 
 This package ships a small Node wrapper that runs a prebuilt native binary for your platform. No Rust toolchain required.
 

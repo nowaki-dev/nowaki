@@ -1,16 +1,16 @@
-# Nowaki ロードマップ 🌀
+# Nowaki ロードマップ
 
 > 本書は方向性を示すもので、項目・順序・時期は予告なく変わります。設計の根拠は [DESIGN.md](./DESIGN.md) を参照。
 
 ## ビジョン
 
-**「Next.js の遅さへの構造的な答え」** を、3つの原則で実現する:
+「Next.js の遅さへの構造的な答え」を、3つの柱で実現します。
 
-1. **Rustツールチェーン** — 変換・解決・バンドル・配信は oxc ベースの Rust が担い、起動とビルドを高速に保つ
-2. **デフォルトJSゼロ（Islands）** — ページはサーバーで描画し、明示した「島」だけがクライアントで動く
-3. **npmエコシステム互換** — SSR は Node に委譲し、既存の資産をそのまま使える
+1. Rustツールチェーン。変換・解決・バンドル・配信を oxc ベースの Rust が担い、起動とビルドを速く保つ。
+2. デフォルトJSゼロ（Islands）。ページはサーバーで描画し、明示した「島」だけがクライアントで動く。
+3. npm エコシステム互換。SSR は Node に委譲し、既存の資産をそのまま使える。
 
-成功の指標（1.0時点の目標）: dev起動 < 300ms / HMR反映 < 100ms / 典型ページのクライアントJS < 15KB(gzip) / 実アプリでのドッグフーディング実績。
+成功の指標（1.0時点の目標）: dev起動 < 300ms、HMR反映 < 100ms、典型ページのクライアントJS < 15KB(gzip)、実アプリでのドッグフーディング実績。
 
 ---
 
@@ -18,15 +18,15 @@
 
 コアループは1つのサンプルアプリで通しで動作する状態。
 
-- ✅ `nowaki dev` — axum devサーバー, oxcオンデマンド変換, `/@modules/`, Islands SSR(Nodeサイドカー), Remix風loader, live-reload HMR
-- ✅ `nowaki build` — client（後順DFSグラフ走査 → content-hash付きESM + `manifest.json`）, server（routes/islands を SSR用ESMで `dist/server/` へ）
-- ✅ `nowaki start` — 最低限の本番配信（`/_nowaki/` 静的配信 + prod SSR + manifest駆動のisland配線, HMRなし）
-- ✅ `create-nowaki` — スキャフォールド（`npm create nowaki`）
-- ✅ OSS整備 — LICENSE(MIT, ©Voredge), README, CONTRIBUTING(DCO), CODE_OF_CONDUCT, SECURITY, CI, Issue/PRテンプレ
-- ✅ GitHub — `nowaki-dev/nowaki`（private）
+- ✅ `nowaki dev`: axum devサーバー, oxcオンデマンド変換, `/@modules/`, Islands SSR(Nodeサイドカー), Remix風loader, live-reload HMR
+- ✅ `nowaki build`: client（後順DFSグラフ走査 → content-hash付きESM + `manifest.json`）, server（routes/islands を SSR用ESMで `dist/server/` へ）
+- ✅ `nowaki start`: 最低限の本番配信（`/_nowaki/` 静的配信 + prod SSR + manifest駆動のisland配線, HMRなし）
+- ✅ `create-nowaki`: スキャフォールド（`npm create nowaki`）
+- ✅ OSS整備: LICENSE(MIT, ©Voredge), README, CONTRIBUTING(DCO), CODE_OF_CONDUCT, SECURITY, CI, Issue/PRテンプレ
+- ✅ GitHub: `nowaki-dev/nowaki`（private）
 
-- ✅ **公開アーティファクト** — crates.io（`nowaki-core`/`nowaki` **0.1.1**）, npm（`@nowaki-dev/runtime` 0.1.0, `create-nowaki`/`create-nowaki-app` 0.1.0）, `nowaki.dev` 取得済み
-- ✅ **公開導線を実証** — `npm create nowaki`/`npx create-nowaki-app` → `pnpm install` → `cargo install nowaki`(0.1.1) → `nowaki dev` をドッグフーディングアプリ（`~/Desktop/Projects/nowaki-showcase`）で end-to-end 検証
+- ✅ 公開アーティファクト: crates.io（`nowaki-core`/`nowaki` 0.1.1）, npm（`@nowaki-dev/runtime` 0.1.0, `create-nowaki`/`create-nowaki-app` 0.1.0）, `nowaki.dev` 取得済み
+- ✅ 公開導線を実証: `npm create nowaki`/`npx create-nowaki-app` → `pnpm install` → `cargo install nowaki`(0.1.1) → `nowaki dev` をドッグフーディングアプリ（`~/Desktop/Projects/nowaki-showcase`）で end-to-end 検証
 
 **未達**: GitHub 公開リポジトリ化（現状private）, ランディング/ドキュメントサイト, ドッグフーディングの継続。
 
@@ -36,7 +36,7 @@
 
 各マイルストーンは「テーマ」「Exit基準（これが満たせたら次へ）」「主要成果物」で定義する。
 
-### v0.1 「Gust」— Public Alpha ローンチ ← 進行中（ほぼ達成）
+### v0.1 「Gust」: Public Alpha ローンチ（進行中、ほぼ達成）
 **テーマ**: 世に出す。最小限だが本物が触れる状態で公開する。
 **Exit基準**: 誰でも `npm create nowaki` → `nowaki dev` が動き、リポジトリ・パッケージ・ドキュメントが公開されている。
 
@@ -49,7 +49,7 @@
 - [ ] `nowaki.dev` 最小ランディング + Getting Started（5分で動くまで）
 - [ ] `nowaki --version` 対応（小）, 壊れた crates 0.1.0 の yank（任意）
 
-### v0.2 「Breeze」— DX & 正しさ
+### v0.2 「Breeze」: DX & 正しさ
 **テーマ**: 毎日使える開発体験。
 **Exit基準**: 小規模な実アプリを Nowaki でドッグフーディングできる。
 
@@ -60,7 +60,7 @@
 - [ ] 診断の質（解決失敗・型エラーの分かりやすい表示, コードフレーム）
 - [ ] build 仕上げ: `modulepreload` マニフェスト, island の無いページでの runtime script 省略
 
-### v0.3 「Squall」— ルーティング & データ
+### v0.3 「Squall」: ルーティング & データ
 **テーマ**: 実用フレームワークの機能面。
 **Exit基準**: 基本的な Next/Remix アプリと機能比較できる。
 
@@ -72,7 +72,7 @@
 - [ ] 404/500・エラーバウンダリのルート規約
 - [ ] リダイレクト/ヘッダ/Cookie ヘルパ, `LoaderContext` の整備
 
-### v0.4 「Monsoon」— バンドラーの深化
+### v0.4 「Monsoon」: バンドラーの深化
 **テーマ**: 本番品質の出力と高速なビルド。これが Rust バンドラーの本丸。
 **Exit基準**: 中規模アプリで Next 同等以上のビルド速度と出力品質。
 
@@ -84,7 +84,7 @@
 - [ ] アセット import とハッシュ（画像・フォント等）
 - [ ] 循環依存対応, `rayon` でのチャンク並列コード生成
 
-### v0.5 「Typhoon」— エコシステム & デプロイ
+### v0.5 「Typhoon」: エコシステム & デプロイ
 **テーマ**: どこにでも出せる、拡張できる。
 **Exit基準**: 主要なデプロイ先に出せ、サードパーティ拡張が書ける。
 
@@ -94,7 +94,7 @@
 - [ ] プラグイン API（変換フック, 仮想モジュール）
 - [ ] サイドカーの抽象化（Bun/Deno をSSR実行系として選択可能に）
 
-### v0.6 – v0.9 「Beta」— 安定化
+### v0.6〜v0.9 「Beta」: 安定化
 **テーマ**: 壊れない・速い・信頼できる。
 **Exit基準**: API が概ね固定され、本番採用の事例が出る。
 
@@ -105,7 +105,7 @@
 - [ ] **サーバー関数（実験的）**: `"use server"` RPC（RSC的なサーバー↔クライアント境界）
 - [ ] ドキュメントサイト本格版（API リファレンス, レシピ, 移行ガイド）
 
-### v1.0 「Nowaki」— 安定版
+### v1.0 「Nowaki」: 安定版
 **テーマ**: 約束できる土台。
 **Exit基準**: 公開API安定保証, 完全なドキュメント, ガバナンス確立。
 
@@ -137,7 +137,7 @@
 > 出力不安定化の可能性があるため、publish/購入は手元の `! コマンド` 実行が安全。順序は用意可能。
 
 1. ✅ **名前確保**: crates.io `nowaki`/`nowaki-core`, npm `@nowaki-dev/runtime`/`create-nowaki`, `nowaki.dev`
-2. ✅ **publish**: crates.io（`nowaki-core`→`nowaki`）, npm（`@nowaki-dev/runtime`, `create-nowaki`）— 全て公開済み・API裏取り済み
+2. ✅ **publish**: crates.io（`nowaki-core`→`nowaki`）, npm（`@nowaki-dev/runtime`, `create-nowaki`）。全て公開済み・API裏取り済み
 3. ⬜ **GitHub**: public 化, `nowaki-dev/maintainers`, ブランチ保護(PR必須+CI必須), Discussions 有効化
 4. ⬜ **ドキュメント**: Getting Started, `nowaki.dev` ランディング
 5. ⬜ **告知**: alpha・本番非推奨を明記した上で公開

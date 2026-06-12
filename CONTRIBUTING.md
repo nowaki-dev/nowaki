@@ -1,8 +1,8 @@
 # Contributing to Nowaki
 
-Thank you for your interest in contributing! Nowaki is in **alpha** — the
-architecture is settling, so opening an issue to discuss your idea before
-writing code is the best way to avoid wasted effort.
+Thanks for your interest in contributing. Nowaki is in alpha and the
+architecture is still settling, so opening an issue to discuss your idea
+before writing code is the best way to avoid wasted effort.
 
 日本語でのIssue・PRも歓迎します。
 
@@ -10,7 +10,7 @@ writing code is the best way to avoid wasted effort.
 
 Prerequisites:
 
-- Rust (stable) — `rustup` recommended
+- Rust (stable); `rustup` recommended
 - Node.js >= 22
 - pnpm
 
@@ -41,7 +41,7 @@ cargo build -p nowaki
 - Verify the example app still works: start `nowaki dev examples/hello` and
   check that the page renders, the counter island hydrates, and editing
   `routes/index.tsx` triggers a reload.
-- Keep PRs focused — one logical change per PR.
+- Keep PRs focused: one logical change per PR.
 
 ## Commit messages and sign-off
 
@@ -55,4 +55,4 @@ Signed-off-by: Your Name <you@example.com>
 ## Where to ask questions
 
 - Bugs and feature requests: [GitHub Issues](https://github.com/nowaki-dev/nowaki/issues)
-- Security issues: see [SECURITY.md](./SECURITY.md) — please do **not** open a public issue
+- Security issues: see [SECURITY.md](./SECURITY.md). Please do not open a public issue.

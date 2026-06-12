@@ -1,13 +1,13 @@
 <div align="center">
 
-# Nowaki (野分) 🌀
+# Nowaki (野分)
 
-**Rust製ツールチェーンを核とする、爆速フルスタックWebフレームワーク**
+Rust製ツールチェーンを核とするフルスタックWebフレームワーク
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#status)
 
-Next.js の遅さへの答え — デフォルトでクライアントJSゼロ、Rustバイナリで即起動。
+クライアントJSはデフォルトでゼロ。開発サーバーはRustバイナリで即起動します。Next.js の構造的な遅さへの答えとして設計しました。
 
 </div>
 
@@ -15,28 +15,28 @@ Next.js の遅さへの答え — デフォルトでクライアントJSゼロ�
 
 ## Nowaki とは
 
-Nowaki（野分 = 台風の古語）は、Next.js の構造的な遅さを出発点に設計したフルスタックフレームワークです。バンドラー／変換／開発サーバーを **Rust + [oxc](https://oxc.rs)** で構築し、レンダリングは **Islands Architecture** を採ることで、ページが送るクライアントJSを「島」の分だけに抑えます。
+Nowaki（野分 = 台風の古語）は、Next.js の構造的な遅さを出発点に設計したフルスタックフレームワークです。バンドラー・変換・開発サーバーを Rust と [oxc](https://oxc.rs) で書き、レンダリングには Islands Architecture を採りました。ページが送るクライアントJSは「島」の分だけに収まります。
 
 | Next.js の課題 | Nowaki の回答 |
 |---|---|
-| `next dev` の起動が遅い | Rustバイナリが即起動・オンデマンド変換（**例アプリで起動 ~90ms**） |
-| HMR が重い | oxc によるms級の単一ファイル再変換 |
-| ページのJSが肥大化 | **Islands**: 明示した島以外はクライアントJSゼロ |
-| ビルドが遅い | oxc minifier・コンテンツハッシュキャッシュ |
+| `next dev` の起動が遅い | Rustバイナリが即起動し、オンデマンドで変換する（例アプリで起動およそ90ms） |
+| HMR が重い | oxc が単一ファイルをミリ秒級で再変換する |
+| ページのJSが肥大化 | Islands により、明示した島以外はクライアントJSがゼロ |
+| ビルドが遅い | oxc minifier とコンテンツハッシュキャッシュ |
 
 > [!WARNING]
 > **Status: alpha.** 設計は固まりつつありますが、APIは予告なく変わります。本番利用はまだ推奨しません。
 
 ## 特徴
 
-- ⚡ **Rustツールチェーン** — oxc (parser / transformer / codegen / resolver) 上に構築したオンデマンド変換パイプライン
-- 🏝️ **Islands Architecture** — デフォルトJSゼロ。`islands/` のコンポーネントだけがハイドレートされる
-- 📁 **ファイルベースルーティング** + Remix風 `loader`
-- 🔌 **npmエコシステム互換** — SSRは Rust が管理する Node サイドカー (Preact) へ委譲
+- oxc（parser / transformer / codegen / resolver）の上に、オンデマンド変換パイプラインを Rust で組んでいる。
+- Islands Architecture を採用。デフォルトでクライアントJSはゼロで、`islands/` 配下のコンポーネントだけがハイドレートされる。
+- ファイルベースルーティングと、Remix 風の `loader`。
+- npm エコシステムはそのまま使える。SSR は Rust が管理する Node サイドカー（Preact）に委譲する。
 
 ## クイックスタート
 
-前提: Node.js >= 22, pnpm（または npm/yarn）。**Rust は不要** — CLI はプリビルドのネイティブバイナリを npm から取得します。
+前提は Node.js 22 以上と pnpm（npm や yarn でも動きます）。Rust は要りません。CLI はプリビルドのネイティブバイナリを npm から取得します。
 
 ```bash
 # 新しいアプリを作成
@@ -115,11 +115,11 @@ packages/nowaki-runtime  @nowaki-dev/runtime (islandsクライアント / SSRサ
 examples/hello           サンプルアプリ
 ```
 
-設計の詳細・アーキテクチャ図は **[DESIGN.md](./DESIGN.md)**、今後の計画は **[ROADMAP.md](./ROADMAP.md)** を参照してください。
+設計の詳細とアーキテクチャ図は [DESIGN.md](./DESIGN.md)、今後の計画は [ROADMAP.md](./ROADMAP.md) を参照してください。
 
 ## コントリビュート
 
-歓迎します！ まずは [CONTRIBUTING.md](./CONTRIBUTING.md) をご覧ください。alpha のうちは、コードを書く前に Issue で方針を相談するのが確実です。
+歓迎します。まずは [CONTRIBUTING.md](./CONTRIBUTING.md) をご覧ください。alpha のうちは、コードを書く前に Issue で方針を相談すると確実です。
 
 ## ライセンス
 

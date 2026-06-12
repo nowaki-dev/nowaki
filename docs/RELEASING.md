@@ -2,8 +2,8 @@
 
 Nowaki は2系統で配布する:
 
-- **crates.io** — `nowaki` / `nowaki-core`（`cargo install nowaki`）
-- **npm** — `nowaki`（プリビルドバイナリの wrapper）+ `@nowaki-dev/cli-<platform>` ×5、`@nowaki-dev/runtime`、`create-nowaki`
+- **crates.io**: `nowaki` / `nowaki-core`（`cargo install nowaki`）
+- **npm**: `nowaki`（プリビルドバイナリの wrapper）+ `@nowaki-dev/cli-<platform>` ×5、`@nowaki-dev/runtime`、`create-nowaki`
 
 npm の CLI は esbuild/biome 方式: プラットフォーム別バイナリを `optionalDependencies`
 で配り、`packages/nowaki-cli/bin/nowaki.js`（postinstall 不要のシム）が実行時に解決して
