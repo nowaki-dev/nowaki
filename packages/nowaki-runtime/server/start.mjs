@@ -135,6 +135,7 @@ const server = createServer(async (req, res) => {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(mod.title ?? "Nowaki App")}</title>
+${typeof mod.head === "string" ? mod.head : ""}
 </head>
 <body>
 ${body}

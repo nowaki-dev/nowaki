@@ -37,6 +37,18 @@ importers:
         specifier: ^6.5.13
         version: 6.7.0(preact@10.29.2)
 
+  site:
+    dependencies:
+      '@nowaki-dev/runtime':
+        specifier: workspace:*
+        version: link:../packages/nowaki-runtime
+      preact:
+        specifier: ^10.25.4
+        version: 10.29.2
+      preact-render-to-string:
+        specifier: ^6.5.13
+        version: 6.7.0(preact@10.29.2)
+
 packages:
 
   create-nowaki@0.1.0:
