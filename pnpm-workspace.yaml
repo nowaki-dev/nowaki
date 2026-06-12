@@ -1,5 +1,9 @@
 packages:
   - "packages/*"
+  # nowaki CLI ラッパーはワークスペースに含めない: プリビルドバイナリを optionalDependencies
+  # (@nowaki-dev/cli-*) で配るため、ローカルの pnpm install で不要な解決/DLを避ける。
+  # 公開は scripts/build-npm.mjs + リリース CI が npm publish で直接行う。
+  - "!packages/nowaki-cli"
   - "examples/*"
   - "site"
 minimumReleaseAgeExclude:

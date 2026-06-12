@@ -1,0 +1,103 @@
+name: Release
+
+# v* タグを push すると、5プラットフォーム分のネイティブバイナリをビルドし、
+# 各 @nowaki-dev/cli-<key> を publish したのち、wrapper パッケージ `nowaki` を publish する。
+# 事前に repo Secrets に NPM_TOKEN（npm の Automation token）を設定すること。
+# 手動実行 (workflow_dispatch) で dry_run=true にするとビルドのみ・publish なし。
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build only, skip npm publish"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.key }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - key: darwin-arm64
+            runner: macos-latest
+            triple: aarch64-apple-darwin
+            cross: false
+          - key: darwin-x64
+            runner: macos-latest
+            triple: x86_64-apple-darwin
+            cross: false
+          - key: linux-x64-gnu
+            runner: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+            cross: false
+          - key: linux-arm64-gnu
+            runner: ubuntu-latest
+            triple: aarch64-unknown-linux-gnu
+            cross: true
+          - key: win32-x64
+            runner: windows-latest
+            triple: x86_64-pc-windows-msvc
+            cross: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.triple }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.triple }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install cross
+        if: matrix.cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Build (cargo)
+        if: ${{ !matrix.cross }}
+        run: cargo build --release -p nowaki --target ${{ matrix.triple }}
+
+      - name: Build (cross)
+        if: matrix.cross
+        run: cross build --release -p nowaki --target ${{ matrix.triple }}
+
+      - name: Assemble npm package
+        run: node scripts/build-npm.mjs ${{ matrix.key }} --no-build
+
+      - name: Publish @nowaki-dev/cli-${{ matrix.key }}
+        if: ${{ !inputs.dry_run }}
+        run: npm publish --access public
+        working-directory: packages/nowaki-cli/npm/${{ matrix.key }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-wrapper:
+    name: Publish nowaki (wrapper)
+    needs: build
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      # プラットフォームパッケージ公開後に wrapper を publish する
+      # (optionalDependencies が解決可能になっている)。
+      - name: Publish wrapper
+        run: npm publish --access public
+        working-directory: packages/nowaki-cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

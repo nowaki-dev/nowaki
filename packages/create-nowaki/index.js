@@ -27,5 +27,5 @@ await cp(templateDir, dest, { recursive: true });
 console.log(`\n🌀 Nowaki アプリを作成しました: ${name}\n`);
 console.log("次のステップ:");
 console.log(`  cd ${name}`);
-console.log("  pnpm install");
-console.log("  nowaki dev\n");
+console.log("  pnpm install   # nowaki CLI とランタイムを取得 (Rust 不要)");
+console.log("  pnpm dev       # → http://127.0.0.1:3000\n");

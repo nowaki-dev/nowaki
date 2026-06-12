@@ -46,3 +46,27 @@ jobs:
           curl -sf http://127.0.0.1:3000/api/hello | grep -q '"hello":"nowaki"'
           curl -sf "http://127.0.0.1:3000/islands/Counter.tsx" | grep -q "jsx-runtime"
           kill $SERVER_PID
+
+  npm-cli:
+    name: npm CLI wrapper (smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Assemble host package + resolve through JS shim
+        run: |
+          node scripts/build-npm.mjs linux-x64-gnu
+          # 実 install 相当のレイアウト（実ファイル）を作り、wrapper シム経由で --version
+          ROOT=$(mktemp -d)
+          mkdir -p "$ROOT/node_modules/nowaki" "$ROOT/node_modules/@nowaki-dev"
+          cp packages/nowaki-cli/package.json "$ROOT/node_modules/nowaki/"
+          cp -R packages/nowaki-cli/bin packages/nowaki-cli/lib "$ROOT/node_modules/nowaki/"
+          cp -R packages/nowaki-cli/npm/linux-x64-gnu "$ROOT/node_modules/@nowaki-dev/cli-linux-x64-gnu"
+          VER=$(node -p "require('./packages/nowaki-cli/package.json').version")
+          OUT=$(node "$ROOT/node_modules/nowaki/bin/nowaki.js" --version)
+          echo "shim output: '$OUT' (expected 'nowaki $VER')"
+          test "$OUT" = "nowaki $VER"

@@ -1,0 +1,43 @@
+{
+  "name": "nowaki",
+  "version": "0.1.1",
+  "description": "The Nowaki CLI — Rust-powered bundler, dev server, and SSG for the Nowaki web framework",
+  "license": "MIT",
+  "author": "Voredge <dev@voredge.com>",
+  "homepage": "https://nowaki.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nowaki-dev/nowaki.git",
+    "directory": "packages/nowaki-cli"
+  },
+  "bugs": "https://github.com/nowaki-dev/nowaki/issues",
+  "keywords": [
+    "nowaki",
+    "cli",
+    "bundler",
+    "dev-server",
+    "ssg",
+    "islands",
+    "web-framework"
+  ],
+  "bin": {
+    "nowaki": "bin/nowaki.js"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "optionalDependencies": {
+    "@nowaki-dev/cli-darwin-arm64": "0.1.1",
+    "@nowaki-dev/cli-darwin-x64": "0.1.1",
+    "@nowaki-dev/cli-linux-x64-gnu": "0.1.1",
+    "@nowaki-dev/cli-linux-arm64-gnu": "0.1.1",
+    "@nowaki-dev/cli-win32-x64": "0.1.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

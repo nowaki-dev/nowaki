@@ -6,6 +6,9 @@ dist/
 # prerendered landing output (regenerate with site/scripts/prerender.sh)
 site/public/
 
+# generated platform binary packages (built by scripts/build-npm.mjs in CI)
+packages/nowaki-cli/npm/
+
 # env files (never commit secrets)
 .env
 .env.local

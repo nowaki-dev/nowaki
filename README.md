@@ -36,6 +36,31 @@ Nowaki（野分 = 台風の古語）は、Next.js の構造的な遅さを出発
 
 ## クイックスタート
 
+前提: Node.js >= 22, pnpm（または npm/yarn）。**Rust は不要** — CLI はプリビルドのネイティブバイナリを npm から取得します。
+
+```bash
+# 新しいアプリを作成
+npm create nowaki@latest my-app
+cd my-app
+
+pnpm install   # nowaki CLI（ネイティブバイナリ）+ ランタイムを取得
+pnpm dev       # → http://127.0.0.1:3000
+```
+
+scaffold 済みアプリの npm scripts:
+
+```bash
+pnpm dev         # 開発サーバー (HMR + Islands)
+pnpm build       # 本番ビルド (client + server)
+pnpm start       # ビルド済みアプリを配信
+pnpm prerender   # 静的サイト生成 (SSG)
+```
+
+CLI を直接入れたい場合は `npm i -g nowaki`、ソースから入れたい場合は `cargo install nowaki` も使えます。
+
+<details>
+<summary>このリポジトリで開発する（コントリビューター向け）</summary>
+
 前提: Rust (stable), Node.js >= 22, pnpm
 
 ```bash
@@ -56,6 +81,8 @@ cargo build -p nowaki
 ./target/debug/nowaki start examples/hello --port 3000
 # → http://127.0.0.1:3000 （静的配信 + prod SSR、HMRなし）
 ```
+
+</details>
 
 ## 書き味
 

@@ -2,9 +2,18 @@
   "name": "nowaki-app",
   "private": true,
   "type": "module",
+  "scripts": {
+    "dev": "nowaki dev",
+    "build": "nowaki build",
+    "start": "nowaki start",
+    "prerender": "nowaki prerender"
+  },
   "dependencies": {
     "@nowaki-dev/runtime": "^0.1.0",
     "preact": "^10.25.4",
     "preact-render-to-string": "^6.5.13"
+  },
+  "devDependencies": {
+    "nowaki": "^0.1.1"
   }
 }
