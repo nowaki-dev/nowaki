@@ -150,6 +150,8 @@ export default function Home({ data }: PageProps<typeof loader>) {
 
 ## 7. ロードマップ
 
+> 完全版・マイルストーン定義・ローンチチェックリストは [ROADMAP.md](./ROADMAP.md) を参照。本節はフェーズの要約。
+
 - **Phase 1 (MVP)**: 本書 §2–§5 の dev 体験一式 — `nowaki dev`, oxc変換, /@modules/, Islands SSR, loader, live-reload HMR, サンプルアプリ
 - **Phase 1.5**: ✅`nowaki build`（client hashed ESM + manifest / server SSR ESM）, ✅`nowaki start`（静的配信 + prod SSR、manifest駆動でislandをハイドレート）, ✅`create-nowaki` scaffolding は実装済み。残り: エラーオーバーレイ, islandの無いページでのruntime省略最適化, modulepreload
 - **Phase 2**: TSRXブリッジ, API routes拡充, ミドルウェア, 環境変数

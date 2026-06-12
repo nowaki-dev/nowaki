@@ -88,7 +88,7 @@ packages/nowaki-runtime  @nowaki/runtime (islandsクライアント / SSRサイ�
 examples/hello           サンプルアプリ
 ```
 
-設計の詳細・アーキテクチャ図・ロードマップは **[DESIGN.md](./DESIGN.md)** を参照してください。
+設計の詳細・アーキテクチャ図は **[DESIGN.md](./DESIGN.md)**、今後の計画は **[ROADMAP.md](./ROADMAP.md)** を参照してください。
 
 ## コントリビュート
 
