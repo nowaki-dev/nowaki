@@ -30,7 +30,7 @@ export default function WindHero() {
       y: Math.random() * h,
       len: 50 + Math.random() * 220,
       speed: 1.4 + Math.random() * 4.2,
-      alpha: 0.04 + Math.random() * 0.32,
+      alpha: 0.03 + Math.random() * 0.13,
     });
 
     const drawStreak = (s: Streak) => {
@@ -49,7 +49,7 @@ export default function WindHero() {
     resize();
     addEventListener("resize", resize, { passive: true });
 
-    const streaks = Array.from({ length: reduce ? 40 : 110 }, () => spawn());
+    const streaks = Array.from({ length: reduce ? 30 : 80 }, () => spawn());
 
     if (reduce) {
       ctx.clearRect(0, 0, w, h);

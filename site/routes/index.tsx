@@ -48,7 +48,7 @@ export const head = `
     --storm: oklch(0.155 0.032 263);
     --storm-2: oklch(0.215 0.044 265);
     --on-storm: oklch(0.965 0.012 256);
-    --on-storm-muted: oklch(0.775 0.03 256);
+    --on-storm-muted: oklch(0.91 0.022 256);
     --line: oklch(0.905 0.01 258);
     --cyan: #9fd4ff;
     --ease: cubic-bezier(0.16,1,0.3,1);
@@ -78,13 +78,17 @@ export const head = `
 
   /* storm hero band */
   .storm{ background:
-    radial-gradient(130% 120% at 78% -15%, var(--storm-2), transparent 58%),
+    radial-gradient(70% 80% at 92% -25%, var(--storm-2), transparent 50%),
     var(--storm);
     color:var(--on-storm); position:relative; overflow:hidden; isolation:isolate;
   }
   .wind-canvas{ position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;
-    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    /* keep streaks off the left text column; let them live on the right */
+    mask-image: linear-gradient(90deg, transparent 0%, transparent 72%, #000 86%, #000 97%, transparent 100%);
   }
+  /* テキスト列を確実に暗く保つ薄い暗幕。風（右）には掛けない。 */
+  .storm__scrim{ position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:linear-gradient(90deg, rgba(11,16,26,0.82) 0%, rgba(11,16,26,0.6) 52%, transparent 76%); }
   .z1{ position:relative; z-index:1 }
   .hero-title{ font-size:clamp(2.7rem,1.55rem + 6.2vw,5.4rem); letter-spacing:-0.038em; line-height:1.0 }
   .mark{ color:var(--cyan) }
@@ -123,8 +127,8 @@ export const head = `
   .link-u{ color:var(--primary-strong); text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:1px }
   .link-u:hover{ text-decoration-thickness:2px }
 
-  .reveal{ animation:rise .85s var(--ease) both }
-  @keyframes rise{ from{ opacity:0; transform:translateY(1.4rem) } to{ opacity:1; transform:none } }
+  /* テキストは静的（常に可読）。ページのモーションは風 canvas が担う。 */
+  .reveal{ }
   @media (prefers-reduced-motion: reduce){
     html{ scroll-behavior:auto }
     .reveal{ animation:none }
@@ -173,6 +177,7 @@ function Hero() {
   return (
     <header class="storm">
       <WindHero />
+      <div class="storm__scrim" aria-hidden="true" />
       <Nav />
       <div class="wrap z1" style="padding-block:clamp(3.5rem,2rem + 7vw,7rem)">
         <span
@@ -189,8 +194,8 @@ function Hero() {
           <span class="mark">Fast like Rust.</span>
         </h1>
         <p
-          class="lead reveal on-storm-muted"
-          style="margin-top:1.5rem;max-width:54ch;color:var(--on-storm-muted);animation-delay:.12s"
+          class="lead"
+          style="margin-top:1.5rem;max-width:54ch;color:var(--on-storm);font-weight:450"
         >
           A full-stack web framework with file-based routing, server loaders, SSR, and
           API routes. Powered by a Rust toolchain (oxc): dev server ready in about 90
@@ -209,8 +214,7 @@ function Hero() {
         </div>
 
         <p
-          class="reveal on-storm-muted"
-          style="margin-top:1.4rem;font-size:.9rem;color:var(--on-storm-muted);animation-delay:.28s"
+          style="margin-top:1.4rem;font-size:.92rem;color:var(--on-storm);font-weight:500"
         >
           Alpha. Not for production yet, but real, and really fast.
         </p>
@@ -434,7 +438,7 @@ function AlphaNote() {
 
 function Footer() {
   return (
-    <footer class="storm">
+    <footer class="storm" style="background:var(--storm)">
       <div class="wrap z1 section" style="padding-block:clamp(3rem,4vw,4.5rem)">
         <div style="display:flex;flex-wrap:wrap;gap:2rem;justify-content:space-between;align-items:flex-start">
           <div style="max-width:30ch">
