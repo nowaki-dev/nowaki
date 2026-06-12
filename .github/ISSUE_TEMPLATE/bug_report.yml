@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a problem with Nowaki
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Nowaki is alpha, so please
+        include enough detail to reproduce.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. `nowaki dev examples/hello`
+        2. Edit routes/index.tsx
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Node version (`node -v`), Rust version (`rustc --version`), Nowaki commit.
+    validations:
+      required: true

@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["crates/nowaki-core", "crates/nowaki"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Voredge <dev@voredge.com>"]
+repository = "https://github.com/nowaki-dev/nowaki"
+homepage = "https://nowaki.dev"
+rust-version = "1.82"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

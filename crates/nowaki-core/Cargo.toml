@@ -1,0 +1,20 @@
+[package]
+name = "nowaki-core"
+description = "Bundler core for Nowaki — an oxc-based transform pipeline, resolver, and module cache"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+keywords = ["bundler", "oxc", "web", "framework", "transform"]
+categories = ["development-tools", "web-programming"]
+readme = "../../README.md"
+
+[dependencies]
+anyhow = "1.0.102"
+dashmap = "6.2.1"
+oxc = { version = "0.135.0", features = ["transformer", "codegen", "minifier", "semantic"] }
+oxc_resolver = "11.21.0"
+xxhash-rust = { version = "0.8.15", features = ["xxh3"] }

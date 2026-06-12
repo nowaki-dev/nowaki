@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rust:
+    name: Rust (fmt, clippy, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo build --workspace
+
+  e2e:
+    name: End-to-end (example app)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - run: pnpm install
+      - run: cargo build -p nowaki
+      - name: Start dev server and verify SSR + island + API
+        run: |
+          ./target/debug/nowaki dev examples/hello &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3000/ >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:3000/ | grep -q "nowaki-island"
+          curl -sf http://127.0.0.1:3000/api/hello | grep -q '"hello":"nowaki"'
+          curl -sf "http://127.0.0.1:3000/islands/Counter.tsx" | grep -q "jsx-runtime"
+          kill $SERVER_PID

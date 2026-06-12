@@ -1,0 +1,44 @@
+{
+  "name": "@nowaki/runtime",
+  "version": "0.1.0",
+  "description": "Runtime for Nowaki — islands hydration client, SSR sidecar, and Node loader hooks",
+  "license": "MIT",
+  "author": "Voredge <dev@voredge.com>",
+  "homepage": "https://nowaki.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nowaki-dev/nowaki.git",
+    "directory": "packages/nowaki-runtime"
+  },
+  "bugs": "https://github.com/nowaki-dev/nowaki/issues",
+  "keywords": [
+    "nowaki",
+    "islands",
+    "ssr",
+    "preact",
+    "web-framework"
+  ],
+  "type": "module",
+  "files": [
+    "client",
+    "server"
+  ],
+  "exports": {
+    "./client/*": "./client/*",
+    "./server/*": "./server/*"
+  },
+  "peerDependencies": {
+    "preact": "^10.25.0",
+    "preact-render-to-string": "^6.5.0"
+  },
+  "devDependencies": {
+    "preact": "^10.25.4",
+    "preact-render-to-string": "^6.5.13"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

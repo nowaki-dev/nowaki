@@ -1,0 +1,48 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  examples/hello:
+    dependencies:
+      '@nowaki/runtime':
+        specifier: workspace:*
+        version: link:../../packages/nowaki-runtime
+      preact:
+        specifier: ^10.25.4
+        version: 10.29.2
+      preact-render-to-string:
+        specifier: ^6.5.13
+        version: 6.7.0(preact@10.29.2)
+
+  packages/nowaki-runtime:
+    devDependencies:
+      preact:
+        specifier: ^10.25.4
+        version: 10.29.2
+      preact-render-to-string:
+        specifier: ^6.5.13
+        version: 6.7.0(preact@10.29.2)
+
+packages:
+
+  preact-render-to-string@6.7.0:
+    resolution: {integrity: sha512-Z4WR8fmLMRpdYqJ9i7vrlXSsSrxVJydwrkEXHapexfARbWfGb7vGcnvNQnIzN0cXciMVOlz/XLoiMCi9gUsy9Q==}
+    peerDependencies:
+      preact: '>=10 || >= 11.0.0-0'
+
+  preact@10.29.2:
+    resolution: {integrity: sha512-7tNmwg/7mzzAoB/8kSg6Hl37JraAZw3Z3A0JSY7VXlZwo82Xn0G7wKbNNs2qoF4ZEEsQGTwDAroNdqKs1ofJxQ==}
+
+snapshots:
+
+  preact-render-to-string@6.7.0(preact@10.29.2):
+    dependencies:
+      preact: 10.29.2
+
+  preact@10.29.2: {}
