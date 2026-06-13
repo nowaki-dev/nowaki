@@ -87,11 +87,14 @@
 - [x] 循環依存対応（pre-rewrite ハッシュ フォールバック）, `rayon` でのサーバービルド並列化
 - [x] 島の安定シリアライズ（props をキー順固定で決定的に → v0.6 Jetstream の前提）
 
-### v0.5 「Typhoon」: エコシステム & デプロイ ← 進行中
+### v0.5 「Typhoon」: エコシステム & デプロイ ← 主要部を 0.4.0 で公開
 **テーマ**: どこにでも出せる、拡張できる。
 **Exit基準**: 主要なデプロイ先に出せ、サードパーティ拡張が書ける。
 
-- [ ] **TSRX ブリッジ**（`.tsrx`, `@tsrx/core` 経由で Preact ターゲットへ → oxc パイプライン合流）※外部 alpha 依存で保留
+> **npm/crates 0.4.0** でデプロイアダプタ5種・ストリーミング SSR・プラグイン変換フックを公開。
+> Rust prod ホットパスは v0.6 の最初の仕事へ、プラグイン仮想モジュールは後続、TSRX は保留（下記）。
+
+- [ ] **TSRX ブリッジ**（`.tsrx`, `@tsrx/core` 経由で Preact ターゲットへ → oxc パイプライン合流）※`@tsrx/core` は実在するが alpha（0.1.30）。差し込み口（プラグイン transform 機構）は確保済みだが、統合の検証に外部パッケージ実行が要り保留
 - [x] デプロイアダプタ（`nowaki build --adapter <node|static|bun|deno|cloudflare>`）。**Node**=自己完結エントリ `dist/server/index.mjs`（`node` だけで配信、nowaki バイナリ不要）/ **static**=prerender 出力 / **Bun・Deno**=node:http 互換の同一エントリで移植可 / **Cloudflare Workers（Edge）**=全サーバーモジュールを静的バンドルした fetch ハンドラ worker ＋ wrangler 設定を生成（node:http も実行時 import も不使用、静的アセットは Assets binding）。SSR・API・ストリーミング・404・島ハイドレートを `wrangler dev`（workerd）で検証済
 - [x] プリレンダリング（SSG, v0.1済）と **ストリーミング SSR**（ルートが `export const streaming = true` でオプトイン、`renderToReadableStream` でシェル先行送出。島ハイドレートまで検証済）
 - [~] プラグイン API。`nowaki.config.{mjs,js}` の `plugins[].transform(code, id)` 変換フックを **dev・build 両方**で適用（Node プラグインホスト経由。nowaki-core は `PluginBridge` trait で疎結合、設定が無ければオーバーヘッドゼロ）。**仮想モジュール（resolveId/load）と新規拡張子は次段**

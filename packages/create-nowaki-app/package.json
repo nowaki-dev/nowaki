@@ -1,6 +1,6 @@
 {
   "name": "create-nowaki-app",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Scaffold a new Nowaki app (alias of create-nowaki, for `npx create-nowaki-app`)",
   "license": "MIT",
   "author": "Voredge <dev@voredge.com>",
@@ -26,7 +26,7 @@
     "index.js"
   ],
   "dependencies": {
-    "create-nowaki": "^0.3.0"
+    "create-nowaki": "^0.4.0"
   },
   "engines": {
     "node": ">=22"

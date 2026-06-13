@@ -55,7 +55,7 @@ pub fn emit_server(root: &Path, dist: &Path, adapter: Adapter) -> Result<()> {
         .with_context(|| format!("dist/server の作成に失敗: {}", server_dir.display()))?;
 
     let runtime_ver =
-        installed_version(root, "@nowaki-dev/runtime").unwrap_or_else(|| "0.3.0".into());
+        installed_version(root, "@nowaki-dev/runtime").unwrap_or_else(|| "0.4.0".into());
     let preact_ver = installed_version(root, "preact").unwrap_or_else(|| "10.25.0".into());
     let prts_ver =
         installed_version(root, "preact-render-to-string").unwrap_or_else(|| "6.5.0".into());
