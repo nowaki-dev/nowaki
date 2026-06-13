@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/nowaki-core", "crates/nowaki"]
 
 [workspace.package]
-version = "0.6.0"
+version = "0.9.0"
 edition = "2021"
 license = "MIT"
 authors = ["Voredge <dev@voredge.com>"]
