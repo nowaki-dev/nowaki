@@ -107,5 +107,31 @@ fn build_produces_expected_manifest_and_zero_js_live_island() {
         assert!(proxy.contains(id), "proxy missing id {id}");
     }
 
+    // --- 仮想モジュール（plugin resolveId/load）の不変条件 ---
+    // クライアント: 生成ソースが島チャンクへ連結され、bare `virtual:` 指定子は残らない。
+    let vbadge = names
+        .iter()
+        .find(|n| n.starts_with("VirtualBadge.") && n.ends_with(".js"))
+        .expect("VirtualBadge client chunk expected");
+    let vbody = std::fs::read_to_string(client.join(vbadge)).unwrap();
+    assert!(
+        vbody.contains("VIRTUAL_OK"),
+        "virtual module source should be bundled into the island chunk"
+    );
+    assert!(
+        !vbody.contains("virtual:build-info"),
+        "bare virtual specifier should be inlined, not left as an import"
+    );
+    // SSR: data: モジュールへインライン化される（Node が直接 import できる）。
+    let vserver = std::fs::read_to_string(root.join("dist/server/islands/VirtualBadge.js")).unwrap();
+    assert!(
+        vserver.contains("data:text/javascript,"),
+        "virtual module should be inlined as a data: module for SSR"
+    );
+    assert!(
+        !vserver.contains("\"virtual:build-info\""),
+        "no raw virtual specifier should remain in the server module"
+    );
+
     let _ = std::fs::remove_dir_all(root.join("dist"));
 }

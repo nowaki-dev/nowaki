@@ -287,6 +287,14 @@ fn transform_for_server(
             lit.raw = None;
         }
         let spec = lit.value.as_str();
+        // 仮想モジュール（resolveId/load）: SSR は data: モジュールへインライン化（自己完結 ESM 想定）。
+        if !spec.starts_with('.') && !spec.starts_with('/') && !spec.contains("://") {
+            if let Some(data) = core.virtual_ssr_module(dir, spec) {
+                lit.value = allocator.alloc_str(&data).into();
+                lit.raw = None;
+                continue;
+            }
+        }
         // CSS Modules: クラス名マップだけを export（DOM が無いので注入はしない）。
         if spec.ends_with(".module.css") {
             if let Ok(resolution) = core.resolver.resolve(dir, spec) {
@@ -670,16 +678,15 @@ fn transform_for_bundle(path: &Path, source: &str, core: &NowakiCore) -> Result<
         if spec.starts_with('/') || spec.contains("://") || spec.starts_with("data:") {
             continue;
         }
-        let resolved = core
-            .resolver
-            .resolve(dir, spec)
-            .map_err(|e| anyhow!("解決失敗 {spec} (from {}): {e}", dir.display()))?;
+        let abs_path = core
+            .resolve_spec(dir, spec)
+            .ok_or_else(|| anyhow!("解決失敗 {spec} (from {})", dir.display()))?;
         let placeholder = format!("__NOWAKI_DEP_{}__", deps.len());
         lit.value = allocator.alloc_str(&placeholder).into();
         lit.raw = None;
         deps.push(DepRef {
             placeholder,
-            abs_path: resolved.full_path(),
+            abs_path,
         });
     }
 

@@ -14,20 +14,24 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context, Result};
 use nowaki_core::PluginBridge;
 
-/// Node プラグインホストへ `transform` / `.tsrx` コンパイルを委譲する PluginBridge 実装。
+/// Node プラグインホストへ `transform` / `.tsrx` / `resolveId` / `load` を委譲する PluginBridge。
 struct HttpPluginBridge {
     port: u16,
+    has_resolve_id: bool,
+    has_load: bool,
 }
 
 impl HttpPluginBridge {
     fn call(&self, path: &str, id: &str, code: &str) -> Option<String> {
         let body = serde_json::json!({ "id": id, "code": code }).to_string();
-        let resp = http_post(self.port, path, &body).ok()?;
+        self.post_field(path, &body, "code")
+    }
+
+    /// JSON ボディを POST し、レスポンスの `field` を文字列で取り出す（null なら None）。
+    fn post_field(&self, path: &str, body: &str, field: &str) -> Option<String> {
+        let resp = http_post(self.port, path, body).ok()?;
         let v: serde_json::Value = serde_json::from_str(&resp).ok()?;
-        // {code: "..."} なら結果、{code: null} なら未変更/未対応。
-        v.get("code")
-            .and_then(|c| c.as_str())
-            .map(|s| s.to_string())
+        v.get(field).and_then(|c| c.as_str()).map(|s| s.to_string())
     }
 }
 
@@ -37,6 +41,20 @@ impl PluginBridge for HttpPluginBridge {
     }
     fn compile_tsrx(&self, id: &str, code: &str) -> Option<String> {
         self.call("/tsrx", id, code)
+    }
+    fn resolve_id(&self, source: &str, importer: &str) -> Option<String> {
+        if !self.has_resolve_id {
+            return None;
+        }
+        let body = serde_json::json!({ "source": source, "importer": importer }).to_string();
+        self.post_field("/resolveId", &body, "id")
+    }
+    fn load(&self, id: &str) -> Option<String> {
+        if !self.has_load {
+            return None;
+        }
+        let body = serde_json::json!({ "id": id }).to_string();
+        self.post_field("/load", &body, "code")
     }
 }
 
@@ -102,19 +120,28 @@ pub fn start(root: &Path) -> Result<Option<PluginHost>> {
     let cap = |k: &str| caps.get(k).and_then(|b| b.as_bool()).unwrap_or(false);
     let has_transform = cap("hasTransform");
     let has_tsrx = cap("hasTsrx");
-    if !has_transform && !has_tsrx {
+    let has_resolve_id = cap("hasResolveId");
+    let has_load = cap("hasLoad");
+    if !has_transform && !has_tsrx && !has_resolve_id && !has_load {
         let _ = child.kill();
         let _ = child.wait();
         return Ok(None);
     }
 
-    let bridge: Arc<dyn PluginBridge> = Arc::new(HttpPluginBridge { port });
+    let bridge: Arc<dyn PluginBridge> = Arc::new(HttpPluginBridge {
+        port,
+        has_resolve_id,
+        has_load,
+    });
     let mut feats = Vec::new();
     if has_transform {
         feats.push("transform フック");
     }
     if has_tsrx {
         feats.push(".tsrx (@tsrx/preact)");
+    }
+    if has_resolve_id || has_load {
+        feats.push("仮想モジュール (resolveId/load)");
     }
     println!(
         "[nowaki] プラグインを読み込みました（{}）",

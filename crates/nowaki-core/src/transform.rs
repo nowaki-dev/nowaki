@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
 use oxc::allocator::Allocator;
@@ -15,7 +15,17 @@ use oxc_resolver::Resolver;
 use crate::cache::Mode;
 use crate::resolve::fs_path_to_url;
 
+/// プラグインの仮想モジュール解決。通常の解決が失敗した指定子に対して呼ばれる。
+/// Browser とSSR で出力先が違う（dev URL か data: モジュールか）ため2口に分ける。
+pub trait VirtualResolve {
+    /// Browser: 仮想モジュールの合成パス（呼び出し側が dev URL 化する）。
+    fn virtual_browser(&self, dir: &Path, spec: &str) -> Option<PathBuf>;
+    /// SSR: Node が直接 import できる data: モジュール（自己完結の ESM）。
+    fn virtual_ssr_module(&self, dir: &Path, spec: &str) -> Option<String>;
+}
+
 /// 1ファイルを変換する: TS型剥がし + JSX(automatic, preact) + import書き換え(Browserのみ)。
+#[allow(clippy::too_many_arguments)]
 pub fn transform_file(
     root: &Path,
     path: &Path,
@@ -23,6 +33,8 @@ pub fn transform_file(
     mode: Mode,
     resolver: &Resolver,
     client_defines: &[(String, String)],
+    // 仮想モジュール解決（任意）。通常解決が失敗したときに呼ぶ。
+    vr: Option<&dyn VirtualResolve>,
 ) -> Result<String> {
     // サーバーモジュール（`"use server"`）をブラウザ向けに変換するときは、実装を出さず
     // クライアントプロキシ（fetch する極小 async 関数）に差し替える。SSR 変換では本物を残す。
@@ -64,11 +76,11 @@ pub fn transform_file(
     }
 
     if mode == Mode::Browser {
-        rewrite_imports(&allocator, root, path, &mut program, resolver);
+        rewrite_imports(&allocator, root, path, &mut program, resolver, vr);
     } else {
         // SSR: .css は no-op、アセットは URL 文字列の data モジュールに（Node が svg 等を
         // 直接 import して落ちないように。描画される <img src> はクライアントと一致する）。
-        rewrite_ssr_imports(&allocator, root, path, &mut program, resolver);
+        rewrite_ssr_imports(&allocator, root, path, &mut program, resolver, vr);
     }
 
     // dev はインラインソースマップを付ける（minify しないので位置は正確）。
@@ -95,6 +107,7 @@ fn rewrite_imports<'a>(
     path: &Path,
     program: &mut Program<'a>,
     resolver: &Resolver,
+    vr: Option<&dyn VirtualResolve>,
 ) {
     let dir = path.parent().unwrap_or(root);
     for stmt in program.body.iter_mut() {
@@ -109,7 +122,7 @@ fn rewrite_imports<'a>(
             lit.value = allocator.alloc_str(aliased).into();
             lit.raw = None;
         }
-        let Some(url) = map_specifier(lit.value.as_str(), dir, root, resolver) else {
+        let Some(url) = map_specifier(lit.value.as_str(), dir, root, resolver, vr) else {
             continue;
         };
         lit.value = allocator.alloc_str(&url).into();
@@ -162,7 +175,13 @@ fn render_diagnostics(path: &Path, source: &str, diags: &[OxcDiagnostic]) -> Str
 
 /// 指定子をURLへ解決する。書き換え不要/不能なら None。
 /// アセット（画像・フォント等）は URL 文字列を default export する data モジュールに包む。
-fn map_specifier(spec: &str, dir: &Path, root: &Path, resolver: &Resolver) -> Option<String> {
+fn map_specifier(
+    spec: &str,
+    dir: &Path,
+    root: &Path,
+    resolver: &Resolver,
+    vr: Option<&dyn VirtualResolve>,
+) -> Option<String> {
     // すでにURL・データURI・devサーバー内部パスのものは触らない
     if spec.starts_with('/') || spec.contains("://") || spec.starts_with("data:") {
         return None;
@@ -178,6 +197,11 @@ fn map_specifier(spec: &str, dir: &Path, root: &Path, resolver: &Resolver) -> Op
             }
         }
         Err(err) => {
+            // 通常解決が失敗 → プラグインの仮想モジュール（resolveId）を試す。
+            // 合成パスの dev URL（/__nowaki_virtual__/<hash>.js）を返し、dev サーバーが load で配信する。
+            if let Some(p) = vr.and_then(|v| v.virtual_browser(dir, spec)) {
+                return Some(fs_path_to_url(root, &p));
+            }
             eprintln!("[nowaki] 解決失敗 {spec} (from {}): {err}", dir.display());
             None
         }
@@ -217,6 +241,7 @@ fn rewrite_ssr_imports<'a>(
     path: &Path,
     program: &mut Program<'a>,
     resolver: &Resolver,
+    vr: Option<&dyn VirtualResolve>,
 ) {
     let dir = path.parent().unwrap_or(root);
     for stmt in program.body.iter_mut() {
@@ -233,6 +258,15 @@ fn rewrite_ssr_imports<'a>(
             lit.raw = None;
         }
         let spec = lit.value.as_str();
+        // 仮想モジュール（resolveId/load）: SSR は Node が直接 import できる data: モジュールへ
+        // インライン化する（CSS Modules と同じ要領。自己完結の ESM を想定）。bare 解決より先に判定。
+        if !spec.starts_with('.') && !spec.starts_with('/') && !spec.contains("://") {
+            if let Some(data) = vr.and_then(|v| v.virtual_ssr_module(dir, spec)) {
+                lit.value = allocator.alloc_str(&data).into();
+                lit.raw = None;
+                continue;
+            }
+        }
         // CSS Modules: クラス名マップだけを export する data モジュールに（注入は client 側で）。
         if spec.ends_with(".module.css") {
             if let Ok(resolution) = resolver.resolve(dir, spec) {

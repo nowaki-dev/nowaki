@@ -32,6 +32,8 @@ async function loadConfig() {
 const config = await loadConfig();
 const plugins = (config.plugins ?? []).filter((p) => p && typeof p === "object");
 const transformers = plugins.filter((p) => typeof p.transform === "function");
+const resolvers = plugins.filter((p) => typeof p.resolveId === "function");
+const loaders = plugins.filter((p) => typeof p.load === "function");
 
 // TSRX: アプリに @tsrx/preact があれば .tsrx を標準 JSX へコンパイルできる。
 // 解決は「アプリの node_modules」基準（このホスト自体は runtime パッケージ配下にあるため）。
@@ -61,6 +63,28 @@ async function runTransform(id, code) {
   return changed ? current : null;
 }
 
+// resolveId: 最初に id を返したプラグインが勝つ。誰も引き受けなければ null。
+async function runResolveId(source, importer) {
+  for (const p of resolvers) {
+    const out = await p.resolveId(source, importer);
+    if (out == null) continue;
+    const id = typeof out === "string" ? out : out.id;
+    if (typeof id === "string") return id;
+  }
+  return null;
+}
+
+// load: 最初にソースを返したプラグインが勝つ。誰も持たなければ null。
+async function runLoad(id) {
+  for (const p of loaders) {
+    const out = await p.load(id);
+    if (out == null) continue;
+    const code = typeof out === "string" ? out : out.code;
+    if (typeof code === "string") return code;
+  }
+  return null;
+}
+
 // Content-Length を明示して送る（Rust 側の素朴な HTTP クライアントが chunked を扱わずに済む）。
 function sendJson(res, status, obj) {
   const json = JSON.stringify(obj);
@@ -75,7 +99,26 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
     if (url.pathname === "/caps") {
-      sendJson(res, 200, { hasTransform: transformers.length > 0, hasTsrx: !!tsrxCompile });
+      sendJson(res, 200, {
+        hasTransform: transformers.length > 0,
+        hasTsrx: !!tsrxCompile,
+        hasResolveId: resolvers.length > 0,
+        hasLoad: loaders.length > 0,
+      });
+      return;
+    }
+    if (url.pathname === "/resolveId" && req.method === "POST") {
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const { source, importer } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      sendJson(res, 200, { id: await runResolveId(source, importer) });
+      return;
+    }
+    if (url.pathname === "/load" && req.method === "POST") {
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const { id } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      sendJson(res, 200, { code: await runLoad(id) });
       return;
     }
     if (url.pathname === "/transform" && req.method === "POST") {
@@ -112,6 +155,6 @@ server.listen(0, "127.0.0.1", () => {
   const port = server.address().port;
   console.log(`NOWAKI_PLUGIN_HOST_READY ${port}`);
   console.error(
-    `[nowaki] plugin host: ${plugins.length} plugin(s), ${transformers.length} transform hook(s), tsrx=${!!tsrxCompile}`,
+    `[nowaki] plugin host: ${plugins.length} plugin(s), ${transformers.length} transform, ${resolvers.length} resolveId, ${loaders.length} load, tsrx=${!!tsrxCompile}`,
   );
 });

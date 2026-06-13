@@ -12,7 +12,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use notify::{EventKind, RecursiveMode, Watcher};
-use nowaki_core::{is_transformable, Mode, NowakiCore};
+use nowaki_core::{is_transformable, Mode, NowakiCore, VIRTUAL_DIR};
 use serde_json::json;
 use tokio::sync::broadcast;
 
@@ -208,6 +208,11 @@ async fn serve_fs(
 /// フォールバック: アプリルート配下のファイルならば配信、さもなくばサイドカーへSSRプロキシ
 async fn serve_or_proxy(State(state): State<Arc<DevState>>, req: Request) -> Response {
     let path = req.uri().path().to_string();
+    // 仮想モジュール（プラグイン load）: 合成パスを Browser 変換して配信する。
+    if path.starts_with(&format!("/{VIRTUAL_DIR}/")) {
+        let abs = state.core.root.join(path.trim_start_matches('/'));
+        return transform_response(state, abs, Mode::Browser).await;
+    }
     if req.method() == axum::http::Method::GET && path != "/" {
         let candidate = state.core.root.join(path.trim_start_matches('/'));
         if candidate.is_file() {

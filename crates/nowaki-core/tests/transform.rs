@@ -18,6 +18,7 @@ fn strips_types_and_transforms_jsx() {
         Mode::Ssr,
         &resolver,
         &[],
+        None,
     )
     .expect("transform ok");
     // 型注釈は除去される
@@ -47,6 +48,7 @@ fn aliases_react_to_preact_compat() {
         Mode::Ssr,
         &resolver,
         &[],
+        None,
     )
     .expect("transform ok");
     assert!(
@@ -74,6 +76,7 @@ fn applies_client_defines() {
         Mode::Browser,
         &resolver,
         &defines,
+        None,
     )
     .expect("transform ok");
     assert!(

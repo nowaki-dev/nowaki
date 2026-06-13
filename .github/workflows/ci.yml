@@ -134,6 +134,12 @@ jobs:
           test "$(status -XPOST -H 'content-type: application/json' -d '{"id":"deadbeefdeadbeef","args":[]}' $B/__nowaki/fn)" = "404"
           curl -sf $B/server-fn | grep -q 'nowaki-island name="ServerTodos"'
 
+          # v0.9 virtual modules: a plugin resolveId/load provides virtual:build-info,
+          # imported by an island. SSR renders it (inlined as a data: module) and the
+          # island's browser JS loads the generated source from a /__nowaki_virtual__/ URL.
+          curl -sf $B/virtual | grep -q 'VIRTUAL_OK · nowaki-plugin'
+          curl -sf $B/virtual | grep -q 'nowaki-island name="VirtualBadge"'
+
           kill $SERVER_PID
 
       - name: Production build + scope hoisting + preload + serve
@@ -168,6 +174,8 @@ jobs:
           grep -q '"export": "addTodo"' examples/hello/dist/server/functions.json
           ! grep -rl 'nowaki-server-only-secret' examples/hello/dist/client >/dev/null 2>&1
           curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' http://127.0.0.1:3300/__nowaki/fn | grep -q 'learn nowaki'
+          # v0.9 virtual modules: SSR inlines the plugin-generated module (data:)
+          curl -sf http://127.0.0.1:3300/virtual | grep -q 'VIRTUAL_OK · nowaki-plugin'
           kill $START_PID
 
       - name: Deploy adapters — self-contained node entry + static + streaming SSR

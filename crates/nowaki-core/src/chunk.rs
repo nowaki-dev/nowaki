@@ -448,7 +448,8 @@ fn resolve(core: &NowakiCore, dir: &Path, spec: &str) -> Option<PathBuf> {
         return None;
     }
     let spec = crate::resolve::alias_specifier(spec).unwrap_or(spec);
-    core.resolver.resolve(dir, spec).ok().map(|r| r.full_path())
+    // resolve_spec は通常解決→（失敗時）プラグイン resolveId（仮想モジュール）の順。
+    core.resolve_spec(dir, spec)
 }
 
 fn export_name_str(n: &ModuleExportName) -> String {
