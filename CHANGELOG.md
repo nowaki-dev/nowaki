@@ -8,6 +8,14 @@ breaking changes (documented per entry), patch versions do not.
 The npm version and the milestone codename are offset — each release bundles a
 milestone's worth of work; the codename is noted per entry.
 
+## [0.9.1] — 2026-06-13 · scaffolder patch
+
+### Added
+- Scaffolded apps (`npm create nowaki`) now ship `AGENTS.md` + `CLAUDE.md` so AI
+  coding agents know Nowaki's conventions (islands, loaders/actions, API routes,
+  `"use server"`, Jetstream) out of the box. Only `create-nowaki` and
+  `create-nowaki-app` move to 0.9.1; the runtime and CLI stay at 0.9.0.
+
 ## [0.9.0] — 2026-06-13 · "Beta" (v0.8–v0.9 band)
 
 ### Added
