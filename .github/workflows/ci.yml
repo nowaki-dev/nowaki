@@ -79,7 +79,29 @@ jobs:
           test "$(status -c $CJ -X POST -d 'text=ci-todo' $B/todos)" = "302"
           curl -s -b $CJ $B/todos | grep -q "ci-todo"
 
+          # v0.4 bundler features (rendered on the home page)
+          curl -sf $B/ | grep -q 'class="badge_'          # CSS Modules scoped class
+          curl -sf $B/ | grep -q 'src="/logo.svg"'        # asset import URL
+          curl -sf $B/ | grep -q '<code>a→b</code>'       # cyclic dependency resolves
+          curl -sf "$B/islands/Counter.tsx" | grep -q 'sourceMappingURL=data'  # dev source map
+
           kill $SERVER_PID
+
+      - name: Production build + cyclic deps + preload + serve
+        run: |
+          set -e
+          ./target/debug/nowaki build examples/hello
+          test -f examples/hello/dist/client/manifest.json
+          grep -q '"preload"' examples/hello/dist/client/manifest.json
+          # cyclic modules both emitted and cross-referenced
+          ls examples/hello/dist/client/cycle-a.*.js >/dev/null
+          ls examples/hello/dist/client/cycle-b.*.js >/dev/null
+          ./target/debug/nowaki start examples/hello --port 3300 &
+          START_PID=$!
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:3300/ >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:3300/ | grep -q "modulepreload"
+          curl -sf http://127.0.0.1:3300/ | grep -q '<code>a→b</code>'
+          kill $START_PID
 
   npm-cli:
     name: npm CLI wrapper (smoke)

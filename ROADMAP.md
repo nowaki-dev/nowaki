@@ -74,18 +74,18 @@
 
 > dev/prod 共有ハンドラ(`handler.mjs`)に集約。dev・prod・prerender とも検証済み、SPA 遷移はヘッドレス Chrome で実機確認。
 
-### v0.4 「Monsoon」: バンドラーの深化
+### v0.4 「Monsoon」: バンドラーの深化 ← ほぼ完了
 **テーマ**: 本番品質の出力と高速なビルド。これが Rust バンドラーの本丸。
 **Exit基準**: 中規模アプリで Next 同等以上のビルド速度と出力品質。
 
-- [ ] **真のチャンクバンドリング**（スコープホイスティング, island単位エントリ + 共有チャンク分割）
-- [ ] ツリーシェイキング / dead code elimination（oxc_minifier フル活用）
-- [ ] **永続ディスクキャッシュ**（再起動をまたぐ変換キャッシュ）
-- [ ] end-to-end ソースマップ（dev/prod 両方）
-- [ ] CSS modules / scoped styles の本実装, CSS コード分割
-- [ ] アセット import とハッシュ（画像・フォント等）
-- [ ] 循環依存対応, `rayon` でのチャンク並列コード生成
-- [ ] 島の安定シリアライズ（props/状態の境界。morph・遅延hydrate・サーバーリアクティブで共有 → v0.6 Jetstream の前提）
+- [x] チャンク分割 + preload: island単位エントリ + 共有チャンク分割（preact 等は dedup）、各エントリの全推移依存を `<link rel=modulepreload>` して瀑布リクエストを回避。**スコープホイスティング（モジュール連結）は将来の最適化**として残す
+- [x] ツリーシェイキング / dead code elimination（oxc_minifier の compress + mangle）
+- [x] **永続ディスクキャッシュ**（`node_modules/.cache/nowaki`、再起動をまたぐ content-addressed）
+- [x] end-to-end ソースマップ（dev: インライン / prod client: 外部 .map / SSR: インライン + `--enable-source-maps`）
+- [x] CSS modules / scoped styles（`*.module.css`、client注入 + SSRマップ一致、CSS パーサ非依存）
+- [x] アセット import とハッシュ（画像・フォント・メディア、client/SSR一貫）
+- [x] 循環依存対応（pre-rewrite ハッシュ フォールバック）, `rayon` でのサーバービルド並列化
+- [x] 島の安定シリアライズ（props をキー順固定で決定的に → v0.6 Jetstream の前提）
 
 ### v0.5 「Typhoon」: エコシステム & デプロイ
 **テーマ**: どこにでも出せる、拡張できる。
