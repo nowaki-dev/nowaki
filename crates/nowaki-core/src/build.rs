@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use oxc::allocator::Allocator;
 use oxc::ast::ast::Statement;
 use oxc::codegen::{Codegen, CodegenOptions};
@@ -38,9 +38,7 @@ pub fn build_client(
     fs::create_dir_all(&client_dir)
         .with_context(|| format!("dist作成失敗: {}", client_dir.display()))?;
 
-    let mut emitted: HashMap<PathBuf, String> = HashMap::new();
-    let mut visiting: HashSet<PathBuf> = HashSet::new();
-    let mut assets: HashMap<PathBuf, String> = HashMap::new();
+    let mut ctx = EmitCtx::default();
 
     // エントリ1: クライアントランタイム（router.js → islands.js を取り込む。
     // ハイドレーション + 島間SPA遷移。島のあるページだけがこれを読み込む）。
@@ -48,14 +46,7 @@ pub fn build_client(
         .root
         .join("node_modules/@nowaki-dev/runtime/client/router.js");
     let runtime_out = if runtime.exists() {
-        Some(emit(
-            core,
-            &runtime,
-            &client_dir,
-            &mut emitted,
-            &mut visiting,
-            &mut assets,
-        )?)
+        Some(emit(core, &runtime, &client_dir, &mut ctx)?)
     } else {
         None
     };
@@ -75,31 +66,24 @@ pub fn build_client(
                 .and_then(|s| s.to_str())
                 .unwrap_or("island")
                 .to_string();
-            let out = emit(
-                core,
-                &path,
-                &client_dir,
-                &mut emitted,
-                &mut visiting,
-                &mut assets,
-            )?;
+            let out = emit(core, &path, &client_dir, &mut ctx)?;
             islands.push((name, out));
         }
     }
 
     fs::write(
         client_dir.join("manifest.json"),
-        render_manifest(runtime_out.as_deref(), &islands),
+        render_manifest(runtime_out.as_deref(), &islands, &ctx.deps),
     )?;
 
     Ok((
         BuildReport {
-            modules: emitted.len(),
+            modules: ctx.emitted.len(),
             islands: islands.len(),
             server_modules: 0,
             out_dir: client_dir,
         },
-        assets,
+        ctx.assets,
     ))
 }
 
@@ -112,31 +96,46 @@ pub fn build_server(
     dist: &Path,
     assets: &HashMap<PathBuf, String>,
 ) -> Result<usize> {
+    use rayon::prelude::*;
+
     let server_dir = dist.join("server");
-    let mut count = 0;
     // routes/islands に加え、共有のサーバーモジュール (components/, lib/) も出力する。
+    let mut files = Vec::new();
     for sub in ["routes", "islands", "components", "lib"] {
         let src_root = core.root.join(sub);
         if !src_root.is_dir() {
             continue;
         }
         for path in walk_files(&src_root)? {
-            if !crate::is_transformable(&path) {
-                continue;
+            if crate::is_transformable(&path) {
+                files.push(path);
             }
+        }
+    }
+
+    // サーバーモジュールは互いに独立（命名依存が無い）ので rayon で並列に変換する。
+    let results: Vec<Result<(PathBuf, String)>> = files
+        .par_iter()
+        .map(|path| {
             let rel = path
                 .strip_prefix(&core.root)
                 .with_context(|| format!("rel化失敗: {}", path.display()))?;
             let out_path = server_dir.join(with_js_ext(rel));
-            let source = fs::read_to_string(&path)
+            let source = fs::read_to_string(path)
                 .with_context(|| format!("読み込み失敗: {}", path.display()))?;
-            let code = transform_for_server(&path, &source, core, assets)?;
-            if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::write(&out_path, code)?;
-            count += 1;
+            let code = transform_for_server(path, &source, core, assets)?;
+            Ok((out_path, code))
+        })
+        .collect();
+
+    let mut count = 0;
+    for r in results {
+        let (out_path, code) = r?;
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent)?;
         }
+        fs::write(&out_path, code)?;
+        count += 1;
     }
     Ok(count)
 }
@@ -291,22 +290,32 @@ fn walk_files(dir: &Path) -> Result<Vec<PathBuf>> {
     Ok(out)
 }
 
+/// 出力グラフを辿る際の可変状態。1回のビルドで使い回す。
+#[derive(Default)]
+struct EmitCtx {
+    /// 入力絶対パス → 出力ファイル名（emit 済み）
+    emitted: HashMap<PathBuf, String>,
+    /// 現在 DFS スタック上のモジュール（循環検出用）
+    visiting: HashSet<PathBuf>,
+    /// アセット絶対パス → 配信URL
+    assets: HashMap<PathBuf, String>,
+    /// 循環時に使う pre-rewrite の暫定ファイル名
+    provisional: HashMap<PathBuf, String>,
+    /// 循環の一部と判明したモジュール（暫定名を最終名にする）
+    cyclic: HashSet<PathBuf>,
+    /// 出力ファイル名 → 直接依存の出力ファイル名（preload チェーン計算用）
+    deps: HashMap<String, Vec<String>>,
+}
+
 /// 1モジュールを（依存を先に処理してから）出力し、出力ファイル名を返す。
-/// 後順DFS: 依存のハッシュ名が確定してから自分のimportを書き換え、最終内容で
-/// 自分のハッシュを計算する。これによりコンテンツハッシュが内容と一致する。
-fn emit(
-    core: &NowakiCore,
-    abs: &Path,
-    out_dir: &Path,
-    emitted: &mut HashMap<PathBuf, String>,
-    visiting: &mut HashSet<PathBuf>,
-    assets: &mut HashMap<PathBuf, String>,
-) -> Result<String> {
-    if let Some(name) = emitted.get(abs) {
+/// 非循環は最終内容のハッシュで命名（immutable キャッシュが正しい）。循環は
+/// pre-rewrite ハッシュの暫定名にフォールバックして解決する（後順DFSのまま）。
+fn emit(core: &NowakiCore, abs: &Path, out_dir: &Path, ctx: &mut EmitCtx) -> Result<String> {
+    if let Some(name) = ctx.emitted.get(abs) {
         return Ok(name.clone());
     }
     // アセット（画像・フォント等）: content-hash 付きで raw コピーし、
-    // 配信URLを default export する小さな JS モジュールを出力する。
+    // 配信URLを default export する小さな JS モジュールを出力する（依存なし）。
     if crate::is_asset(abs) {
         let bytes = fs::read(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
         let ext = abs.extension().and_then(|e| e.to_str()).unwrap_or("bin");
@@ -315,12 +324,13 @@ fn emit(
         let asset_name = format!("{stem}.{asset_hash:08x}.{ext}");
         fs::write(out_dir.join(&asset_name), &bytes)?;
         let url = format!("/_nowaki/{asset_name}");
-        assets.insert(abs.to_path_buf(), url.clone());
+        ctx.assets.insert(abs.to_path_buf(), url.clone());
         let code = format!("export default \"{url}\";\n");
         let mod_hash = xxh3_64(code.as_bytes()) as u32;
         let mod_name = format!("{stem}.{ext}.{mod_hash:08x}.js");
         fs::write(out_dir.join(&mod_name), &code)?;
-        emitted.insert(abs.to_path_buf(), mod_name.clone());
+        ctx.deps.insert(mod_name.clone(), Vec::new());
+        ctx.emitted.insert(abs.to_path_buf(), mod_name.clone());
         return Ok(mod_name);
     }
     // .css は <style> 注入の JS シムとして出力（依存なし）。
@@ -339,32 +349,52 @@ fn emit(
         let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("style");
         let filename = format!("{stem}.css.{hash:08x}.js");
         fs::write(out_dir.join(&filename), &code)?;
-        emitted.insert(abs.to_path_buf(), filename.clone());
+        ctx.deps.insert(filename.clone(), Vec::new());
+        ctx.emitted.insert(abs.to_path_buf(), filename.clone());
         return Ok(filename);
     }
-    if visiting.contains(abs) {
-        bail!(
-            "循環依存を検出: {} (Phase 1 buildは循環未対応)",
-            abs.display()
-        );
+    // 循環: 既に DFS スタック上にあるモジュールへの back-edge。暫定名を返し、
+    // 相手を cyclic 印にして、相手の最終名を暫定名に固定させる。
+    if ctx.visiting.contains(abs) {
+        ctx.cyclic.insert(abs.to_path_buf());
+        return Ok(ctx
+            .provisional
+            .get(abs)
+            .cloned()
+            .expect("visiting 中なら provisional は設定済み"));
     }
-    visiting.insert(abs.to_path_buf());
+    ctx.visiting.insert(abs.to_path_buf());
 
     let source =
         fs::read_to_string(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
     let module = transform_for_bundle(abs, &source, core)?;
+    let stem = abs
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("module")
+        .to_string();
+
+    // pre-rewrite ハッシュの暫定名を先に確定（back-edge が参照できるように）。
+    let prov_hash = xxh3_64(module.code.as_bytes()) as u32;
+    let prov = format!("{stem}.{prov_hash:08x}.js");
+    ctx.provisional.insert(abs.to_path_buf(), prov.clone());
 
     let mut code = module.code;
+    let mut dep_names = Vec::new();
     for dep in &module.deps {
-        let dep_name = emit(core, &dep.abs_path, out_dir, emitted, visiting, assets)?;
+        let dep_name = emit(core, &dep.abs_path, out_dir, ctx)?;
         code = code.replace(&dep.placeholder, &format!("./{dep_name}"));
+        dep_names.push(dep_name);
     }
+    ctx.visiting.remove(abs);
 
-    visiting.remove(abs);
-
-    let hash = xxh3_64(code.as_bytes()) as u32;
-    let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("module");
-    let filename = format!("{stem}.{hash:08x}.js");
+    let filename = if ctx.cyclic.contains(abs) {
+        // 循環: back-edge が暫定名を参照済みなので、それを最終名にする。
+        prov
+    } else {
+        let hash = xxh3_64(code.as_bytes()) as u32;
+        format!("{stem}.{hash:08x}.js")
+    };
 
     // 外部ソースマップ（sourcesContent 埋め込み）。minify + プレースホルダ置換のため
     // 列は近似だが、行マッピングと原文表示は機能する。
@@ -375,8 +405,27 @@ fn emit(
     }
 
     fs::write(out_dir.join(&filename), &code)?;
-    emitted.insert(abs.to_path_buf(), filename.clone());
+    ctx.deps.insert(filename.clone(), dep_names);
+    ctx.emitted.insert(abs.to_path_buf(), filename.clone());
     Ok(filename)
+}
+
+/// あるチャンクの推移的依存（自分を除く、重複排除済み）を返す。preload チェーン用。
+fn transitive_deps(entry: &str, deps: &HashMap<String, Vec<String>>) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    let mut stack: Vec<String> = deps.get(entry).cloned().unwrap_or_default();
+    while let Some(d) = stack.pop() {
+        if !seen.insert(d.clone()) {
+            continue;
+        }
+        if let Some(children) = deps.get(&d) {
+            stack.extend(children.iter().cloned());
+        }
+        out.push(d);
+    }
+    out.sort();
+    out
 }
 
 struct BundleModule {
@@ -485,7 +534,13 @@ fn transform_for_bundle(path: &Path, source: &str, core: &NowakiCore) -> Result<
 
 /// manifest.json を手書きで生成（依存を増やさないため serde 不使用）。
 /// ファイル名は ascii のみなのでエスケープ不要。
-fn render_manifest(runtime: Option<&str>, islands: &[(String, String)]) -> String {
+/// `preload`: 各エントリチャンク → 推移的依存チャンク。瀑布リクエストを避けるため、
+/// ページは島チャンクとその全依存を一括で `<link rel=modulepreload>` する。
+fn render_manifest(
+    runtime: Option<&str>,
+    islands: &[(String, String)],
+    deps: &HashMap<String, Vec<String>>,
+) -> String {
     let runtime_field = match runtime {
         Some(r) => format!("\"{r}\""),
         None => "null".to_string(),
@@ -494,8 +549,32 @@ fn render_manifest(runtime: Option<&str>, islands: &[(String, String)]) -> Strin
         .iter()
         .map(|(name, file)| format!("    \"{name}\": \"{file}\""))
         .collect();
+
+    // エントリチャンク（runtime + 各island）の推移的依存を preload に書く。
+    let mut entries: Vec<&str> = Vec::new();
+    let mut seen = HashSet::new();
+    if let Some(r) = runtime {
+        if seen.insert(r) {
+            entries.push(r);
+        }
+    }
+    for (_, file) in islands {
+        if seen.insert(file.as_str()) {
+            entries.push(file);
+        }
+    }
+    let preload_fields: Vec<String> = entries
+        .iter()
+        .map(|entry| {
+            let chain = transitive_deps(entry, deps);
+            let arr: Vec<String> = chain.iter().map(|c| format!("\"{c}\"")).collect();
+            format!("    \"{entry}\": [{}]", arr.join(", "))
+        })
+        .collect();
+
     format!(
-        "{{\n  \"runtime\": {runtime_field},\n  \"islands\": {{\n{}\n  }}\n}}\n",
-        island_fields.join(",\n")
+        "{{\n  \"runtime\": {runtime_field},\n  \"islands\": {{\n{}\n  }},\n  \"preload\": {{\n{}\n  }}\n}}\n",
+        island_fields.join(",\n"),
+        preload_fields.join(",\n")
     )
 }

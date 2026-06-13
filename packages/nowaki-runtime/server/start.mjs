@@ -152,14 +152,28 @@ function prodDocument({ mod, body }) {
     (m) => m[1],
   );
   const hasIslands = islandNames.length > 0 && manifest.runtime;
-  const preloadFiles = hasIslands
-    ? [
-        ...new Set([
-          manifest.runtime,
-          ...islandNames.map((n) => manifest.islands?.[n]).filter(Boolean),
-        ]),
-      ]
-    : [];
+  // エントリチャンク（runtime + 使用 island）とその推移的依存をまとめて preload する。
+  // 全チャンクを並列取得させることで、import の瀑布リクエストを避ける。
+  const preloadFiles = [];
+  if (hasIslands) {
+    const entryChunks = [
+      manifest.runtime,
+      ...islandNames.map((n) => manifest.islands?.[n]).filter(Boolean),
+    ];
+    const seen = new Set();
+    for (const chunk of entryChunks) {
+      if (!seen.has(chunk)) {
+        seen.add(chunk);
+        preloadFiles.push(chunk);
+      }
+      for (const dep of manifest.preload?.[chunk] ?? []) {
+        if (!seen.has(dep)) {
+          seen.add(dep);
+          preloadFiles.push(dep);
+        }
+      }
+    }
+  }
   const preload = preloadFiles
     .map((f) => `<link rel="modulepreload" href="/_nowaki/${f}" />`)
     .join("\n");

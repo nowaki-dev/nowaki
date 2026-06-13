@@ -17,4 +17,5 @@ anyhow = "1.0.102"
 dashmap = "6.2.1"
 oxc = { version = "0.135.0", features = ["transformer", "codegen", "minifier", "semantic"] }
 oxc_resolver = "11.21.0"
+rayon = "1.11.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
