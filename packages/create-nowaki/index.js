@@ -3,8 +3,8 @@
 // 対話ウィザード（TTY 時）: プロジェクト名・パッケージマネージャ・git・依存インストール。
 // 非対話（CI / `-y` / パイプ）では既定値で黙って生成する。
 //
-// フラグ: -y/--yes（質問を飛ばす）, --install（非対話でも入れる）, --no-install,
-//         --no-git, --pm <npm|pnpm|yarn|bun>
+// フラグ: -t/--template <basics|minimal>, -y/--yes（質問を飛ばす）,
+//         --install（非対話でも入れる）, --no-install, --no-git, --pm <npm|pnpm|yarn|bun>
 
 import { cp, mkdir, readdir, readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
@@ -27,19 +27,35 @@ const yellow = wrap("33");
 
 // --- 引数 ---
 const args = argv.slice(2);
-const flags = new Set(args.filter((a) => a.startsWith("-")));
-const positionals = args.filter((a) => !a.startsWith("-"));
-const pmFlag = (() => {
-  const i = args.indexOf("--pm");
+// 値をとるフラグ。これらの直後の引数は positional ではない。
+const VALUE_FLAGS = new Set(["--pm", "--template", "-t"]);
+const flagAt = (...names) => {
+  const i = args.findIndex((a) => names.includes(a));
   return i >= 0 ? args[i + 1] : null;
-})();
+};
+const flags = new Set(args.filter((a) => a.startsWith("-")));
+const positionals = [];
+for (let i = 0; i < args.length; i++) {
+  if (args[i].startsWith("-")) {
+    if (VALUE_FLAGS.has(args[i])) i++; // フラグの値を飛ばす
+    continue;
+  }
+  positionals.push(args[i]);
+}
+const pmFlag = flagAt("--pm");
+const templateFlag = flagAt("--template", "-t");
 const yes = flags.has("-y") || flags.has("--yes");
 const noInstall = flags.has("--no-install");
 const forceInstall = flags.has("--install");
 const noGit = flags.has("--no-git");
 const interactive = !!stdin.isTTY && !!stdout.isTTY && !yes;
 
-const templateDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "template");
+const templatesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "templates");
+// 利用可能なテンプレート（templates/<name>、_shared は共通設定）。
+const TEMPLATES = [
+  { value: "basics", hint: "starter with an interactive island" },
+  { value: "minimal", hint: "a single page, zero islands" },
+];
 
 // --- パッケージマネージャ検出（`npm create` の user-agent から）---
 function detectPM() {
@@ -67,6 +83,20 @@ async function confirm(question, def = true) {
   if (!a) return def;
   return a === "y" || a === "yes";
 }
+// 番号 or 名前で選ぶ簡易メニュー（依存なし）。
+async function select(question, options, def) {
+  if (!rl) return def;
+  console.log(`  ${question}`);
+  options.forEach((o, i) => {
+    const d = o.value === def ? dim(" (default)") : "";
+    console.log(`    ${dim(`${i + 1})`)} ${bold(o.value)}${d}  ${dim(o.hint ?? "")}`);
+  });
+  const a = (await rl.question(`  ${dim(`(${def})`)} › `)).trim().toLowerCase();
+  if (!a) return def;
+  const byNum = options[Number.parseInt(a, 10) - 1];
+  if (byNum) return byNum.value;
+  return options.some((o) => o.value === a) ? a : def;
+}
 
 // --- 質問 ---
 let name = positionals[0] || (await ask("Project name?", interactive ? "my-app" : "nowaki-app"));
@@ -87,6 +117,17 @@ try {
   // 無ければOK
 }
 
+// テンプレート選択（-t/--template or 対話メニュー、既定 basics）。
+let template = templateFlag || (interactive ? await select("Template?", TEMPLATES, "basics") : "basics");
+template = String(template).toLowerCase();
+if (!TEMPLATES.some((t) => t.value === template)) {
+  console.error(
+    `\n  ${red("✗")} unknown template "${template}" (choose: ${TEMPLATES.map((t) => t.value).join(", ")}).\n`,
+  );
+  rl?.close();
+  process.exit(1);
+}
+
 let pm = pmFlag || detectPM();
 if (interactive && !pmFlag) pm = (await ask("Package manager?", pm)).trim() || pm;
 if (!["npm", "pnpm", "yarn", "bun"].includes(pm)) pm = "npm";
@@ -103,8 +144,10 @@ const doInstall = noInstall
 rl?.close();
 
 // --- 生成 ---
+// 共通設定（_shared）→ 選択テンプレートの順に重ねる。
 await mkdir(dest, { recursive: true });
-await cp(templateDir, dest, { recursive: true });
+await cp(path.join(templatesDir, "_shared"), dest, { recursive: true });
+await cp(path.join(templatesDir, template), dest, { recursive: true });
 
 // npm は公開時に .gitignore を除外するので、テンプレートでは _gitignore で持ち、ここで戻す。
 try {
@@ -123,7 +166,9 @@ try {
   // package.json が無ければ素通し
 }
 
-console.log(`\n  ${green("✓")} created ${bold(name)} ${dim(`(${path.relative(process.cwd(), dest) || "."})`)}`);
+console.log(
+  `\n  ${green("✓")} created ${bold(name)} ${dim(`(${template} template · ${path.relative(process.cwd(), dest) || "."})`)}`,
+);
 
 // git init（任意）
 if (doGit) {
