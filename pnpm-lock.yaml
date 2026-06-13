@@ -25,7 +25,7 @@ importers:
   packages/create-nowaki-app:
     dependencies:
       create-nowaki:
-        specifier: ^0.1.1
+        specifier: ^0.2.0
         version: link:../create-nowaki
 
   packages/nowaki-runtime:

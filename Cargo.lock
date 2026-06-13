@@ -1246,7 +1246,7 @@ dependencies = [
 
 [[package]]
 name = "nowaki"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1261,7 +1261,7 @@ dependencies = [
 
 [[package]]
 name = "nowaki-core"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "dashmap",
