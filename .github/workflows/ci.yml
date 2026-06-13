@@ -106,6 +106,27 @@ jobs:
           curl -sf http://127.0.0.1:3300/ | grep -q '<code>a→b</code>'
           kill $START_PID
 
+      - name: Deploy adapters — self-contained node entry + static + streaming SSR
+        run: |
+          set -e
+          # node adapter: build emits a self-contained server entry runnable WITHOUT the nowaki binary
+          ./target/debug/nowaki build examples/hello --adapter node
+          test -f examples/hello/dist/server/index.mjs
+          test -f examples/hello/dist/server/package.json
+          PORT=3310 node examples/hello/dist/server/index.mjs &
+          NODE_PID=$!
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:3310/ >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:3310/ | grep -q "nowaki-island"   # SSR + island marker
+          curl -sf http://127.0.0.1:3310/api/hello | grep -q '"hello":"nowaki"'
+          # streaming SSR route (export const streaming = true) renders a complete document
+          curl -sf http://127.0.0.1:3310/stream | grep -q "Streaming SSR"
+          curl -sf http://127.0.0.1:3310/stream | grep -q "nowaki-island"
+          kill $NODE_PID
+          # static adapter: prerender to dist/static
+          ./target/debug/nowaki build examples/hello --adapter static
+          test -f examples/hello/dist/static/index.html
+          test -f examples/hello/dist/static/about/index.html
+
   npm-cli:
     name: npm CLI wrapper (smoke)
     runs-on: ubuntu-latest

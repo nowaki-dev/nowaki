@@ -13,7 +13,7 @@ loadEnv();
 register(new URL("./loader-hooks.mjs", import.meta.url));
 
 const { scanRoutes } = await import("./router.mjs");
-const { loadIslandRegistry, renderDocument, errorPage } = await import("./render.mjs");
+const { loadIslandRegistry, renderDocument, renderShell, errorPage } = await import("./render.mjs");
 const { handleRequest, sendResult } = await import("./handler.mjs");
 const { pathToFileURL } = await import("node:url");
 
@@ -26,6 +26,7 @@ const env = {
   importModule: (file, version) => import(`${pathToFileURL(file).href}?v=${version}`),
   ensureIslands: (version) => loadIslandRegistry(appRoot, version),
   renderDocument,
+  renderShell,
   renderError: (err) => {
     console.error("[nowaki ssr]", err);
     return {

@@ -5,6 +5,7 @@
 import { Readable } from "node:stream";
 import { h } from "preact";
 import { renderToStringAsync } from "preact-render-to-string";
+import { renderToReadableStream } from "preact-render-to-string/stream";
 
 import { matchRoute } from "./router.mjs";
 import { makeContext } from "./context.mjs";
@@ -141,8 +142,39 @@ async function renderRoute(env, table, match, mod, ctx, version) {
     node = h(Layout, { data: ldata, params: ctx.params, url: ctx.url, children: node });
   }
 
+  // ストリーミング SSR（ルートが `export const streaming = true` でオプトイン）。
+  // シェル(head) を即送出 → 本文をストリーム → tail(runtime script)。TTFB を縮める。
+  // env.renderShell を持つ環境のみ。preload はシェル送出時に島が未確定なので最小化する。
+  if (mod.streaming === true && typeof env.renderShell === "function") {
+    const { head, tail } = env.renderShell({ mod });
+    const bodyStream = await renderToReadableStream(node);
+    return {
+      status: 200,
+      headers: HTML,
+      stream: streamedDocument(head, bodyStream, tail),
+    };
+  }
+
   const body = await renderToStringAsync(node);
   return { status: 200, headers: HTML, body: env.renderDocument({ mod, body }) };
+}
+
+// head → 本文ストリーム → tail を1つの Web ReadableStream に連結する。
+function streamedDocument(head, bodyStream, tail) {
+  const enc = new TextEncoder();
+  const reader = bodyStream.getReader();
+  return new ReadableStream({
+    async start(controller) {
+      controller.enqueue(enc.encode(head));
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        controller.enqueue(typeof value === "string" ? enc.encode(value) : value);
+      }
+      controller.enqueue(enc.encode(tail));
+      controller.close();
+    },
+  });
 }
 
 async function render404(env, table, ctx, version) {

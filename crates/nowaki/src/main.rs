@@ -1,9 +1,11 @@
+mod adapter;
 mod dev;
 mod prerender;
 mod sidecar;
 
 use std::path::PathBuf;
 
+use adapter::Adapter;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -27,11 +29,14 @@ enum Command {
         #[arg(short, long, default_value_t = 3000)]
         port: u16,
     },
-    /// 本番用にクライアントモジュールグラフをビルドする
+    /// 本番用にビルドし、デプロイアダプタの配備物を出力する
     Build {
         /// アプリのルートディレクトリ
         #[arg(default_value = ".")]
         dir: PathBuf,
+        /// デプロイ先アダプタ (node|static|bun|deno)
+        #[arg(long, value_enum, default_value_t = Adapter::Node)]
+        adapter: Adapter,
     },
     /// ビルド済みアプリを本番モードで配信する
     Start {
@@ -62,10 +67,19 @@ fn main() -> anyhow::Result<()> {
                 .build()?
                 .block_on(dev::run(root, port))
         }
-        Command::Build { dir } => {
+        Command::Build { dir, adapter } => {
             let root = dir.canonicalize()?;
+            // static アダプタは prerender に委譲（build → 一時起動 → 各ルートを静的化）。
+            if adapter == Adapter::Static {
+                let out = root.join("dist/static");
+                return tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()?
+                    .block_on(prerender::run(root.clone(), out));
+            }
+            let dist = root.join("dist");
             let core = nowaki_core::NowakiCore::new(root.clone());
-            let report = core.build(&root.join("dist"))?;
+            let report = core.build(&dist)?;
             println!(
                 "[nowaki] build完了: client {} modules / {} islands, server {} modules → {}",
                 report.modules,
@@ -73,6 +87,8 @@ fn main() -> anyhow::Result<()> {
                 report.server_modules,
                 report.out_dir.display()
             );
+            // node/bun/deno: 自己完結のサーバーエントリを出力。
+            adapter::emit_server(&root, &dist, adapter)?;
             Ok(())
         }
         Command::Start { dir, port } => {

@@ -67,10 +67,10 @@ options.vnode = (vnode) => {
   if (prevVnodeHook) prevVnodeHook(vnode);
 };
 
-// 描画済み body を完成 HTML に包む（dev 用: islands.js + クライアントルーター + hmr.js）。
-// 実際のページ描画・loader 実行は handler.mjs が担当する。
-export function renderDocument({ mod, body }) {
-  return `<!DOCTYPE html>
+// 完成 HTML の head（…<body>）と tail（</body>…）を返す。dev 用。
+// 非ストリーミングは renderDocument が body を挟むだけ、ストリーミングは handler が本文を流し込む。
+export function renderShell({ mod }) {
+  const head = `<!DOCTYPE html>
 <html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
 <head>
 <meta charset="utf-8" />
@@ -79,10 +79,19 @@ export function renderDocument({ mod, body }) {
 ${typeof mod.head === "string" ? mod.head : ""}
 </head>
 <body>
-${body}
+`;
+  const tail = `
 ${devScripts()}
 </body>
 </html>`;
+  return { head, tail };
+}
+
+// 描画済み body を完成 HTML に包む（dev 用: islands.js + クライアントルーター + hmr.js）。
+// 実際のページ描画・loader 実行は handler.mjs が担当する。
+export function renderDocument({ mod, body }) {
+  const { head, tail } = renderShell({ mod });
+  return `${head}${body}${tail}`;
 }
 
 function devScripts() {

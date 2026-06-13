@@ -87,15 +87,15 @@
 - [x] 循環依存対応（pre-rewrite ハッシュ フォールバック）, `rayon` でのサーバービルド並列化
 - [x] 島の安定シリアライズ（props をキー順固定で決定的に → v0.6 Jetstream の前提）
 
-### v0.5 「Typhoon」: エコシステム & デプロイ
+### v0.5 「Typhoon」: エコシステム & デプロイ ← 進行中
 **テーマ**: どこにでも出せる、拡張できる。
 **Exit基準**: 主要なデプロイ先に出せ、サードパーティ拡張が書ける。
 
-- [ ] **TSRX ブリッジ**（`.tsrx`, `@tsrx/core` 経由で Preact ターゲットへ → oxc パイプライン合流）
-- [ ] デプロイアダプタ（Node / 静的SSG / Edge / Bun / Deno）。ステートフル接続を許すアダプタも（v0.6 Jetstream の足場）
-- [ ] プリレンダリング（SSG）と **ストリーミング SSR**
+- [ ] **TSRX ブリッジ**（`.tsrx`, `@tsrx/core` 経由で Preact ターゲットへ → oxc パイプライン合流）※外部 alpha 依存で保留
+- [~] デプロイアダプタ（`nowaki build --adapter <node|static|bun|deno>`）。**Node**=自己完結エントリ `dist/server/index.mjs`（`node` だけで配信、nowaki バイナリ不要）/ **static**=prerender 出力 / **Bun・Deno**=node:http 互換の同一エントリで移植可。**Edge（Cloudflare Workers）は次トランシェ**
+- [x] プリレンダリング（SSG, v0.1済）と **ストリーミング SSR**（ルートが `export const streaming = true` でオプトイン、`renderToReadableStream` でシェル先行送出。島ハイドレートまで検証済）
 - [ ] プラグイン API（変換フック, 仮想モジュール）
-- [ ] サイドカーの抽象化（Bun/Deno をSSR実行系として選択可能に）
+- [~] サイドカーの抽象化（中核を `@nowaki-dev/runtime` の `server/app.mjs` に集約＝`nowaki start`・各アダプタで共有。Bun/Deno は同一エントリで選択可。実行系の本格抽象化は継続）
 - [ ] **Rust を prod ホットパスへ**（HTML組み立て・island配線・キャッシュを Rust に。Node はコンポーネント描画のみ → v0.6 Jetstream の足場）
 
 ### v0.6 「Jetstream」: サーバーリアクティブ島 ★flagship
