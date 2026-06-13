@@ -3,7 +3,8 @@
 // 対話ウィザード（TTY 時）: プロジェクト名・パッケージマネージャ・git・依存インストール。
 // 非対話（CI / `-y` / パイプ）では既定値で黙って生成する。
 //
-// フラグ: -y/--yes（質問を飛ばす）, --no-install, --no-git, --pm <npm|pnpm|yarn|bun>
+// フラグ: -y/--yes（質問を飛ばす）, --install（非対話でも入れる）, --no-install,
+//         --no-git, --pm <npm|pnpm|yarn|bun>
 
 import { cp, mkdir, readdir, readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
@@ -34,6 +35,7 @@ const pmFlag = (() => {
 })();
 const yes = flags.has("-y") || flags.has("--yes");
 const noInstall = flags.has("--no-install");
+const forceInstall = flags.has("--install");
 const noGit = flags.has("--no-git");
 const interactive = !!stdin.isTTY && !!stdout.isTTY && !yes;
 
@@ -89,7 +91,15 @@ let pm = pmFlag || detectPM();
 if (interactive && !pmFlag) pm = (await ask("Package manager?", pm)).trim() || pm;
 if (!["npm", "pnpm", "yarn", "bun"].includes(pm)) pm = "npm";
 const doGit = noGit ? false : await confirm("Initialize a git repository?", false);
-const doInstall = noInstall ? false : await confirm(`Install dependencies with ${pm}?`, true);
+// 依存インストール: 対話なら確認（既定 Yes）。非対話（-y / CI / パイプ）は自動実行しない
+//（驚き防止）。非対話で入れたいときは --install。--no-install は常にスキップ。
+const doInstall = noInstall
+  ? false
+  : forceInstall
+    ? true
+    : interactive
+      ? await confirm(`Install dependencies with ${pm}?`, true)
+      : false;
 rl?.close();
 
 // --- 生成 ---
