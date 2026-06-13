@@ -8,6 +8,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { h, options } from "preact";
 
+import { stableStringify } from "./serialize.mjs";
+
 const ISLAND_EXT = /\.(tsx|jsx|ts|js)$/;
 
 // コンポーネント実体 → { name, src(ブラウザURL) }
@@ -55,7 +57,7 @@ options.vnode = (vnode) => {
         {
           name: island.name,
           src: island.src,
-          props: JSON.stringify(rest),
+          props: stableStringify(rest),
           style: "display:contents",
         },
         h(Original, { ...rest, __nowakiInner: true }),

@@ -9,6 +9,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { h, options } from "preact";
 import { loadEnv } from "./env.mjs";
+import { stableStringify } from "./serialize.mjs";
 
 loadEnv();
 
@@ -52,7 +53,7 @@ options.vnode = (vnode) => {
         {
           name: island.name,
           src: island.src,
-          props: JSON.stringify(rest),
+          props: stableStringify(rest),
           style: "display:contents",
         },
         h(Original, { ...rest, __nowakiInner: true }),
