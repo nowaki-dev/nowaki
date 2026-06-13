@@ -27,17 +27,16 @@ pub struct DevState {
     live_hub: Arc<crate::live::LiveHub>,
 }
 
-pub async fn run(root: PathBuf, port: u16) -> Result<()> {
+pub async fn run(root: PathBuf, port: u16, expose: bool, open: bool) -> Result<()> {
     let started = Instant::now();
 
     let sidecar = sidecar::spawn(&root, port).await?;
-    println!("[nowaki] SSRサイドカー起動 (port {})", sidecar.port);
 
     // nowaki.config があればプラグインホストを起動し、変換フックを core に注入する。
     let plugin_host = crate::plugins::start(&root)?;
     let mut core = NowakiCore::new(root.clone());
-    if let Some(host) = &plugin_host {
-        core.set_plugins(host.bridge.clone());
+    if let Some(ph) = &plugin_host {
+        core.set_plugins(ph.bridge.clone());
     }
 
     let (hmr_tx, _) = broadcast::channel(64);
@@ -65,11 +64,27 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
         .fallback(serve_or_proxy)
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port)).await?;
-    println!(
-        "[nowaki] dev server ready: http://127.0.0.1:{port} ({}ms)",
-        started.elapsed().as_millis()
+    // --host で全インターフェース公開（Network URL を表示）、既定は localhost のみ。
+    let bind_host = if expose { "0.0.0.0" } else { "127.0.0.1" };
+    let listener = tokio::net::TcpListener::bind((bind_host, port)).await?;
+
+    let mut features: Vec<&str> = Vec::new();
+    if plugin_host.is_some() {
+        features.push("plugins");
+    }
+    crate::ui::server_banner(
+        "Nowaki",
+        env!("CARGO_PKG_VERSION"),
+        port,
+        started.elapsed().as_millis(),
+        &features,
+        expose,
     );
+
+    if open {
+        crate::ui::open_browser(&format!("http://localhost:{port}/"));
+    }
+
     axum::serve(listener, app).await?;
     drop(plugin_host);
     drop(sidecar);

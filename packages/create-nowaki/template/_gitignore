@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.cache/
+
+# env (keep secrets out of git; only PUBLIC_* reaches the client)
+.env
+.env.local
+.env.*.local
+
+# logs / os
+*.log
+.DS_Store

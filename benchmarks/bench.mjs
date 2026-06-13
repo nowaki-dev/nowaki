@@ -64,9 +64,9 @@ function clean() {
 async function devReady() {
   // cold（キャッシュ無し）と warm（2回目）を測る
   clean();
-  const cold = await timeUntil(["dev", appDir, "--port", "0"], "dev server ready");
+  const cold = await timeUntil(["dev", appDir, "--port", "0"], "ready in");
   await sleep(300);
-  const warm = await timeUntil(["dev", appDir, "--port", "0"], "dev server ready");
+  const warm = await timeUntil(["dev", appDir, "--port", "0"], "ready in");
   return { cold: cold.ms, warm: warm.ms };
 }
 

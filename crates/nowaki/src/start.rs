@@ -49,17 +49,21 @@ struct ProdState {
     _child: Child, // kill_on_drop で終了時にサイドカーを落とす
 }
 
-pub async fn run(root: PathBuf, port: u16) -> Result<()> {
+pub async fn run(root: PathBuf, port: u16, expose: bool) -> Result<()> {
+    let started = std::time::Instant::now();
     let client_dir = root.join("dist/client");
     if !client_dir.join("manifest.json").exists() {
         anyhow::bail!(
-            "dist が未ビルドです。先に `nowaki build {}` を実行してください",
+            "まだビルドされていません。先に `nowaki build {}` を実行してください。",
             root.display()
         );
     }
     let entry = root.join("node_modules/@nowaki-dev/runtime/server/prod-sidecar.mjs");
     if !entry.exists() {
-        anyhow::bail!("@nowaki-dev/runtime が見つかりません: {}", entry.display());
+        anyhow::bail!(
+            "依存がインストールされていません（{} が見つかりません）。\n  → アプリのディレクトリで `npm install` を実行してください。",
+            entry.display()
+        );
     }
 
     // Node prod-sidecar をエフェメラルポートで起動し、READY 行からポートを得る。
@@ -93,7 +97,12 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
     let manifest_text = std::fs::read_to_string(client_dir.join("manifest.json"))?;
     let manifest: Manifest = serde_json::from_str(&manifest_text).unwrap_or_default();
 
-    let host = std::env::var("NOWAKI_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    // --host で全インターフェース公開。既定は NOWAKI_HOST or 127.0.0.1。
+    let host = if expose {
+        "0.0.0.0".to_string()
+    } else {
+        std::env::var("NOWAKI_HOST").unwrap_or_else(|_| "127.0.0.1".to_string())
+    };
     let state = Arc::new(ProdState {
         client_dir,
         sidecar_port,
@@ -111,9 +120,16 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
         .with_state(state);
     let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
     let actual = listener.local_addr()?.port();
-    // PORT=0 のときの実ポートも報告（将来の prerender 等が利用できるよう）
+    // PORT=0 のときの実ポートも報告（prerender / アダプタ / bench が grep するマーカー。維持）。
     println!("NOWAKI_START_READY {actual}");
-    println!("[nowaki] 本番配信 (Rust front + Node renderer): http://{host}:{actual}");
+    crate::ui::server_banner(
+        "Nowaki (production)",
+        env!("CARGO_PKG_VERSION"),
+        actual,
+        started.elapsed().as_millis(),
+        &["Rust front", "Node renderer"],
+        expose || host == "0.0.0.0",
+    );
     axum::serve(listener, app).await?;
     Ok(())
 }

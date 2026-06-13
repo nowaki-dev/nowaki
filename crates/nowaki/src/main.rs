@@ -5,6 +5,7 @@ mod plugins;
 mod prerender;
 mod sidecar;
 mod start;
+mod ui;
 
 use std::path::PathBuf;
 
@@ -31,6 +32,12 @@ enum Command {
         dir: PathBuf,
         #[arg(short, long, default_value_t = 3000)]
         port: u16,
+        /// LAN に公開する（0.0.0.0 で待ち受け、Network URL を表示）
+        #[arg(long)]
+        host: bool,
+        /// 起動後に既定ブラウザを開く
+        #[arg(long)]
+        open: bool,
     },
     /// 本番用にビルドし、デプロイアダプタの配備物を出力する
     Build {
@@ -48,6 +55,9 @@ enum Command {
         dir: PathBuf,
         #[arg(short, long, default_value_t = 3000)]
         port: u16,
+        /// 全インターフェースで待ち受ける（既定は NOWAKI_HOST or 127.0.0.1）
+        #[arg(long)]
+        host: bool,
     },
     /// 静的サイトとして事前レンダリングする (SSG)
     Prerender {
@@ -63,12 +73,17 @@ enum Command {
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Dev { dir, port } => {
+        Command::Dev {
+            dir,
+            port,
+            host,
+            open,
+        } => {
             let root = dir.canonicalize()?;
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()?
-                .block_on(dev::run(root, port))
+                .block_on(dev::run(root, port, host, open))
         }
         Command::Build { dir, adapter } => {
             let root = dir.canonicalize()?;
@@ -88,13 +103,16 @@ fn main() -> anyhow::Result<()> {
             if let Some(host) = &plugin_host {
                 core.set_plugins(host.bridge.clone());
             }
+            let started = std::time::Instant::now();
             let report = core.build(&dist)?;
-            println!(
-                "[nowaki] build完了: client {} modules / {} islands, server {} modules → {}",
+            let client_js_kb = ui::dir_js_kb(&report.out_dir);
+            ui::build_summary(
                 report.modules,
                 report.islands,
                 report.server_modules,
-                report.out_dir.display()
+                client_js_kb,
+                started.elapsed().as_millis(),
+                &dist,
             );
             match adapter {
                 // cloudflare: Edge worker（fetch ハンドラ + 静的アセット binding）を生成。
@@ -104,13 +122,13 @@ fn main() -> anyhow::Result<()> {
             }
             Ok(())
         }
-        Command::Start { dir, port } => {
+        Command::Start { dir, port, host } => {
             let root = dir.canonicalize()?;
             // Rust(axum) が静的配信 + HTML 組み立て、Node prod-sidecar がコンポーネント描画。
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()?
-                .block_on(start::run(root, port))
+                .block_on(start::run(root, port, host))
         }
         Command::Prerender { dir, out } => {
             let root = dir.canonicalize()?;

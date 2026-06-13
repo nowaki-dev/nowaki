@@ -98,7 +98,7 @@ async function benchNowaki() {
   if (!runtimeLinked) return { name: "Nowaki", skip: "deps not linked (run `pnpm install` at repo root)" };
 
   clean(dir, ["dist", "node_modules/.cache/nowaki"]);
-  const dev = await timeUntil(nowakiBin, ["dev", dir, "--port", "0"], { cwd: ROOT }, "dev server ready");
+  const dev = await timeUntil(nowakiBin, ["dev", dir, "--port", "0"], { cwd: ROOT }, "ready in");
   clean(dir, ["dist", "node_modules/.cache/nowaki"]);
   const build = timeRun(nowakiBin, ["build", dir], { cwd: ROOT });
   const js = jsSize(path.join(dir, "dist/client"));

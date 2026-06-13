@@ -16,7 +16,7 @@ pub async fn spawn(root: &Path, rust_port: u16) -> Result<Sidecar> {
     let entry = root.join("node_modules/@nowaki-dev/runtime/server/sidecar.mjs");
     if !entry.exists() {
         return Err(anyhow!(
-            "@nowaki-dev/runtime が見つかりません ({}). アプリで `pnpm install` を実行してください",
+            "依存がインストールされていません（{} が見つかりません）。\n  → アプリのディレクトリで `npm install`（または pnpm / yarn / bun）を実行してください。",
             entry.display()
         ));
     }
