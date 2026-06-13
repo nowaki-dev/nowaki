@@ -18,4 +18,38 @@ export function hydrateIslands(root = document) {
   }
 }
 
+// `<form action={serverFn}>` の傍受。preact は server fn の toString（"__nowaki_action:<id>"）を
+// action 属性に入れるので、submit をここで拾って FormData を server fn へ送る（ページ遷移しない）。
+// 結果は form に `nowaki:action` イベント（detail: { id, ok, result, error }）で通知する。
+const ACTION_PREFIX = "__nowaki_action:";
+document.addEventListener("submit", async (ev) => {
+  const form = ev.target;
+  if (!(form instanceof HTMLFormElement)) return;
+  const action = form.getAttribute("action") || "";
+  if (!action.startsWith(ACTION_PREFIX)) return;
+  ev.preventDefault();
+  const id = action.slice(ACTION_PREFIX.length);
+  const fields = Object.fromEntries(new FormData(form));
+  let ok = false;
+  let result;
+  let error;
+  try {
+    const res = await fetch("/__nowaki/fn", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, args: [fields] }),
+    });
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {}
+    ok = res.ok;
+    result = ok ? (data ? data.result : null) : undefined;
+    error = data && data.error;
+  } catch (e) {
+    error = String(e);
+  }
+  form.dispatchEvent(new CustomEvent("nowaki:action", { bubbles: true, detail: { id, ok, result, error } }));
+});
+
 hydrateIslands();

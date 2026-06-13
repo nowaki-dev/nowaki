@@ -82,6 +82,13 @@ jobs:
           curl -sf $B/blog/hello | grep -q "記事: hello"
           curl -sf $B/blog/hello | grep -q 'href="/about"'
 
+          # catch-all routes ([...path]): /files/a/b/c binds the rest as an array,
+          # /files (no trailing segment) does not match.
+          curl -sf $B/files/a/b/c | grep -q 'a / b / c (3)'
+          test "$(status $B/files)" = "404"
+          # async/dynamic metadata: export function meta() computes <title> from params
+          curl -sf $B/files/a/b/c | grep -q '<title>files/a/b/c'
+
           # middleware: header + auth redirect
           curl -s -D - -o /dev/null $B/ | grep -qi "x-nowaki-mw: 1"
           test "$(status $B/secret)" = "302"
@@ -135,6 +142,13 @@ jobs:
           curl -sf -XPOST -H 'content-type: application/json' -H 'cookie: user=alice' -d '{"id":"781de5a7f5ba2469","args":[]}' $B/__nowaki/fn | grep -q 'alice'
           test "$(status -XPOST -H 'content-type: application/json' -d '{"id":"deadbeefdeadbeef","args":[]}' $B/__nowaki/fn)" = "404"
           curl -sf $B/server-fn | grep -q 'nowaki-island name="ServerTodos"'
+
+          # server fn as a <form action>: the islands runtime intercepts the submit and
+          # posts the form to the fn. Here we exercise the server side (addTodoForm) and
+          # confirm the runtime ships the form interceptor.
+          curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"5591e6fc8d31a200","args":[{"text":"ci-form-action"}]}' $B/__nowaki/fn >/dev/null
+          curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn | grep -q 'ci-form-action'
+          curl -sf "$B/server-fn" | grep -q 'fa-form'
 
           # v0.9 virtual modules: a plugin resolveId/load provides virtual:build-info,
           # imported by an island. SSR renders it (inlined as a data: module) and the

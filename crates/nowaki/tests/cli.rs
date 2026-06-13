@@ -107,6 +107,28 @@ fn build_produces_expected_manifest_and_zero_js_live_island() {
         assert!(proxy.contains(id), "proxy missing id {id}");
     }
 
+    // server fn を `<form action={fn}>` に渡せる: プロキシは toString で
+    // "__nowaki_action:<id>" を返し、クライアントの form 傍受がそれを拾う。
+    assert!(
+        functions.contains("\"export\": \"addTodoForm\""),
+        "addTodoForm (form-action server fn) should be in functions.json"
+    );
+    assert!(
+        proxy.contains("__nowaki_action:"),
+        "proxy should expose a form-action sentinel via toString"
+    );
+    // islands ランタイムチャンクが form 傍受を同梱している。
+    assert!(
+        names.iter().any(|n| {
+            n.starts_with("islands.")
+                && n.ends_with(".js")
+                && std::fs::read_to_string(client.join(n))
+                    .map(|s| s.contains("__nowaki_action:"))
+                    .unwrap_or(false)
+        }),
+        "islands runtime should ship the <form action> interceptor"
+    );
+
     // --- 仮想モジュール（plugin resolveId/load）の不変条件 ---
     // クライアント: 生成ソースが島チャンクへ連結され、bare `virtual:` 指定子は残らない。
     let vbadge = names

@@ -89,7 +89,7 @@ export function createFetchHandler({
     ensureIslands: () => {},
     serverFunctions,
     renderDocument: (args) => prodDocument(manifest, args),
-    renderShell: ({ mod }) => prodShell(manifest, mod),
+    renderShell: ({ mod, meta }) => prodShell(manifest, mod, meta),
     renderError: (err) => ({
       status: 500,
       headers: { "content-type": "text/plain; charset=utf-8" },

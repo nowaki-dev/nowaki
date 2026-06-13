@@ -10,6 +10,7 @@ import path from "node:path";
 import { createApp } from "./app.mjs";
 import { handleRequest } from "./handler.mjs";
 import { liveRender } from "./live.mjs";
+import { pageMeta } from "./document.mjs";
 
 const appRoot = process.cwd();
 const { env, liveRegistry } = await createApp({
@@ -19,13 +20,10 @@ const { env, liveRegistry } = await createApp({
 
 // ページは完成 HTML ではなく body+メタのマーカーを返す（Rust 側で組み立てる）。
 // ストリーミング（renderShell 経由）はマーカーを通らず stream 応答 → 素通し。
-env.renderDocument = ({ mod, body }) => ({
-  __nowakiPage: true,
-  body,
-  title: typeof mod.title === "string" ? mod.title : "Nowaki App",
-  head: typeof mod.head === "string" ? mod.head : "",
-  lang: typeof mod.lang === "string" ? mod.lang : "en",
-});
+env.renderDocument = ({ mod, body, meta }) => {
+  const m = pageMeta(meta, mod);
+  return { __nowakiPage: true, body, title: m.title, head: m.head, lang: m.lang };
+};
 
 const server = createServer(async (req, res) => {
   // サーバーリアクティブ島の再描画（Rust の /__nowaki/live WS から呼ばれる）。

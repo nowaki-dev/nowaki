@@ -1,8 +1,20 @@
 // 本番ドキュメント組み立て（純粋な文字列処理。node 依存なし＝Node でも Edge でも使える）。
 // 描画済み body を完成 HTML に包む / ストリーミング用に head と tail へ分ける。
 
+// 解決済みメタ（handler が loader 後に算出した {title,head,lang}）を優先し、無ければ
+// route の静的 export（mod.title 等）にフォールバックする。
+export function pageMeta(meta, mod) {
+  const str = (v) => (typeof v === "string" ? v : undefined);
+  return {
+    title: str(meta?.title) ?? str(mod?.title) ?? "Nowaki App",
+    head: str(meta?.head) ?? str(mod?.head) ?? "",
+    lang: str(meta?.lang) ?? str(mod?.lang) ?? "en",
+  };
+}
+
 // 非ストリーミング: body 全体を見て、使われた island の preload を <head> に入れる（瀑布回避）。
-export function prodDocument(manifest, { mod, body }) {
+export function prodDocument(manifest, { mod, body, meta }) {
+  const m = pageMeta(meta, mod);
   const islandNames = [...body.matchAll(/<nowaki-island name="([^"]+)"/g)].map((m) => m[1]);
   const hasIslands = islandNames.length > 0 && manifest.runtime;
   const preloadFiles = [];
@@ -38,13 +50,13 @@ export function prodDocument(manifest, { mod, body }) {
       : "";
 
   return `<!DOCTYPE html>
-<html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
+<html lang="${escapeHtml(m.lang)}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(mod.title ?? "Nowaki App")}</title>
+<title>${escapeHtml(m.title)}</title>
 ${preload}
-${typeof mod.head === "string" ? mod.head : ""}
+${m.head}
 </head>
 <body>
 ${body}
@@ -56,7 +68,8 @@ ${live}
 
 // ストリーミング: シェル送出時点で島が未確定なので per-island preload は省き、
 // runtime チャンクだけ preload する（runtime が <nowaki-island> を見て各島を取得する）。
-export function prodShell(manifest, mod) {
+export function prodShell(manifest, mod, meta) {
+  const m = pageMeta(meta, mod);
   const runtimeChunk = manifest.runtime;
   const runtimePreload = runtimeChunk
     ? `<link rel="modulepreload" href="/_nowaki/${runtimeChunk}" />\n`
@@ -65,12 +78,12 @@ export function prodShell(manifest, mod) {
     ? `<script type="module" src="/_nowaki/${runtimeChunk}"></script>`
     : "";
   const head = `<!DOCTYPE html>
-<html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
+<html lang="${escapeHtml(m.lang)}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(mod.title ?? "Nowaki App")}</title>
-${runtimePreload}${typeof mod.head === "string" ? mod.head : ""}
+<title>${escapeHtml(m.title)}</title>
+${runtimePreload}${m.head}
 </head>
 <body>
 `;

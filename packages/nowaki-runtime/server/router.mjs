@@ -56,6 +56,8 @@ export async function scanRoutes(appRoot) {
       .split("/")
       .filter(Boolean)
       .map((seg) => {
+        const rest = seg.match(/^\[\.\.\.(.+)\]$/); // [...slug] = catch-all
+        if (rest) return { param: rest[1], rest: true };
         const m = seg.match(/^\[(.+)\]$/);
         return m ? { param: m[1] } : { lit: seg };
       });
@@ -64,10 +66,12 @@ export async function scanRoutes(appRoot) {
       segments,
       isApi,
       specificity: segments.filter((s) => s.lit).length,
+      rest: segments.some((s) => s.rest),
     });
   }
 
-  routes.sort((a, b) => b.specificity - a.specificity);
+  // 静的 > 動的 > catch-all。specificity（リテラル数）降順、同点なら catch-all を後に。
+  routes.sort((a, b) => b.specificity - a.specificity || (a.rest ? 1 : 0) - (b.rest ? 1 : 0));
   // root→leaf 順（短い prefix を先に）
   layouts.sort((a, b) => a.prefix.length - b.prefix.length);
   middleware.sort((a, b) => a.prefix.length - b.prefix.length);
@@ -79,16 +83,28 @@ export function matchRoute(routesOrTable, pathname) {
   const routes = Array.isArray(routesOrTable) ? routesOrTable : routesOrTable.routes;
   const parts = pathname.split("/").filter(Boolean);
   outer: for (const route of routes) {
-    if (route.segments.length !== parts.length) continue;
+    const segs = route.segments;
+    const rest = segs.length > 0 && segs[segs.length - 1].rest;
+    if (rest) {
+      // 末尾の catch-all は残り（≥1）を束ねる。固定部 = segs.length - 1。
+      if (parts.length < segs.length) continue;
+    } else if (segs.length !== parts.length) {
+      continue;
+    }
     const params = {};
-    for (let i = 0; i < parts.length; i++) {
-      const seg = route.segments[i];
+    const fixed = rest ? segs.length - 1 : segs.length;
+    for (let i = 0; i < fixed; i++) {
+      const seg = segs[i];
       const part = decodeURIComponent(parts[i]);
       if (seg.lit !== undefined) {
         if (seg.lit !== part) continue outer;
       } else {
         params[seg.param] = part;
       }
+    }
+    if (rest) {
+      // catch-all param は残りセグメントの配列。
+      params[segs[segs.length - 1].param] = parts.slice(fixed).map((p) => decodeURIComponent(p));
     }
     return { file: route.file, params, isApi: route.isApi };
   }

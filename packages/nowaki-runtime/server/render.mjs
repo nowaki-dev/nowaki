@@ -10,6 +10,7 @@ import { h, options } from "preact";
 
 import { stableStringify } from "./serialize.mjs";
 import { liveInitialState } from "./live.mjs";
+import { pageMeta } from "./document.mjs";
 
 const ISLAND_EXT = /\.(tsx|jsx|ts|js|tsrx)$/;
 
@@ -95,14 +96,15 @@ options.vnode = (vnode) => {
 
 // 完成 HTML の head（…<body>）と tail（</body>…）を返す。dev 用。
 // 非ストリーミングは renderDocument が body を挟むだけ、ストリーミングは handler が本文を流し込む。
-export function renderShell({ mod }) {
+export function renderShell({ mod, meta }) {
+  const m = pageMeta(meta, mod);
   const head = `<!DOCTYPE html>
-<html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
+<html lang="${escapeHtml(m.lang)}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(mod.title ?? "Nowaki App")}</title>
-${typeof mod.head === "string" ? mod.head : ""}
+<title>${escapeHtml(m.title)}</title>
+${m.head}
 </head>
 <body>
 `;
@@ -115,8 +117,8 @@ ${devScripts()}
 
 // 描画済み body を完成 HTML に包む（dev 用: islands.js + クライアントルーター + hmr.js）。
 // 実際のページ描画・loader 実行は handler.mjs が担当する。
-export function renderDocument({ mod, body }) {
-  const { head, tail } = renderShell({ mod });
+export function renderDocument({ mod, body, meta }) {
+  const { head, tail } = renderShell({ mod, meta });
   return `${head}${body}${tail}`;
 }
 

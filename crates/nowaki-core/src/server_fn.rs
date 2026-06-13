@@ -149,13 +149,25 @@ pub fn client_proxy(module_key: &str, exports: &[String]) -> String {
     out.push_str(
         "// nowaki: \"use server\" モジュールのクライアントプロキシ（実装はサーバーに留まる）。\n",
     );
+    // FormData 引数はオブジェクト化する（`<form action={serverFn}>` で渡される FormData を
+    // JSON 化できるように）。これで島内の form action から server fn を呼べる。
+    out.push_str(
+        "const __nowakiArg = (a) => (typeof FormData !== \"undefined\" && a instanceof FormData) ? Object.fromEntries(a) : a;\n",
+    );
+    // プロキシ本体。`<form action={fn}>` で使えるよう、toString は `__nowaki_action:<id>` を返す
+    // （preact は関数 action を文字列化して属性に入れるので、クライアントの form 傍受がこれを拾う）。
     out.push_str(&format!(
-        "const __nowakiCall = (id) => async (...args) => {{\n  \
-const res = await fetch({path:?}, {{ method: \"POST\", headers: {{ \"content-type\": \"application/json\" }}, body: JSON.stringify({{ id, args }}) }});\n  \
-let data = null;\n  \
-try {{ data = await res.json(); }} catch {{}}\n  \
-if (!res.ok) throw new Error((data && data.error) || (\"server function failed: \" + res.status));\n  \
-return data ? data.result : null;\n\
+        "const __nowakiCall = (id) => {{\n  \
+const fn = async (...args) => {{\n    \
+const res = await fetch({path:?}, {{ method: \"POST\", headers: {{ \"content-type\": \"application/json\" }}, body: JSON.stringify({{ id, args: args.map(__nowakiArg) }}) }});\n    \
+let data = null;\n    \
+try {{ data = await res.json(); }} catch {{}}\n    \
+if (!res.ok) throw new Error((data && data.error) || (\"server function failed: \" + res.status));\n    \
+return data ? data.result : null;\n  \
+}};\n  \
+fn.toString = () => \"__nowaki_action:\" + id;\n  \
+fn.__nowakiId = id;\n  \
+return fn;\n\
 }};\n",
         path = SERVER_FN_PATH,
     ));

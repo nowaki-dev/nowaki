@@ -146,7 +146,7 @@ export async function createApp({ clientDir, serverDir, loadDotenv = true } = {}
     ensureIslands: () => {}, // レジストリは起動時に構築済み
     serverFunctions,
     renderDocument: (args) => prodDocument(manifest, args),
-    renderShell: ({ mod }) => prodShell(manifest, mod),
+    renderShell: ({ mod, meta }) => prodShell(manifest, mod, meta),
     renderError: (err) => {
       console.error("[nowaki]", err);
       return {

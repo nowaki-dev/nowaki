@@ -136,6 +136,9 @@ async function renderRoute(env, table, match, mod, ctx, version) {
     throw new Error(`ルートがコンポーネントを default export していません: ${ctx.url.pathname}`);
   }
   const data = mod.loader ? await mod.loader(ctx) : undefined;
+  // 動的・非同期メタデータ: `export function meta({data,params,url})` があれば await して
+  // title/head/lang を算出。無ければ静的 export（mod.title 等）にフォールバック。
+  const meta = await resolveMeta(mod, { data, params: ctx.params, url: ctx.url });
   let node = h(Page, { data, actionData: ctx.actionData, params: ctx.params, url: ctx.url });
 
   // レイアウトを leaf→root で外側に巻く
@@ -152,7 +155,7 @@ async function renderRoute(env, table, match, mod, ctx, version) {
   // シェル(head) を即送出 → 本文をストリーム → tail(runtime script)。TTFB を縮める。
   // env.renderShell を持つ環境のみ。preload はシェル送出時に島が未確定なので最小化する。
   if (mod.streaming === true && typeof env.renderShell === "function") {
-    const { head, tail } = env.renderShell({ mod });
+    const { head, tail } = env.renderShell({ mod, meta });
     const bodyStream = await renderToReadableStream(node);
     return {
       status: 200,
@@ -162,7 +165,25 @@ async function renderRoute(env, table, match, mod, ctx, version) {
   }
 
   const body = await renderToStringAsync(node);
-  return { status: 200, headers: HTML, body: env.renderDocument({ mod, body }) };
+  return { status: 200, headers: HTML, body: env.renderDocument({ mod, body, meta }) };
+}
+
+// route のメタを解決する。`mod.meta` は関数（async 可）で {title,head,lang} を返す。
+async function resolveMeta(mod, info) {
+  let dyn = null;
+  if (typeof mod.meta === "function") {
+    try {
+      dyn = await mod.meta(info);
+    } catch {
+      dyn = null; // meta が落ちてもページ描画は続ける
+    }
+  }
+  const str = (v) => (typeof v === "string" ? v : undefined);
+  return {
+    title: str(dyn?.title) ?? str(mod.title),
+    head: str(dyn?.head) ?? str(mod.head),
+    lang: str(dyn?.lang) ?? str(mod.lang),
+  };
 }
 
 // head → 本文ストリーム → tail を1つの Web ReadableStream に連結する。
