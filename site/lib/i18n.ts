@@ -3,20 +3,31 @@ export type Locale = (typeof locales)[number];
 
 export const GH = "https://github.com/nowaki-dev/nowaki";
 export const CRATES = "https://crates.io/crates/nowaki";
-export const NPM = "https://www.npmjs.com/package/create-nowaki";
+export const NPM = "https://www.npmjs.com/package/nowaki";
 
 export const STRINGS = {
   en: {
-    title: "Nowaki: a full-stack web framework with islands and a Rust toolchain",
-    desc: "Nowaki (野分) is a full-stack web framework with routing, server loaders, SSR and API routes, on a Rust toolchain. It renders to HTML and hydrates only the islands you mark. Dev server ready in ~90ms, millisecond rebuilds. Full-stack like Next.js, islands like Astro.",
-    ogTitle: "Nowaki: full-stack like Next.js, islands like Astro",
+    title: "Nowaki: a Rust-fast full-stack web framework you install with npm",
+    desc: "Nowaki (野分) is a full-stack web framework with layouts, middleware, server loaders, actions, SSR and API routes, on a Rust toolchain (oxc). It renders to HTML and hydrates only the islands you mark. Dev server ready in about 90ms, millisecond rebuilds, and you install it with npm: no Rust required. Full-stack like Next.js, islands like Astro.",
+    ogTitle: "Nowaki: full-stack like Next.js, islands like Astro, installed with npm",
     nav: { docs: "Docs", github: "GitHub" },
     hero: {
-      badge: "v0.1 · alpha",
+      badge: "v0.4 · Monsoon · alpha",
       h1a: "Full-stack like Next.js.",
       h1b: "Islands like Astro.",
-      sub: "A full-stack web framework with file-based routing, server loaders, SSR, and API routes. It renders to HTML and hydrates only the islands you mark, on a Rust toolchain (oxc): dev server ready in about 90 milliseconds, rebuilds in single milliseconds.",
-      alpha: "Alpha. Not for production yet, but real, and really fast.",
+      sub: "Layouts, middleware, server loaders, actions, SSR, and API routes. Pages render to HTML and only the islands you mark hydrate. The whole toolchain is Rust (oxc), so the dev server is ready in about 90 milliseconds and rebuilds land in single milliseconds.",
+      rustfree: "Installs with npm. No Rust toolchain required: the CLI ships as a prebuilt native binary.",
+      alpha: "Alpha. Not for production yet, but real, fast, and published on npm and crates.io.",
+    },
+    ship: {
+      h2: "This page ships 11 KB of JavaScript.",
+      lead: "Everything interactive on this site, the wind animation and the copy buttons, is 11 KB gzipped with Preact included. A page with no islands ships zero. For comparison, React and ReactDOM alone are about 45 KB gzipped, before any of your own code.",
+      bars: [
+        { label: "This page (two islands + wind)", value: "11 KB", pct: 24 },
+        { label: "A content page, no islands", value: "0 KB", pct: 1, zero: true },
+        { label: "React + ReactDOM, baseline only", value: "~45 KB", pct: 100, muted: true },
+      ],
+      note: "Measured on this site's own production build (it is built with Nowaki). Rigorous head-to-head benchmarks against Next and Astro are on the roadmap.",
     },
     speed: {
       h2: "Speed you feel on every keystroke.",
@@ -24,45 +35,95 @@ export const STRINGS = {
       stats: [
         { value: "~90 ms", label: "Dev server ready, measured on the example app." },
         { value: "milliseconds", label: "To re-transform a changed file with oxc. No JavaScript bundler warm-up." },
-        { value: "0 KB", label: "JavaScript for the page shell and server loaders. Only islands ship." },
+        { value: "scope-hoisted", label: "Production output: modules concatenated into one scope, tree-shaken, content-hashed, with source maps." },
       ],
     },
     how: {
-      h2: "From nothing to a running app.",
+      h2: "From nothing to a running app, without Rust.",
       steps: [
-        { cmd: "npm create nowaki", title: "Scaffold", body: `Lays down file-based <code style="color:var(--ink)">routes/</code> and <code style="color:var(--ink)">islands/</code> you can edit right away.` },
-        { cmd: "nowaki dev", title: "Develop", body: "Transforms on demand with the Rust oxc pipeline. Islands hydrate; everything else stays HTML." },
-        { cmd: "nowaki build · start", title: "Ship", body: "Emits content-hashed ESM and SSR modules, then serves them in production." },
+        { cmd: "npm create nowaki@latest", title: "Scaffold", body: `Lays down file-based <code>routes/</code> and <code>islands/</code>. The CLI is a prebuilt binary, so there is no Rust to install.` },
+        { cmd: "npm run dev", title: "Develop", body: "The Rust oxc pipeline transforms on demand. Islands hydrate; everything else stays HTML. Errors show as a full-screen overlay." },
+        { cmd: "npm run build · start", title: "Ship", body: "Scope-hoisted, content-hashed ESM and SSR modules, served in production. Or prerender to static and put it on a CDN." },
       ],
     },
     code: {
-      h2: "Write a route. Mark an island.",
-      lead: `A route is a component with an optional <code style="color:var(--ink)">loader</code> that runs only on the server. Drop in a component from <code style="color:var(--ink)">islands/</code> and it, and only it, hydrates in the browser.`,
-      commentTop: "// routes/index.tsx, runs on the server only",
-      commentInline: "// only this hydrates",
-      serverMsg: "Hello from the server",
+      h2: "Write a route. Mark an island. Handle a form.",
+      lead: `Routes are components with an optional server-only <code>loader</code>. A non-GET request runs the route's <code>action</code>. Components under <code>islands/</code> are the only thing that hydrates.`,
+      tabs: ["A route with a loader", "A form with an action", "File conventions"],
+      conventions: [
+        { f: "routes/_layout.tsx", d: "Shared layout, nests per directory" },
+        { f: "routes/_middleware.ts", d: "Runs before routes; auth, redirects, headers" },
+        { f: "routes/blog/[slug].tsx", d: "Dynamic route + server loader" },
+        { f: "routes/api/posts.ts", d: "GET / POST handlers, streaming Response" },
+        { f: "routes/_404.tsx · _500.tsx", d: "Not-found and error pages" },
+        { f: "islands/Counter.tsx", d: "Hydrates in the browser. Nothing else does." },
+      ],
+    },
+    compare: {
+      h2: "Honestly, next to Next and Astro.",
+      lead: "None of these ideas is new on its own. Nowaki's bet is the combination. Here is where it actually differs, without spin.",
+      cols: ["Nowaki", "Next.js", "Astro"],
+      rows: [
+        { feature: "Toolchain", nowaki: "Rust (oxc), from scratch", next: "Turbopack (SWC)", astro: "Vite → Rolldown" },
+        { feature: "JavaScript by default", nowaki: "Zero, islands only", next: "Ships React + hydrates", astro: "Zero, islands only" },
+        { feature: "Full-stack app DX", nowaki: "Routing, loaders, actions, middleware, API", next: "Yes, mature", astro: "Growing, content-first" },
+        { feature: "Install without the toolchain's language", nowaki: "npm, no Rust", next: "npm", astro: "npm" },
+        { feature: "Maturity", nowaki: "Alpha", next: "Mature, huge ecosystem", astro: "Mature" },
+      ],
+      note: "Next and Astro are mature and battle-tested. Nowaki is alpha. The point of the table is the architecture, not a scoreboard.",
+    },
+    positioning: {
+      h2: "Who it's for.",
+      lead: "Nowaki fits apps that are content-heavy but still dynamic: marketing with auth, docs with interactive widgets, dashboards with real server data, commerce. The kind of page that is mostly text and server data, where a full-hydrate framework still ships a megabyte of JavaScript.",
+      forTitle: "A good fit",
+      for: [
+        "You write Next.js-style apps but most of each page is static content and server data.",
+        "You want forms, auth, and dynamic routes without paying for a full client runtime on every page.",
+        "You like the Remix-style loader and action model, with the parts shipped only where they're used.",
+      ],
+      notTitle: "Not the sweet spot yet",
+      not: [
+        "Fully interactive single-page apps where almost everything is stateful. Islands fight you there, and full hydration or RSC fits better.",
+        "Production-critical work today: Nowaki is alpha and the API still moves.",
+      ],
     },
     features: {
       h2: "A real framework, not a static-site generator.",
-      lead: "Nowaki is built for dynamic apps in the Next.js and Remix lineage, with the parts you actually ship a product on.",
+      lead: "Built for dynamic apps in the Next.js and Remix lineage, with the parts you actually ship a product on.",
       items: [
-        { title: "Full-stack, dynamic by default", body: `File-based <code style="color:var(--ink)">routes/</code>, server <code style="color:var(--ink)">loader</code>s, SSR on every request, and <code style="color:var(--ink)">routes/api/</code> handlers. Not just static pages.` },
-        { title: "Rust toolchain (oxc)", body: "Parsing, transforming, resolving and bundling run in Rust, for fast cold starts and millisecond rebuilds. This is the part that makes it quick." },
-        { title: "Islands by default", body: `Pages render to HTML on the server. Only components under <code style="color:var(--ink)">islands/</code> ship and hydrate, so apps stay light without extra work.` },
-        { title: "npm ecosystem, intact", body: "SSR runs on a Node sidecar with Preact, so your existing packages keep working." },
+        { title: "Full-stack routing", body: `File-based <code>routes/</code> with nested <code>_layout</code>s, <code>_middleware</code>, server <code>loader</code>s, <code>action</code>s for forms, and <code>api/</code> handlers with method dispatch and streaming.` },
+        { title: "Islands, zero JS by default", body: `Pages render to HTML on the server. Only components under <code>islands/</code> ship and hydrate, so a page costs only what it actually uses.` },
+        { title: "Rust toolchain (oxc)", body: "Parse, transform, resolve, bundle, minify, and scope-hoist run in Rust. Fast cold starts, millisecond rebuilds, and a persistent disk cache across restarts." },
+        { title: "Installs with npm, no Rust", body: "The CLI ships as prebuilt native binaries through npm's optional dependencies. No cargo, no toolchain, no postinstall." },
+        { title: "Island-to-island SPA router", body: "Navigation between island pages is client-side and instant, with prefetch and scroll restoration. Pages with no islands stay zero-JS and navigate normally." },
+        { title: "CSS Modules, assets, source maps", body: `<code>*.module.css</code> with scoped class names, hashed <code>import</code>s for images and fonts, and end-to-end source maps in dev and prod.` },
+        { title: "npm ecosystem, intact", body: "SSR runs on a Rust-managed Node sidecar with Preact, so your existing packages keep working." },
+        { title: "Honest dev experience", body: "Full-screen error overlay, code-frame diagnostics, hot reload, and live island swap on save." },
       ],
     },
     alpha: {
       h2: "Honest about alpha.",
-      lead: "Nowaki is young. The core loop is real and verified end to end. Here's exactly where it stands.",
+      lead: "Nowaki is young, but the core is real and verified end to end, including in headless Chrome. Here is exactly where it stands.",
       worksTitle: "Works today",
-      works: ["nowaki dev / build / start", "Islands hydration", "File-based routes + loaders", "API routes", "create-nowaki scaffolding"],
+      works: [
+        "dev / build / start / prerender",
+        "Layouts, middleware, actions, API routes",
+        "Islands + island-to-island SPA router",
+        "CSS Modules, asset imports, source maps",
+        "Scope-hoisted production bundles",
+        "Rust-free install via npm",
+      ],
       soonTitle: "On the roadmap",
-      soon: ["Error overlay", "Stateful (prefresh) HMR", "CSS handling & scoped styles", "Chunk bundling (scope hoisting)"],
+      soon: [
+        "Jetstream: server-reactive islands (HTML patches over a channel)",
+        "Deploy adapters (Edge / Bun / Deno) and streaming SSR",
+        "State-preserving (prefresh) HMR",
+        "Benchmarks vs Next and Astro",
+      ],
       roadmap: "Read the full roadmap →",
     },
     footer: {
-      tagline: "A Rust-toolchain full-stack web framework. Zero JS by default.",
+      tagline: "A Rust-toolchain full-stack web framework. Zero JS by default, installed with npm.",
       copyright: "MIT © 2026 Voredge",
       windName: "野分 · an autumn typhoon wind",
       trademark: "Next.js is a trademark of Vercel, Inc. Astro is a trademark of The Astro Technology Company. Nowaki is an independent project, not affiliated with or endorsed by either.",
@@ -71,16 +132,27 @@ export const STRINGS = {
   },
 
   ja: {
-    title: "Nowaki: Rust製ツールチェーンの爆速フルスタックWebフレームワーク",
-    desc: "Nowaki（野分）は routing・server loader・SSR・API routes を備えたフルスタックWebフレームワーク。ページを HTML に描画し、印した島だけをハイドレート。Rust ツールチェーン上で動き、dev 起動 約90ms、再ビルドは数ミリ秒。Next.js のようなフルスタック、Astro のような Islands。",
-    ogTitle: "Nowaki: Next.js のようなフルスタック、Astro のような Islands",
+    title: "Nowaki: npm で入る、Rust 製ツールチェーンの爆速フルスタックWebフレームワーク",
+    desc: "Nowaki（野分）は layout・middleware・server loader・action・SSR・API routes を備えたフルスタックWebフレームワーク。Rust ツールチェーン（oxc）上で動き、ページを HTML に描画し、印した島だけをハイドレート。dev 起動 約90ms、再ビルドは数ミリ秒、そして npm で入る（Rust 不要）。Next.js のようなフルスタック、Astro のような Islands。",
+    ogTitle: "Nowaki: Next.js のようなフルスタック、Astro のような Islands、npm で入る",
     nav: { docs: "ドキュメント", github: "GitHub" },
     hero: {
-      badge: "v0.1 · alpha",
+      badge: "v0.4 · Monsoon · alpha",
       h1a: "Next.js のようなフルスタック。",
       h1b: "Astro のような Islands。",
-      sub: "routing・server loader・SSR・API routes を備えたフルスタックWebフレームワーク。ページを HTML に描画し、印した島だけをハイドレート。Rust ツールチェーン（oxc）が dev 起動を約90ミリ秒、再ビルドを数ミリ秒にします。",
-      alpha: "alpha 版。まだ本番向けではありませんが、実在し、本当に速い。",
+      sub: "layout・middleware・server loader・action・SSR・API routes。ページは HTML に描画され、印した島だけがハイドレートします。ツールチェーン全体が Rust（oxc）なので、dev 起動は約90ミリ秒、再ビルドは数ミリ秒で返ります。",
+      rustfree: "npm で入ります。Rust ツールチェーンは不要。CLI はプリビルドのネイティブバイナリで配布します。",
+      alpha: "alpha 版。まだ本番向けではありませんが、実在し、本当に速く、npm と crates.io に公開済みです。",
+    },
+    ship: {
+      h2: "このページが送る JavaScript は 11 KB。",
+      lead: "このサイトの動く部分すべて、風のアニメーションとコピーボタンを合わせて、Preact 込みで gzip 後 11 KB です。島の無いページは 0 KB。参考までに、React と ReactDOM だけで gzip 後およそ 45 KB、あなたのコードを書く前にこれです。",
+      bars: [
+        { label: "このページ（島2つ + 風）", value: "11 KB", pct: 24 },
+        { label: "コンテンツだけのページ（島なし）", value: "0 KB", pct: 1, zero: true },
+        { label: "React + ReactDOM の土台だけ", value: "約45 KB", pct: 100, muted: true },
+      ],
+      note: "このサイト自身の本番ビルドで実測（このサイトは Nowaki 製です）。Next や Astro との厳密な直接ベンチはロードマップにあります。",
     },
     speed: {
       h2: "打鍵ごとに感じる速さ。",
@@ -88,45 +160,95 @@ export const STRINGS = {
       stats: [
         { value: "~90 ms", label: "サンプルアプリで実測した dev サーバー起動。" },
         { value: "数ミリ秒", label: "oxc による変更ファイルの再変換。JS バンドラーのウォームアップなし。" },
-        { value: "0 KB", label: "ページの土台と server loader の JavaScript。送るのは島だけ。" },
+        { value: "scope-hoisted", label: "本番出力: モジュールを1スコープへ連結、ツリーシェイク、content-hash、ソースマップ付き。" },
       ],
     },
     how: {
-      h2: "何もない状態から、動くアプリへ。",
+      h2: "何もない状態から、Rust なしで動くアプリへ。",
       steps: [
-        { cmd: "npm create nowaki", title: "雛形作成", body: `file-based の <code style="color:var(--ink)">routes/</code> と <code style="color:var(--ink)">islands/</code> を生成。すぐ編集できます。` },
-        { cmd: "nowaki dev", title: "開発", body: "Rust の oxc パイプラインがオンデマンドで変換。島はハイドレートし、それ以外は HTML のまま。" },
-        { cmd: "nowaki build · start", title: "公開", body: "content-hash 付き ESM と SSR モジュールを出力し、本番配信します。" },
+        { cmd: "npm create nowaki@latest", title: "雛形作成", body: `file-based の <code>routes/</code> と <code>islands/</code> を生成。CLI はプリビルドのバイナリなので、Rust を入れる必要はありません。` },
+        { cmd: "npm run dev", title: "開発", body: "Rust の oxc パイプラインがオンデマンドで変換。島はハイドレートし、それ以外は HTML のまま。エラーは全画面オーバーレイで表示。" },
+        { cmd: "npm run build · start", title: "公開", body: "scope-hoisting 済み・content-hash 付きの ESM と SSR モジュールを本番配信。あるいは静的に prerender して CDN へ。" },
       ],
     },
     code: {
-      h2: "ルートを書き、島を印す。",
-      lead: `ルートは、サーバーでのみ走る任意の <code style="color:var(--ink)">loader</code> を持つコンポーネント。<code style="color:var(--ink)">islands/</code> のコンポーネントを置けば、それだけがブラウザでハイドレートします。`,
-      commentTop: "// routes/index.tsx, サーバーでのみ実行",
-      commentInline: "// ハイドレートするのはこれだけ",
-      serverMsg: "サーバーからこんにちは",
+      h2: "ルートを書き、島を印し、フォームを受ける。",
+      lead: `ルートは、サーバーでのみ走る任意の <code>loader</code> を持つコンポーネント。非 GET リクエストはルートの <code>action</code> が処理します。ブラウザでハイドレートするのは <code>islands/</code> のものだけです。`,
+      tabs: ["loader 付きルート", "action 付きフォーム", "ファイル規約"],
+      conventions: [
+        { f: "routes/_layout.tsx", d: "共有レイアウト、ディレクトリ単位でネスト" },
+        { f: "routes/_middleware.ts", d: "ルート前に実行。認証・リダイレクト・ヘッダ" },
+        { f: "routes/blog/[slug].tsx", d: "動的ルート + server loader" },
+        { f: "routes/api/posts.ts", d: "GET / POST ハンドラ、streaming Response" },
+        { f: "routes/_404.tsx · _500.tsx", d: "未一致ページとエラーページ" },
+        { f: "islands/Counter.tsx", d: "ブラウザでハイドレート。それ以外はしない。" },
+      ],
+    },
+    compare: {
+      h2: "Next・Astro と並べて、正直に。",
+      lead: "どのアイデアも単体では新しくありません。Nowaki の賭けはその組み合わせです。誇張なしで、実際にどこが違うかを示します。",
+      cols: ["Nowaki", "Next.js", "Astro"],
+      rows: [
+        { feature: "ツールチェーン", nowaki: "Rust (oxc) を自作", next: "Turbopack (SWC)", astro: "Vite → Rolldown" },
+        { feature: "デフォルトの JavaScript", nowaki: "ゼロ、島だけ", next: "React を送り hydrate", astro: "ゼロ、島だけ" },
+        { feature: "フルスタックなアプリ DX", nowaki: "routing・loader・action・middleware・API", next: "あり、成熟", astro: "成長中・コンテンツ寄り" },
+        { feature: "ツールチェーンの言語なしで入る", nowaki: "npm、Rust 不要", next: "npm", astro: "npm" },
+        { feature: "成熟度", nowaki: "alpha", next: "成熟・巨大なエコシステム", astro: "成熟" },
+      ],
+      note: "Next と Astro は成熟し実戦で揉まれています。Nowaki は alpha です。この表の主旨はアーキテクチャであって、勝敗表ではありません。",
+    },
+    positioning: {
+      h2: "どんなアプリに向くか。",
+      lead: "Nowaki が向くのは、コンテンツ主体だが動的なアプリです。認証付きのマーケ、対話ウィジェット入りのドキュメント、本物のサーバーデータを持つ管理画面、EC。本文とサーバーデータが大半なのに、全 hydrate のフレームワークだと1ページに数百 KB の JavaScript を送ってしまう、その層です。",
+      forTitle: "向いている",
+      for: [
+        "Next.js 風にアプリを書くが、各ページの大半は静的コンテンツとサーバーデータ。",
+        "フォーム・認証・動的ルートが欲しいが、全ページにクライアントランタイムの代金は払いたくない。",
+        "Remix 風の loader / action モデルが好きで、それを使う所にだけ JS を送りたい。",
+      ],
+      notTitle: "まだ得意でない",
+      not: [
+        "ほぼ全部が状態を持つ、全面インタラクティブな SPA。島はそこでは窮屈で、全 hydrate や RSC の方が合います。",
+        "今日の本番クリティカルな用途。Nowaki は alpha で、API はまだ動きます。",
+      ],
     },
     features: {
       h2: "静的サイトジェネレータではない、本物のフレームワーク。",
-      lead: "Nowaki は Next.js / Remix 系譜の動的なアプリ向けに作られ、実際にプロダクトを載せられる部品が揃っています。",
+      lead: "Next.js / Remix 系譜の動的なアプリ向けに作られ、実際にプロダクトを載せられる部品が揃っています。",
       items: [
-        { title: "デフォルトでフルスタック・動的", body: `file-based の <code style="color:var(--ink)">routes/</code>、server <code style="color:var(--ink)">loader</code>、毎リクエストの SSR、そして <code style="color:var(--ink)">routes/api/</code> ハンドラ。静的ページだけではありません。` },
-        { title: "Rust ツールチェーン (oxc)", body: "パース・変換・解決・バンドルが Rust で動き、高速なコールドスタートと数ミリ秒の再ビルドを実現。速さの正体はここです。" },
-        { title: "デフォルトで Islands", body: `ページはサーバーで HTML に描画。<code style="color:var(--ink)">islands/</code> 配下のコンポーネントだけが配信・ハイドレートされ、追加作業なしでアプリは軽いまま。` },
-        { title: "npm エコシステムそのまま", body: "SSR は Preact の Node サイドカーで動くので、既存のパッケージがそのまま使えます。" },
+        { title: "フルスタックなルーティング", body: `file-based の <code>routes/</code> に、ネスト可能な <code>_layout</code>・<code>_middleware</code>・server <code>loader</code>・フォーム用の <code>action</code>、そしてメソッド分岐と streaming に対応した <code>api/</code> ハンドラ。` },
+        { title: "デフォルトで島・JS ゼロ", body: `ページはサーバーで HTML に描画。<code>islands/</code> 配下のコンポーネントだけが配信・ハイドレートされ、ページが払うのは実際に使う分だけ。` },
+        { title: "Rust ツールチェーン (oxc)", body: "パース・変換・解決・バンドル・minify・スコープホイスティングが Rust で動作。高速なコールドスタート、数ミリ秒の再ビルド、再起動をまたぐ永続ディスクキャッシュ。" },
+        { title: "npm で入る、Rust 不要", body: "CLI は npm の optionalDependencies でプリビルドのネイティブバイナリとして配布。cargo もツールチェーンも postinstall も不要。" },
+        { title: "島間 SPA ルーター", body: "島のあるページ間の遷移はクライアント側で即時、prefetch とスクロール復元つき。島の無いページは JS ゼロのまま通常遷移。" },
+        { title: "CSS Modules・アセット・ソースマップ", body: `クラス名をスコープ化する <code>*.module.css</code>、画像やフォントのハッシュ付き <code>import</code>、dev/prod 両方の end-to-end ソースマップ。` },
+        { title: "npm エコシステムそのまま", body: "SSR は Rust が管理する Preact の Node サイドカーで動くので、既存のパッケージがそのまま使えます。" },
+        { title: "正直な開発体験", body: "全画面エラーオーバーレイ、コードフレーム診断、ホットリロード、保存時の島ホットスワップ。" },
       ],
     },
     alpha: {
       h2: "alpha について正直に。",
-      lead: "Nowaki はまだ若い。コアの一連の流れは実在し、端から端まで検証済みです。現在地を正確に示します。",
+      lead: "Nowaki はまだ若いですが、コアは実在し、ヘッドレス Chrome まで含めて端から端まで検証済みです。現在地を正確に示します。",
       worksTitle: "今できること",
-      works: ["nowaki dev / build / start", "Islands のハイドレーション", "file-based ルート + loader", "API ルート", "create-nowaki の雛形作成"],
+      works: [
+        "dev / build / start / prerender",
+        "レイアウト・ミドルウェア・action・API ルート",
+        "Islands + 島間 SPA ルーター",
+        "CSS Modules・アセット import・ソースマップ",
+        "スコープホイスティング済みの本番バンドル",
+        "npm 経由の Rust 不要インストール",
+      ],
       soonTitle: "ロードマップ",
-      soon: ["エラーオーバーレイ", "状態保持 (prefresh) HMR", "CSS 対応 & scoped styles", "チャンクバンドリング (scope hoisting)"],
+      soon: [
+        "Jetstream: サーバーリアクティブ島（チャンネル経由の HTML パッチ）",
+        "デプロイアダプタ（Edge / Bun / Deno）と streaming SSR",
+        "状態保持（prefresh）HMR",
+        "Next・Astro とのベンチマーク",
+      ],
       roadmap: "ロードマップ全文を読む →",
     },
     footer: {
-      tagline: "Rust ツールチェーンのフルスタックWebフレームワーク。デフォルトで JS ゼロ。",
+      tagline: "Rust ツールチェーンのフルスタックWebフレームワーク。デフォルトで JS ゼロ、npm で入る。",
       copyright: "MIT © 2026 Voredge",
       windName: "野分 · 秋の台風の風",
       trademark: "Next.js は Vercel, Inc.、Astro は The Astro Technology Company の商標です。Nowaki は独立したプロジェクトであり、いずれとも提携・公認関係はありません。",
@@ -167,6 +289,7 @@ const HEAD_STYLE = `
     --primary: oklch(0.50 0.155 256);
     --primary-strong: oklch(0.435 0.16 256);
     --accent: oklch(0.64 0.19 42);
+    --accent-strong: oklch(0.55 0.2 40);
     --storm: oklch(0.155 0.032 263);
     --storm-2: oklch(0.215 0.044 265);
     --on-storm: oklch(0.965 0.012 256);
@@ -197,6 +320,8 @@ const HEAD_STYLE = `
   .h-sec{ font-size:clamp(1.85rem,1.2rem + 2.4vw,2.95rem); letter-spacing:-0.03em }
   .eyetag{ display:inline-flex; align-items:center; gap:.5rem; font-family:"JetBrains Mono",monospace;
     font-size:.74rem; letter-spacing:.06em; padding:.35rem .6rem; border-radius:99px; }
+  .kicker{ font-family:"JetBrains Mono",monospace; font-size:.74rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent-strong); font-weight:600 }
 
   .storm{ background:
     radial-gradient(70% 80% at 92% -25%, var(--storm-2), transparent 50%),
@@ -235,6 +360,43 @@ const HEAD_STYLE = `
 
   .link-u{ color:var(--primary-strong); text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:1px }
   .link-u:hover{ text-decoration-thickness:2px }
+
+  /* 本文中のインラインコード（明るいセクション）。pre.code とコピーバーは別扱い。 */
+  p code{ color:var(--ink); font-weight:560; font-size:.94em }
+  .lead code{ color:var(--ink); font-weight:560 }
+
+  /* ship: バンドルサイズの棒 */
+  .bar-row{ display:grid; grid-template-columns:1fr; gap:.4rem; padding-block:1.05rem; border-top:1px solid var(--line) }
+  .bar-row:last-child{ border-bottom:1px solid var(--line) }
+  .bar-top{ display:flex; align-items:baseline; justify-content:space-between; gap:1rem }
+  .bar-label{ color:var(--ink); font-weight:550 }
+  .bar-val{ font-family:"JetBrains Mono",monospace; font-weight:700; font-size:1.05rem; letter-spacing:-0.01em }
+  .bar-track{ height:.7rem; border-radius:99px; background:var(--surface); border:1px solid var(--line); overflow:hidden }
+  .bar-fill{ height:100%; border-radius:99px; background:linear-gradient(90deg, var(--primary), var(--primary-strong)) }
+  .bar-fill--accent{ background:linear-gradient(90deg, var(--accent), var(--accent-strong)) }
+  .bar-fill--muted{ background:oklch(0.78 0.02 258) }
+
+  /* compare: テーブル */
+  .ctable{ width:100%; border-collapse:collapse; font-size:.95rem }
+  .ctable th, .ctable td{ text-align:left; padding:.95rem 1rem; border-top:1px solid var(--line); vertical-align:top }
+  .ctable thead th{ border-top:0; font-family:"JetBrains Mono",monospace; font-size:.78rem; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--muted); font-weight:600 }
+  .ctable thead th:first-child{ color:transparent }
+  .ctable td:first-child, .ctable th:first-child{ color:var(--muted) }
+  .ctable col.col-nowaki{ background:oklch(0.50 0.155 256 / 0.05) }
+  .ctable th.is-nowaki, .ctable td.is-nowaki{ color:var(--ink); font-weight:600 }
+  .ctable th.is-nowaki{ color:var(--primary-strong) }
+  .ctable-scroll{ overflow-x:auto; margin-top:1.6rem; border-radius:.8rem; border:1px solid var(--line) }
+  .ctable td, .ctable th{ min-width:9rem }
+  .ctable td:first-child, .ctable th:first-child{ min-width:13rem }
+
+  .pcol h3{ font-size:1rem; font-family:"JetBrains Mono",monospace; letter-spacing:.02em }
+  .pcol ul{ margin-top:.9rem; list-style:none; padding:0; display:flex; flex-direction:column; gap:.7rem }
+  .pcol li{ display:flex; gap:.7rem; align-items:baseline; color:var(--muted) }
+
+  .tabbtn{ font-family:"JetBrains Mono",monospace; font-size:.8rem; padding:.4rem .7rem; border-radius:.5rem;
+    border:1px solid var(--line); background:var(--bg); color:var(--muted); cursor:pointer }
+  .tabbtn[aria-selected="true"]{ color:var(--ink); border-color:var(--primary); background:oklch(0.50 0.155 256 / 0.06) }
 
   @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto } }
 </style>

@@ -7,20 +7,33 @@ export default function Landing({ locale }: { locale: Locale }) {
   const s = STRINGS[locale];
   const home = locale === "ja" ? "/ja" : "/";
 
-  const codeHtml = `<span class="c">${s.code.commentTop}</span>
-<span class="k">import</span> Counter <span class="k">from</span> <span class="s">"../islands/Counter.tsx"</span>;
+  // ルート + loader + 島
+  const routeHtml = `<span class="c">// routes/blog/[slug].tsx</span>
+<span class="k">import</span> Comments <span class="k">from</span> <span class="s">"../../islands/Comments.tsx"</span>;
 
-<span class="k">export const</span> <span class="f">loader</span> = <span class="k">async</span> () =&gt; {
-  <span class="k">return</span> { message: <span class="s">"${s.code.serverMsg}"</span> };
-};
+<span class="c">// runs on the server only</span>
+<span class="k">export const</span> <span class="f">loader</span> = <span class="k">async</span> ({ params }) =&gt; ({
+  post: <span class="k">await</span> db.<span class="f">post</span>(params.slug),
+});
 
-<span class="k">export default function</span> <span class="f">Home</span>({ data }) {
+<span class="k">export default function</span> <span class="f">Post</span>({ data }) {
   <span class="k">return</span> (
-    &lt;<span class="f">main</span>&gt;
-      &lt;<span class="f">h1</span>&gt;{data.message}&lt;/<span class="f">h1</span>&gt;
-      &lt;<span class="f">Counter</span> <span class="a">start</span>={<span class="s">5</span>} /&gt;  <span class="c">${s.code.commentInline}</span>
-    &lt;/<span class="f">main</span>&gt;
+    &lt;<span class="f">article</span>&gt;
+      &lt;<span class="f">h1</span>&gt;{data.post.title}&lt;/<span class="f">h1</span>&gt;
+      &lt;<span class="f">Comments</span> <span class="a">postId</span>={data.post.id} /&gt; <span class="c">// only this hydrates</span>
+    &lt;/<span class="f">article</span>&gt;
   );
+}`;
+
+  // action 付きフォーム
+  const actionHtml = `<span class="c">// routes/guestbook.tsx</span>
+<span class="k">export const</span> <span class="f">loader</span> = (ctx) =&gt; ({ entries: <span class="f">read</span>(ctx) });
+
+<span class="c">// a non-GET request runs the action</span>
+<span class="k">export async function</span> <span class="f">action</span>(ctx) {
+  <span class="k">const</span> form = <span class="k">await</span> ctx.<span class="f">formData</span>();
+  ctx.<span class="f">setCookie</span>(<span class="s">"guestbook"</span>, <span class="f">add</span>(form.<span class="f">get</span>(<span class="s">"msg"</span>)));
+  <span class="k">return</span> ctx.<span class="f">redirect</span>(<span class="s">"/guestbook"</span>); <span class="c">// PRG</span>
 }`;
 
   return (
@@ -40,12 +53,8 @@ export default function Landing({ locale }: { locale: Locale }) {
               <span class="on-storm-muted" aria-hidden="true">·</span>
               <a href="/ja" aria-current={locale === "ja" ? "true" : undefined}>日本語</a>
             </span>
-            <a class="on-storm-muted hover:text-onstorm" href={`${GH}#readme`}>
-              {s.nav.docs}
-            </a>
-            <a class="on-storm-muted hover:text-onstorm" href={GH}>
-              GitHub ↗
-            </a>
+            <a class="on-storm-muted hover:text-onstorm" href={`${GH}#readme`}>{s.nav.docs}</a>
+            <a class="on-storm-muted hover:text-onstorm" href={GH}>GitHub ↗</a>
           </div>
         </nav>
 
@@ -62,151 +71,243 @@ export default function Landing({ locale }: { locale: Locale }) {
           </p>
 
           <div style="margin-top:2.2rem;max-width:30rem;display:flex;flex-direction:column;gap:.7rem">
-            <CopyCommand cmd="npm create nowaki my-app" primary labelCopy={s.copy.copy} labelCopied={s.copy.copied} />
-            <div style="display:flex;gap:.7rem;flex-wrap:wrap">
-              <div style="flex:1;min-width:14rem">
-                <CopyCommand cmd="cargo install nowaki" labelCopy={s.copy.copy} labelCopied={s.copy.copied} />
-              </div>
-            </div>
+            <CopyCommand cmd="npm create nowaki@latest my-app" primary labelCopy={s.copy.copy} labelCopied={s.copy.copied} />
+            <CopyCommand cmd="npm i -g nowaki" labelCopy={s.copy.copy} labelCopied={s.copy.copied} />
           </div>
 
-          <p style="margin-top:1.4rem;font-size:.92rem;color:var(--on-storm);font-weight:500">
+          <p style="margin-top:1.3rem;max-width:46ch;font-size:.95rem;color:var(--cyan);font-weight:500">
+            {s.hero.rustfree}
+          </p>
+          <p style="margin-top:.7rem;font-size:.9rem;color:var(--on-storm-muted)">
             {s.hero.alpha}
           </p>
         </div>
       </header>
 
       <main>
-        {/* Speed */}
+        {/* Ship: the honest benchmark */}
         <section class="section wrap">
-          <h2 class="h-sec" style="max-width:18ch">{s.speed.h2}</h2>
-          <p class="lead measure" style="margin-top:1.1rem">{s.speed.lead}</p>
-          <div style="margin-top:2.8rem;display:grid;gap:2.2rem;grid-template-columns:1fr" class="sm:grid-cols-3">
-            {s.speed.stats.map((st) => (
-              <div>
-                <div style="font-size:clamp(2.1rem,1.4rem + 2.6vw,3.3rem);font-weight:800;letter-spacing:-0.03em;color:var(--primary-strong);line-height:1">
-                  {st.value}
+          <p class="kicker">Show, don't claim</p>
+          <h2 class="h-sec" style="margin-top:.7rem;max-width:20ch">{s.ship.h2}</h2>
+          <p class="lead measure" style="margin-top:1.1rem">{s.ship.lead}</p>
+          <div style="margin-top:2.4rem;max-width:46rem">
+            {s.ship.bars.map((bar) => (
+              <div class="bar-row">
+                <div class="bar-top">
+                  <span class="bar-label">{bar.label}</span>
+                  <span class="bar-val" style={bar.muted ? "color:var(--muted)" : "color:var(--primary-strong)"}>
+                    {bar.value}
+                  </span>
                 </div>
-                <p style="margin-top:.6rem;color:var(--muted);max-width:26ch">{st.label}</p>
+                <div class="bar-track">
+                  <div
+                    class={`bar-fill${bar.muted ? " bar-fill--muted" : bar.zero ? " bar-fill--accent" : ""}`}
+                    style={`width:${bar.pct}%`}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p style="margin-top:1.4rem;font-size:.88rem;color:var(--muted);max-width:60ch">{s.ship.note}</p>
+        </section>
+
+        {/* Speed */}
+        <section style="background:var(--surface);border-block:1px solid var(--line)">
+          <div class="section wrap">
+            <h2 class="h-sec" style="max-width:18ch">{s.speed.h2}</h2>
+            <p class="lead measure" style="margin-top:1.1rem">{s.speed.lead}</p>
+            <div style="margin-top:2.8rem;display:grid;gap:2.2rem" class="grid-cols-1 sm:grid-cols-3">
+              {s.speed.stats.map((st) => (
+                <div>
+                  <div style="font-size:clamp(1.7rem,1.2rem + 2vw,2.6rem);font-weight:800;letter-spacing:-0.03em;color:var(--primary-strong);line-height:1.05">
+                    {st.value}
+                  </div>
+                  <p style="margin-top:.6rem;color:var(--muted);max-width:28ch">{st.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section class="section wrap">
+          <h2 class="h-sec" style="max-width:18ch">{s.how.h2}</h2>
+          <div style="margin-top:2.6rem;display:grid;gap:2.2rem" class="grid-cols-1 md:grid-cols-3">
+            {s.how.steps.map((step) => (
+              <div>
+                <code style="display:inline-block;font-size:.82rem;padding:.4rem .65rem;border-radius:.5rem;background:var(--surface);border:1px solid var(--line);color:var(--primary-strong)">
+                  {step.cmd}
+                </code>
+                <h3 style="margin-top:.95rem;font-size:1.2rem;letter-spacing:-0.02em">{step.title}</h3>
+                <p
+                  style="margin-top:.5rem;color:var(--muted);max-width:46ch"
+                  dangerouslySetInnerHTML={{ __html: step.body }}
+                />
               </div>
             ))}
           </div>
         </section>
 
-        {/* How it works */}
+        {/* Code showcase */}
         <section style="background:var(--surface);border-block:1px solid var(--line)">
           <div class="section wrap">
-            <h2 class="h-sec" style="max-width:16ch">{s.how.h2}</h2>
-            <div style="margin-top:2.6rem;display:grid;gap:2.2rem;grid-template-columns:1fr" class="md:grid-cols-3">
-              {s.how.steps.map((step) => (
-                <div>
-                  <code style="display:inline-block;font-size:.82rem;padding:.4rem .65rem;border-radius:.5rem;background:var(--bg);border:1px solid var(--line);color:var(--primary-strong)">
-                    {step.cmd}
-                  </code>
-                  <h3 style="margin-top:.95rem;font-size:1.2rem;letter-spacing:-0.02em">{step.title}</h3>
-                  <p
-                    style="margin-top:.5rem;color:var(--muted);max-width:46ch"
-                    dangerouslySetInnerHTML={{ __html: step.body }}
-                  />
+            <h2 class="h-sec" style="max-width:20ch">{s.code.h2}</h2>
+            <p class="lead measure" style="margin-top:1.1rem" dangerouslySetInnerHTML={{ __html: s.code.lead }} />
+            <div style="margin-top:2.2rem;display:grid;gap:1.5rem" class="grid-cols-1 md:grid-cols-2">
+              <div>
+                <p class="kicker" style="color:var(--muted)">{s.code.tabs[0]}</p>
+                <pre class="code" style="margin-top:.7rem" aria-label="A route with a loader">
+                  <code dangerouslySetInnerHTML={{ __html: routeHtml }} />
+                </pre>
+              </div>
+              <div>
+                <p class="kicker" style="color:var(--muted)">{s.code.tabs[1]}</p>
+                <pre class="code" style="margin-top:.7rem" aria-label="A form with an action">
+                  <code dangerouslySetInnerHTML={{ __html: actionHtml }} />
+                </pre>
+              </div>
+            </div>
+            <p class="kicker" style="color:var(--muted);margin-top:2.4rem">{s.code.tabs[2]}</p>
+            <div style="margin-top:1rem;display:grid;gap:.1rem" class="grid-cols-1 sm:grid-cols-2">
+              {s.code.conventions.map((c) => (
+                <div style="display:flex;gap:1rem;align-items:baseline;padding:.7rem .2rem;border-top:1px solid var(--line)">
+                  <code style="color:var(--primary-strong);font-size:.85rem;white-space:nowrap">{c.f}</code>
+                  <span style="color:var(--muted);font-size:.9rem">{c.d}</span>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Code example */}
+        {/* Compare */}
         <section class="section wrap">
-          <div style="display:grid;gap:clamp(1.5rem,4vw,3rem);grid-template-columns:1fr" class="md:grid-cols-[0.85fr_1.15fr] md:items-center">
-            <div>
-              <h2 class="h-sec">{s.code.h2}</h2>
-              <p
-                class="lead measure"
-                style="margin-top:1.1rem"
-                dangerouslySetInnerHTML={{ __html: s.code.lead }}
-              />
+          <h2 class="h-sec" style="max-width:20ch">{s.compare.h2}</h2>
+          <p class="lead measure" style="margin-top:1.1rem">{s.compare.lead}</p>
+          <div class="ctable-scroll">
+            <table class="ctable">
+              <colgroup>
+                <col />
+                <col class="col-nowaki" />
+                <col />
+                <col />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">.</th>
+                  {s.compare.cols.map((c, i) => (
+                    <th scope="col" class={i === 0 ? "is-nowaki" : undefined}>{c}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {s.compare.rows.map((r) => (
+                  <tr>
+                    <th scope="row">{r.feature}</th>
+                    <td class="is-nowaki">{r.nowaki}</td>
+                    <td>{r.next}</td>
+                    <td>{r.astro}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:1.3rem;font-size:.88rem;color:var(--muted);max-width:64ch">{s.compare.note}</p>
+        </section>
+
+        {/* Positioning */}
+        <section style="background:var(--surface);border-block:1px solid var(--line)">
+          <div class="section wrap">
+            <h2 class="h-sec" style="max-width:16ch">{s.positioning.h2}</h2>
+            <p class="lead measure" style="margin-top:1.1rem">{s.positioning.lead}</p>
+            <div style="margin-top:2.4rem;display:grid;gap:2.4rem" class="grid-cols-1 md:grid-cols-2">
+              <div class="pcol">
+                <h3 style="color:var(--primary-strong)">{s.positioning.forTitle}</h3>
+                <ul>
+                  {s.positioning.for.map((x) => (
+                    <li><span aria-hidden="true" style="color:var(--primary)">→</span><span>{x}</span></li>
+                  ))}
+                </ul>
+              </div>
+              <div class="pcol">
+                <h3 style="color:var(--muted)">{s.positioning.notTitle}</h3>
+                <ul>
+                  {s.positioning.not.map((x) => (
+                    <li><span aria-hidden="true">○</span><span>{x}</span></li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <pre class="code" aria-label="Example Nowaki route">
-              <code dangerouslySetInnerHTML={{ __html: codeHtml }} />
-            </pre>
           </div>
         </section>
 
         {/* Features */}
-        <section style="background:var(--surface);border-block:1px solid var(--line)">
-          <div class="section wrap">
-            <h2 class="h-sec" style="max-width:16ch">{s.features.h2}</h2>
-            <p class="lead measure" style="margin-top:1.1rem">{s.features.lead}</p>
-            <div style="margin-top:2rem;display:grid;grid-template-columns:1fr;column-gap:3rem" class="md:grid-cols-2">
-              {s.features.items.map((f) => (
-                <div style="border-top:1px solid var(--line)">
-                  <div style="padding-block:1.5rem">
-                    <h3 style="font-size:1.15rem;letter-spacing:-0.02em">{f.title}</h3>
-                    <p
-                      style="margin-top:.5rem;color:var(--muted);max-width:52ch"
-                      dangerouslySetInnerHTML={{ __html: f.body }}
-                    />
-                  </div>
+        <section class="section wrap">
+          <h2 class="h-sec" style="max-width:18ch">{s.features.h2}</h2>
+          <p class="lead measure" style="margin-top:1.1rem">{s.features.lead}</p>
+          <div style="margin-top:2rem;display:grid;column-gap:3rem" class="grid-cols-1 md:grid-cols-2">
+            {s.features.items.map((f) => (
+              <div style="border-top:1px solid var(--line)">
+                <div style="padding-block:1.4rem">
+                  <h3 style="font-size:1.12rem;letter-spacing:-0.02em">{f.title}</h3>
+                  <p
+                    style="margin-top:.5rem;color:var(--muted);max-width:52ch"
+                    dangerouslySetInnerHTML={{ __html: f.body }}
+                  />
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </section>
 
         {/* Honest alpha */}
-        <section class="section wrap">
-          <h2 class="h-sec">{s.alpha.h2}</h2>
-          <p class="lead measure" style="margin-top:1.1rem">{s.alpha.lead}</p>
-          <div style="margin-top:2rem;display:grid;gap:2rem;grid-template-columns:1fr" class="md:grid-cols-2">
-            <div>
-              <h3 style="font-size:1rem;font-family:'JetBrains Mono',monospace;letter-spacing:.02em">
-                {s.alpha.worksTitle}
-              </h3>
-              <ul style="margin-top:.9rem;list-style:none;padding:0;display:flex;flex-direction:column;gap:.55rem">
-                {s.alpha.works.map((w) => (
-                  <li style="display:flex;gap:.7rem;align-items:baseline">
-                    <span aria-hidden="true" style="color:var(--primary)">→</span>
-                    <span>{w}</span>
-                  </li>
-                ))}
-              </ul>
+        <section style="background:var(--surface);border-block:1px solid var(--line)">
+          <div class="section wrap">
+            <h2 class="h-sec">{s.alpha.h2}</h2>
+            <p class="lead measure" style="margin-top:1.1rem">{s.alpha.lead}</p>
+            <div style="margin-top:2rem;display:grid;gap:2rem" class="grid-cols-1 md:grid-cols-2">
+              <div>
+                <h3 style="font-size:1rem;font-family:'JetBrains Mono',monospace;letter-spacing:.02em">{s.alpha.worksTitle}</h3>
+                <ul style="margin-top:.9rem;list-style:none;padding:0;display:flex;flex-direction:column;gap:.55rem">
+                  {s.alpha.works.map((w) => (
+                    <li style="display:flex;gap:.7rem;align-items:baseline">
+                      <span aria-hidden="true" style="color:var(--primary)">→</span><span>{w}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 style="font-size:1rem;font-family:'JetBrains Mono',monospace;letter-spacing:.02em;color:var(--muted)">{s.alpha.soonTitle}</h3>
+                <ul style="margin-top:.9rem;list-style:none;padding:0;display:flex;flex-direction:column;gap:.55rem;color:var(--muted)">
+                  {s.alpha.soon.map((x) => (
+                    <li style="display:flex;gap:.7rem;align-items:baseline">
+                      <span aria-hidden="true">○</span><span>{x}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <div>
-              <h3 style="font-size:1rem;font-family:'JetBrains Mono',monospace;letter-spacing:.02em;color:var(--muted)">
-                {s.alpha.soonTitle}
-              </h3>
-              <ul style="margin-top:.9rem;list-style:none;padding:0;display:flex;flex-direction:column;gap:.55rem;color:var(--muted)">
-                {s.alpha.soon.map((x) => (
-                  <li style="display:flex;gap:.7rem;align-items:baseline">
-                    <span aria-hidden="true">○</span>
-                    <span>{x}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <p style="margin-top:2rem">
+              <a class="link-u" href={`${GH}/blob/main/ROADMAP.md`}>{s.alpha.roadmap}</a>
+            </p>
           </div>
-          <p style="margin-top:2rem">
-            <a class="link-u" href={`${GH}/blob/main/ROADMAP.md`}>{s.alpha.roadmap}</a>
-          </p>
         </section>
       </main>
 
       <footer class="storm" style="background:var(--storm)">
         <div class="wrap z1 section" style="padding-block:clamp(3rem,4vw,4.5rem)">
           <div style="display:flex;flex-wrap:wrap;gap:2rem;justify-content:space-between;align-items:flex-start">
-            <div style="max-width:32ch">
+            <div style="max-width:34ch">
               <div style="display:flex;align-items:baseline;gap:.5rem">
                 <span style="font-weight:800;font-size:1.25rem;letter-spacing:-0.03em">Nowaki</span>
                 <span class="on-storm-muted" style="font-size:.8rem">野分</span>
               </div>
-              <p class="on-storm-muted" style="margin-top:.7rem;font-size:.92rem;color:var(--on-storm-muted)">
-                {s.footer.tagline}
-              </p>
+              <p class="on-storm-muted" style="margin-top:.7rem;font-size:.92rem;color:var(--on-storm-muted)">{s.footer.tagline}</p>
             </div>
             <nav aria-label="Footer" style="display:flex;gap:2.5rem;font-size:.92rem;flex-wrap:wrap">
               <div style="display:flex;flex-direction:column;gap:.6rem">
                 <a class="on-storm-muted hover:text-onstorm" href={GH}>GitHub ↗</a>
-                <a class="on-storm-muted hover:text-onstorm" href={CRATES}>crates.io ↗</a>
                 <a class="on-storm-muted hover:text-onstorm" href={NPM}>npm ↗</a>
+                <a class="on-storm-muted hover:text-onstorm" href={CRATES}>crates.io ↗</a>
               </div>
             </nav>
           </div>
@@ -215,9 +316,7 @@ export default function Landing({ locale }: { locale: Locale }) {
             <span>{s.footer.copyright}</span>
             <span>{s.footer.windName}</span>
           </div>
-          <p class="on-storm-muted" style="margin-top:1.1rem;font-size:.76rem;color:var(--on-storm-muted);max-width:64ch">
-            {s.footer.trademark}
-          </p>
+          <p class="on-storm-muted" style="margin-top:1.1rem;font-size:.76rem;color:var(--on-storm-muted);max-width:64ch">{s.footer.trademark}</p>
         </div>
       </footer>
     </>
