@@ -27,6 +27,41 @@ pub fn bold(s: &str) -> String {
 pub fn green(s: &str) -> String {
     paint("32", s)
 }
+pub fn yellow(s: &str) -> String {
+    paint("33", s)
+}
+pub fn red(s: &str) -> String {
+    paint("31", s)
+}
+
+/// ファイル変更 → HMR のログ。`kind` は "update"（島ホットスワップ）/ "reload"（フルリロード）。
+pub fn hmr_log(kind: &str, files: &[String]) {
+    let list = files.join(", ");
+    if kind == "update" {
+        println!("  {} {}  {}", cyan("hmr"), dim("update"), list);
+    } else {
+        println!("  {} {}  {}", yellow("hmr"), dim("reload"), list);
+    }
+}
+
+/// ページ/API/SSR リクエストのログ（method path status ms）。ステータスで色分け。
+pub fn request_log(method: &str, path: &str, status: u16, ms: u128) {
+    let code = status.to_string();
+    let st = if status < 300 {
+        green(&code)
+    } else if status < 400 {
+        yellow(&code)
+    } else {
+        red(&code)
+    };
+    println!(
+        "  {} {}  {}  {}",
+        dim(method),
+        path,
+        st,
+        dim(&format!("{ms} ms")),
+    );
+}
 
 /// LAN の IPv4 を推定する（UDP connect で経路を引くだけ。実際のパケットは送らない）。
 pub fn lan_ip() -> Option<String> {

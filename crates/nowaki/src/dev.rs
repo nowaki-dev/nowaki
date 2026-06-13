@@ -130,6 +130,17 @@ fn start_watcher(root: &Path, state: Arc<DevState>) -> Result<notify::Recommende
             .iter()
             .all(|p| p.to_string_lossy().contains("/islands/"));
         let kind = if island_only { "update" } else { "reload" };
+        // 端末にも変更を出す（保存時のフィードバック）。パスはルート相対に。
+        let files: Vec<String> = relevant
+            .iter()
+            .map(|p| {
+                p.strip_prefix(&state.core.root)
+                    .unwrap_or(p)
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        crate::ui::hmr_log(kind, &files);
         let _ = state.hmr_tx.send(json!({ "type": kind }).to_string());
     })?;
     watcher.watch(&root_owned, RecursiveMode::Recursive)?;
@@ -301,6 +312,7 @@ async fn transform_response(state: Arc<DevState>, abs: PathBuf, mode: Mode) -> R
 }
 
 async fn proxy_to_sidecar(state: Arc<DevState>, req: Request) -> Response {
+    let started = Instant::now();
     let path_q = req
         .uri()
         .path_and_query()
@@ -308,6 +320,8 @@ async fn proxy_to_sidecar(state: Arc<DevState>, req: Request) -> Response {
         .unwrap_or_else(|| "/".to_string());
     let url = format!("http://127.0.0.1:{}{}", state.sidecar_port, path_q);
     let method = req.method().clone();
+    let method_str = method.to_string();
+    let log_path = req.uri().path().to_string();
     let headers = req.headers().clone();
 
     let body = match axum::body::to_bytes(req.into_body(), 16 * 1024 * 1024).await {
@@ -332,6 +346,13 @@ async fn proxy_to_sidecar(state: Arc<DevState>, req: Request) -> Response {
     match builder.send().await {
         Ok(resp) => {
             let status = resp.status();
+            // ページ/API/SSR のリクエストログ（アセット・モジュールは serve_file 経由で出さない）。
+            crate::ui::request_log(
+                &method_str,
+                &log_path,
+                status.as_u16(),
+                started.elapsed().as_millis(),
+            );
             let mut response = Response::builder().status(status.as_u16());
             for (name, value) in resp.headers().iter() {
                 if name != header::TRANSFER_ENCODING && name != header::CONTENT_LENGTH {
@@ -343,11 +364,14 @@ async fn proxy_to_sidecar(state: Arc<DevState>, req: Request) -> Response {
                 (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
             })
         }
-        Err(err) => (
-            StatusCode::BAD_GATEWAY,
-            format!("SSRサイドカーへの接続に失敗: {err}"),
-        )
-            .into_response(),
+        Err(err) => {
+            crate::ui::request_log(&method_str, &log_path, 502, started.elapsed().as_millis());
+            (
+                StatusCode::BAD_GATEWAY,
+                format!("SSRサイドカーへの接続に失敗: {err}"),
+            )
+                .into_response()
+        }
     }
 }
 
