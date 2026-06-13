@@ -8,8 +8,12 @@ use tokio::process::Command;
 
 /// 静的サイト生成: ビルド → 本番サーバーを一時起動 → 静的ルートを各HTML化 → 出力。
 pub async fn run(root: PathBuf, out: PathBuf) -> Result<()> {
-    // 1. build (client + server)
-    let core = NowakiCore::new(root.clone());
+    // 1. build (client + server)。nowaki.config / @tsrx/preact があればプラグインホストを起動して注入。
+    let _plugin_host = crate::plugins::start(&root)?;
+    let mut core = NowakiCore::new(root.clone());
+    if let Some(host) = &_plugin_host {
+        core.set_plugins(host.bridge.clone());
+    }
     let report = core.build(&root.join("dist"))?;
     println!(
         "[nowaki] build: client {} / server {} modules",

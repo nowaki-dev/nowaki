@@ -3,6 +3,7 @@ mod dev;
 mod plugins;
 mod prerender;
 mod sidecar;
+mod start;
 
 use std::path::PathBuf;
 
@@ -104,26 +105,11 @@ fn main() -> anyhow::Result<()> {
         }
         Command::Start { dir, port } => {
             let root = dir.canonicalize()?;
-            let entry = root.join("node_modules/@nowaki-dev/runtime/server/start.mjs");
-            if !entry.exists() {
-                anyhow::bail!("@nowaki-dev/runtime が見つかりません: {}", entry.display());
-            }
-            if !root.join("dist/client/manifest.json").exists() {
-                anyhow::bail!(
-                    "dist が未ビルドです。先に `nowaki build {}` を実行してください",
-                    dir.display()
-                );
-            }
-            let status = std::process::Command::new("node")
-                .arg("--enable-source-maps")
-                .arg(&entry)
-                .current_dir(&root)
-                .env("PORT", port.to_string())
-                .status()?;
-            if !status.success() {
-                anyhow::bail!("nowaki start が異常終了しました");
-            }
-            Ok(())
+            // Rust(axum) が静的配信 + HTML 組み立て、Node prod-sidecar がコンポーネント描画。
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()?
+                .block_on(start::run(root, port))
         }
         Command::Prerender { dir, out } => {
             let root = dir.canonicalize()?;

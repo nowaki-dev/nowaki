@@ -87,19 +87,20 @@
 - [x] 循環依存対応（pre-rewrite ハッシュ フォールバック）, `rayon` でのサーバービルド並列化
 - [x] 島の安定シリアライズ（props をキー順固定で決定的に → v0.6 Jetstream の前提）
 
-### v0.5 「Typhoon」: エコシステム & デプロイ ← 主要部を 0.4.0 で公開
+### v0.5 「Typhoon」: エコシステム & デプロイ ← 完了（0.5.0）
 **テーマ**: どこにでも出せる、拡張できる。
-**Exit基準**: 主要なデプロイ先に出せ、サードパーティ拡張が書ける。
+**Exit基準**: 主要なデプロイ先に出せ、サードパーティ拡張が書ける。**→ 達成**（5アダプタ + プラグイン/TSRX）。
 
-> **npm/crates 0.4.0** でデプロイアダプタ5種・ストリーミング SSR・プラグイン変換フックを公開。
-> Rust prod ホットパスは v0.6 の最初の仕事へ、プラグイン仮想モジュールは後続、TSRX は保留（下記）。
+> **npm/crates 0.5.0** でデプロイアダプタ5種・ストリーミング SSR・プラグイン変換フック・TSRX・
+> **Rust prod ホットパス**を公開。プラグインの仮想モジュール（resolveId/load）は解決ホットパスを
+> 触る invasive 変更のため、安全のため v0.6 のプラグイン成熟へ送る（transform フックと新規拡張子は出荷済み）。
 
 - [x] **TSRX ブリッジ**（`.tsrx` → `@tsrx/preact` で標準 JSX へコンパイル → oxc の JSX→preact パイプライン合流）。プラグインホストに `@tsrx/preact` を載せ（アプリ依存・任意）、`.tsrx` を resolver 拡張子・`is_transformable`・island 検出・dev/prod 両方に統合。例: `examples/hello/islands/TsrxCounter.tsrx`（statement-container 構文 + `preact/hooks`）が dev・本番で SSR＋ハイドレート（5→6）検証済。scoped CSS 抽出は後続
 - [x] デプロイアダプタ（`nowaki build --adapter <node|static|bun|deno|cloudflare>`）。**Node**=自己完結エントリ `dist/server/index.mjs`（`node` だけで配信、nowaki バイナリ不要）/ **static**=prerender 出力 / **Bun・Deno**=node:http 互換の同一エントリで移植可 / **Cloudflare Workers（Edge）**=全サーバーモジュールを静的バンドルした fetch ハンドラ worker ＋ wrangler 設定を生成（node:http も実行時 import も不使用、静的アセットは Assets binding）。SSR・API・ストリーミング・404・島ハイドレートを `wrangler dev`（workerd）で検証済
 - [x] プリレンダリング（SSG, v0.1済）と **ストリーミング SSR**（ルートが `export const streaming = true` でオプトイン、`renderToReadableStream` でシェル先行送出。島ハイドレートまで検証済）
-- [~] プラグイン API。`nowaki.config.{mjs,js}` の `plugins[].transform(code, id)` 変換フックを **dev・build 両方**で適用（Node プラグインホスト経由。nowaki-core は `PluginBridge` trait で疎結合、設定が無ければオーバーヘッドゼロ）。**仮想モジュール（resolveId/load）と新規拡張子は次段**
-- [~] サイドカーの抽象化（中核を `@nowaki-dev/runtime` の `server/app.mjs` に集約＝`nowaki start`・各アダプタで共有。Bun/Deno は同一エントリで選択可。実行系の本格抽象化は継続）
-- [ ] **Rust を prod ホットパスへ**（HTML組み立て・island配線・キャッシュを Rust に。Node はコンポーネント描画のみ → v0.6 Jetstream の足場）
+- [x] プラグイン API。`nowaki.config.{mjs,js}` の `plugins[].transform(code, id)` 変換フックを **dev・build 両方**で適用（Node プラグインホスト経由。nowaki-core は `PluginBridge` trait で疎結合、設定が無ければオーバーヘッドゼロ）。新規拡張子もサポート（TSRX が実例）。**仮想モジュール（resolveId/load）は v0.6 のプラグイン成熟へ**（解決ホットパスを触るため安全側に倒す）
+- [x] サイドカーの抽象化（SSR 中核を `@nowaki-dev/runtime` の `server/app.mjs`＝node:http 互換に集約。`nowaki start`(prod-sidecar)・node/static/bun/deno/cloudflare 各アダプタ・dev が共有。実行系は Node/Bun/Deno をアダプタで選択可）
+- [x] **Rust を prod ホットパスへ**。`nowaki start` が **Rust(axum) フロント**＝静的配信(dist/client, immutable)・HTML 組み立て(island 配線・modulepreload を Rust の `start.rs::assemble` で生成)・HTTP エッジを担い、Node `prod-sidecar.mjs` は「コンポーネント描画」だけ（ページは body+メタを JSON で返す。API/redirect/stream は素通し）。島ハイドレートまで検証済。v0.6 Jetstream（Rust が HTML パッチを押し出す）の足場
 
 ### v0.6 「Jetstream」: サーバーリアクティブ島 ★flagship
 **テーマ**: Nowaki だけの差別化。サーバーデータ駆動の更新を、クライアントJSを増やさず Rust サーバーが HTML パッチで押し出す。
