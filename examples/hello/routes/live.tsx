@@ -12,6 +12,9 @@ export default function LivePage() {
         over a WebSocket; the server re-renders and pushes an HTML patch that the client morphs in.
       </p>
       <LiveCounter />
+      <p style="margin-top:1rem;color:#667">
+        connected clients (presence): <strong data-nowaki-presence>0</strong>
+      </p>
       <p style="margin-top:2rem">
         Below is a regular client island (hydrated, optimistic) on the same page — the two kinds
         coexist:

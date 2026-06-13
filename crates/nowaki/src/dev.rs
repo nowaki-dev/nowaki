@@ -24,6 +24,7 @@ pub struct DevState {
     ssr_version: AtomicU64,
     sidecar_port: u16,
     http: reqwest::Client,
+    live_hub: Arc<crate::live::LiveHub>,
 }
 
 pub async fn run(root: PathBuf, port: u16) -> Result<()> {
@@ -50,6 +51,7 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .expect("reqwest client の構築に失敗"),
+        live_hub: crate::live::LiveHub::new(),
     });
 
     let _watcher = start_watcher(&root, state.clone())?;
@@ -128,7 +130,8 @@ async fn live_ws(ws: WebSocketUpgrade, State(state): State<Arc<DevState>>) -> Re
     let http = state.http.clone();
     let port = state.sidecar_port;
     let version = state.ssr_version.load(Ordering::SeqCst).to_string();
-    ws.on_upgrade(move |socket| crate::live::handle(socket, http, port, version))
+    let hub = state.live_hub.clone();
+    ws.on_upgrade(move |socket| crate::live::handle(socket, hub, http, port, version))
 }
 
 async fn handle_hmr(mut socket: WebSocket, state: Arc<DevState>) {

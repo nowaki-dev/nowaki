@@ -40,6 +40,15 @@ function connect() {
       if (msg.type === "patch") {
         const el = document.querySelector(`nowaki-live[nid="${cssEscape(msg.nid)}"]`);
         if (el) morph(el, msg.html);
+      } else if (msg.type === "presence") {
+        // presence（接続数）を data-nowaki-presence 要素に反映し、イベントも投げる。
+        for (const el of document.querySelectorAll("[data-nowaki-presence]")) {
+          el.textContent = String(msg.count);
+        }
+        window.dispatchEvent(new CustomEvent("nowaki:presence", { detail: { count: msg.count } }));
+      } else if (msg.type === "error" && msg.reason === "at capacity") {
+        // 上限到達: サーバーが接続を断った。初期 SSR のまま劣化動作（再接続は試みる）。
+        console.warn("[nowaki live] server at capacity; staying on the initial SSR view");
       }
     };
     // 再接続（指数バックオフ、上限あり）。再 join で状態を取り戻す。

@@ -123,7 +123,8 @@ fn build_produces_expected_manifest_and_zero_js_live_island() {
         "bare virtual specifier should be inlined, not left as an import"
     );
     // SSR: data: モジュールへインライン化される（Node が直接 import できる）。
-    let vserver = std::fs::read_to_string(root.join("dist/server/islands/VirtualBadge.js")).unwrap();
+    let vserver =
+        std::fs::read_to_string(root.join("dist/server/islands/VirtualBadge.js")).unwrap();
     assert!(
         vserver.contains("data:text/javascript,"),
         "virtual module should be inlined as a data: module for SSR"

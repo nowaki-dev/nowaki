@@ -45,6 +45,7 @@ struct ProdState {
     sidecar_port: u16,
     http: reqwest::Client,
     manifest: Manifest,
+    live_hub: Arc<crate::live::LiveHub>,
     _child: Child, // kill_on_drop で終了時にサイドカーを落とす
 }
 
@@ -100,6 +101,7 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
             .redirect(reqwest::redirect::Policy::none())
             .build()?,
         manifest,
+        live_hub: crate::live::LiveHub::new(),
         _child: child,
     });
 
@@ -120,7 +122,8 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
 async fn live_ws(ws: WebSocketUpgrade, State(state): State<Arc<ProdState>>) -> Response {
     let http = state.http.clone();
     let port = state.sidecar_port;
-    ws.on_upgrade(move |socket| crate::live::handle(socket, http, port, "prod".to_string()))
+    let hub = state.live_hub.clone();
+    ws.on_upgrade(move |socket| crate::live::handle(socket, hub, http, port, "prod".to_string()))
 }
 
 async fn handle(State(state): State<Arc<ProdState>>, req: Request) -> Response {

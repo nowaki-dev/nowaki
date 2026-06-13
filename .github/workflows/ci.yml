@@ -176,6 +176,9 @@ jobs:
           curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' http://127.0.0.1:3300/__nowaki/fn | grep -q 'learn nowaki'
           # v0.9 virtual modules: SSR inlines the plugin-generated module (data:)
           curl -sf http://127.0.0.1:3300/virtual | grep -q 'VIRTUAL_OK · nowaki-plugin'
+          # v0.9 Jetstream presence + connection scaling: WS join->presence,
+          # event->patch round-trip, presence rises/falls across two connections.
+          node scripts/livetest.mjs http://127.0.0.1:3300
           kill $START_PID
 
       - name: Deploy adapters — self-contained node entry + static + streaming SSR
