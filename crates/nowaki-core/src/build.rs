@@ -11,6 +11,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use oxc::allocator::Allocator;
 use oxc::ast::ast::Statement;
 use oxc::codegen::{Codegen, CodegenOptions};
+use oxc::minifier::{Minifier, MinifierOptions};
 use oxc::parser::Parser;
 use oxc::semantic::SemanticBuilder;
 use oxc::span::SourceType;
@@ -414,6 +415,10 @@ fn transform_for_bundle(path: &Path, source: &str, core: &NowakiCore) -> Result<
             msgs.join("; ")
         ));
     }
+
+    // ツリーシェイキング / DCE / mangle。未使用 import やデッドコードを除去してから
+    // 依存を記録する（除去された import は deps にも入らない）。
+    Minifier::new(MinifierOptions::default()).minify(&allocator, &mut program);
 
     let dir = path.parent().unwrap_or(&core.root);
     let mut deps = Vec::new();
