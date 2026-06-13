@@ -1,0 +1,19 @@
+---
+description: Nowaki framework repo — conventions for AI edits
+alwaysApply: true
+---
+
+Read `AGENTS.md` at the repo root for full guidance (layout, commands, feature
+map). Key invariants for any change:
+
+- `crates/nowaki-core` executes **no JavaScript** — JS interop is the
+  `PluginBridge` trait. `NowakiCore::read_source` is the single source-read
+  chokepoint.
+- Rust unit tests (`#[cfg(test)] mod tests`) go at the **end** of each file
+  (clippy `items-after-test-module`).
+- Import handling lives in several transform modes (dev browser/SSR, build
+  client/server, chunk hoisting) — a change usually touches all of them.
+- Relative imports use **explicit extensions** (`../islands/Counter.tsx`).
+- **Preact, not React**: `react*` is aliased to `preact/compat`.
+
+Before done: `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`.
