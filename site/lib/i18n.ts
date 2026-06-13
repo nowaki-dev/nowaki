@@ -135,7 +135,7 @@ export const STRINGS = {
     },
     footer: {
       tagline: "A Rust-toolchain full-stack web framework. Zero JS by default, installed with npm.",
-      copyright: "MIT © 2026 Voredge",
+      copyright: "MIT © 2026 VorEdge",
       windName: "野分 · an autumn typhoon wind",
       trademark: "Next.js is a trademark of Vercel, Inc. Astro is a trademark of The Astro Technology Company. Nowaki is an independent project, not affiliated with or endorsed by either.",
     },
@@ -143,21 +143,21 @@ export const STRINGS = {
   },
 
   ja: {
-    title: "Nowaki: npm で入る、Rust 製ツールチェーンの爆速フルスタックWebフレームワーク",
-    desc: "Nowaki（野分）は layout・middleware・server loader・action・SSR・API routes を備えたフルスタックWebフレームワーク。Rust ツールチェーン（oxc）上で動き、ページを HTML に描画し、印した島だけをハイドレート。dev 起動 約90ms、再ビルドは数ミリ秒、そして npm で入る（Rust 不要）。Next.js のようなフルスタック、Astro のような Islands。",
+    title: "Nowaki: npm で入る、Rust 製ツールチェーンの高速フルスタックWebフレームワーク",
+    desc: "Nowaki（野分）は layout・middleware・server loader・action・SSR・API routes を備えたフルスタックWebフレームワーク。Rust ツールチェーン（oxc）の上で動き、ページを HTML に描画し、マークした島だけをハイドレートします。dev 起動は約90ms、再ビルドは数ミリ秒、そして npm で入ります（Rust 不要）。Next.js のようなフルスタック、Astro のような Islands。",
     ogTitle: "Nowaki: Next.js のようなフルスタック、Astro のような Islands、npm で入る",
     nav: { docs: "ドキュメント", github: "GitHub" },
     hero: {
       badge: "Beta · server functions · alpha",
-      h1a: "Next.js のようなフルスタック。",
-      h1b: "Astro のような Islands。",
-      sub: "layout・middleware・server loader・action・SSR・API routes。ページは HTML に描画され、印した島だけがハイドレートします。ツールチェーン全体が Rust（oxc）なので、dev 起動は約90ミリ秒、再ビルドは数ミリ秒で返ります。",
-      rustfree: "npm で入ります。Rust ツールチェーンは不要。CLI はプリビルドのネイティブバイナリで配布します。",
-      alpha: "alpha 版。まだ本番向けではありませんが、実在し、本当に速く、npm と crates.io に公開済みです。",
+      h1a: "Next.js のような、フルスタック。",
+      h1b: "Astro のような、Islands。",
+      sub: "layout・middleware・server loader・action・SSR・API routes。ページは HTML に描画され、マークした島だけがハイドレートします。ツールチェーン全体が Rust（oxc）なので、dev 起動は約90ミリ秒、再ビルドは数ミリ秒で完了します。",
+      rustfree: "npm で入ります。Rust ツールチェーンは不要で、CLI はプリビルドのネイティブバイナリとして配布します。",
+      alpha: "alpha 版。まだ本番向けではありませんが、実在し、実際に速く、npm と crates.io で公開済みです。",
     },
     ship: {
       h2: "このページが送る JavaScript は 12 KB。",
-      lead: "このサイトの動く部分すべて、風のアニメーション・コピーボタン・スクロール演出を合わせて、Preact 込みで gzip 後 12 KB です。島の無いページは 0 KB。参考までに、React と ReactDOM だけで gzip 後およそ 45 KB、あなたのコードを書く前にこれです。",
+      lead: "このサイトで動く部分すべて、風のアニメーション・コピーボタン・スクロール演出を合わせて、Preact 込みで gzip 後 12 KB です。島の無いページは 0 KB。参考までに、React と ReactDOM だけで gzip 後およそ 45 KB。まだ自分のコードを 1 行も書いていない段階で、です。",
       bars: [
         { label: "このページ（島3つ + 風 + モーション）", value: "12 KB", pct: 27 },
         { label: "コンテンツだけのページ（島なし）", value: "0 KB", pct: 1, zero: true },
@@ -183,7 +183,7 @@ export const STRINGS = {
       ],
     },
     code: {
-      h2: "ルートを書き、島を印し、フォームを受ける。",
+      h2: "ルートを書き、島をマークし、フォームを処理する。",
       lead: `ルートは、サーバーでのみ走る任意の <code>loader</code> を持つコンポーネント。非 GET リクエストはルートの <code>action</code> が処理します。ブラウザでハイドレートするのは <code>islands/</code> のものだけです。`,
       tabs: ["loader 付きルート", "action 付きフォーム", "ファイル規約"],
       conventions: [
@@ -271,7 +271,7 @@ export const STRINGS = {
     },
     footer: {
       tagline: "Rust ツールチェーンのフルスタックWebフレームワーク。デフォルトで JS ゼロ、npm で入る。",
-      copyright: "MIT © 2026 Voredge",
+      copyright: "MIT © 2026 VorEdge",
       windName: "野分 · 秋の台風の風",
       trademark: "Next.js は Vercel, Inc.、Astro は The Astro Technology Company の商標です。Nowaki は独立したプロジェクトであり、いずれとも提携・公認関係はありません。",
     },
@@ -341,6 +341,9 @@ const HEAD_STYLE = `
     font-family:"Bricolage Grotesque", system-ui, sans-serif;
     font-optical-sizing:auto; -webkit-font-smoothing:antialiased;
     font-size:1.0625rem; line-height:1.62; overflow-x:hidden;
+    /* 日本語は文節境界で折り返す（CJK のみ作用、英語は normal と同じ）。
+       未対応ブラウザは無視。ヒーロー等は読点で改行点も明示している。 */
+    word-break: auto-phrase; line-break: strict;
   }
   h1,h2,h3{ font-weight:800; letter-spacing:-0.038em; line-height:1.04; text-wrap:balance; margin:0 }
   p{ text-wrap:pretty; margin:0 }

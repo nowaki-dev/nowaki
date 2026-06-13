@@ -3,7 +3,7 @@
   "version": "0.9.0",
   "description": "The Nowaki CLI — Rust-powered bundler, dev server, and SSG for the Nowaki web framework",
   "license": "MIT",
-  "author": "Voredge <dev@voredge.com>",
+  "author": "VorEdge <dev@voredge.com>",
   "homepage": "https://nowaki.dev",
   "repository": {
     "type": "git",

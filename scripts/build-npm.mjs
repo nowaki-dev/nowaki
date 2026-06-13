@@ -102,7 +102,7 @@ function main() {
     version,
     description: `Prebuilt nowaki CLI binary for ${key}`,
     license: "MIT",
-    author: "Voredge <dev@voredge.com>",
+    author: "VorEdge <dev@voredge.com>",
     homepage: "https://nowaki.dev",
     repository: {
       type: "git",

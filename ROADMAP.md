@@ -22,7 +22,7 @@
 - ✅ `nowaki build`: client（後順DFSグラフ走査 → content-hash付きESM + `manifest.json`）, server（routes/islands を SSR用ESMで `dist/server/` へ）
 - ✅ `nowaki start`: 最低限の本番配信（`/_nowaki/` 静的配信 + prod SSR + manifest駆動のisland配線, HMRなし）
 - ✅ `create-nowaki`: スキャフォールド（`npm create nowaki`）
-- ✅ OSS整備: LICENSE(MIT, ©Voredge), README, CONTRIBUTING(DCO), CODE_OF_CONDUCT, SECURITY, CI, Issue/PRテンプレ
+- ✅ OSS整備: LICENSE(MIT, ©VorEdge), README, CONTRIBUTING(DCO), CODE_OF_CONDUCT, SECURITY, CI, Issue/PRテンプレ
 - ✅ GitHub: `nowaki-dev/nowaki`（private）
 
 - ✅ 公開アーティファクト: crates.io（`nowaki-core`/`nowaki` 0.1.1）, npm（`@nowaki-dev/runtime` 0.1.0, `create-nowaki`/`create-nowaki-app` 0.1.0）, `nowaki.dev` 取得済み
@@ -186,4 +186,4 @@
 - **prod の Rust の役割**: 現状 prod は純Node。Rust製の高速静的配信/エッジ実行をどこまで持つか（v0.5 で決着 → v0.6 Jetstream の足場）
 - **Jetstream のステートフル接続**: サーバーリアクティブ島はステートフル接続前提。スケール/再接続コストと、「静的に置ける手軽さ」との両立（SR-3）が設計の肝。先に SR-0 スパイクで体感を確かめてから旗艦化する
 - **キャッシュ無効化の正確性**: content-hash の伝播（特に循環時）と dev の SSR 再評価
-- **名前/商標**: Nowaki の商標確保、`nowaki-dev` Org の所有体制（Voredge）
+- **名前/商標**: Nowaki の商標確保、`nowaki-dev` Org の所有体制（VorEdge）

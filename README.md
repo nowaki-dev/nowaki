@@ -123,6 +123,6 @@ examples/hello           サンプルアプリ
 
 ## ライセンス
 
-[MIT](./LICENSE) © 2026 [Voredge](https://voredge.com)
+[MIT](./LICENSE) © 2026 [VorEdge](https://voredge.com)
 
-<sub>Built and maintained by Voredge. 「Nowaki」「野分」は台風を意味する日本語の古語です。</sub>
+<sub>Built and maintained by VorEdge. 「Nowaki」「野分」は台風を意味する日本語の古語です。</sub>
