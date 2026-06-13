@@ -8,6 +8,36 @@ breaking changes (documented per entry), patch versions do not.
 The npm version and the milestone codename are offset — each release bundles a
 milestone's worth of work; the codename is noted per entry.
 
+## [0.9.0] — 2026-06-13 · "Beta" (v0.8–v0.9 band)
+
+### Added
+- **Server functions (`"use server"`)** — a module with a top-of-file
+  `"use server"` directive becomes an RPC boundary. Its exports run only on the
+  server; the client gets a tiny `fetch` proxy (implementation and server-only
+  deps are stripped from the bundle). Dispatch is allowlisted by a stable
+  `module#export` id (the client can't reach arbitrary exports); `getContext()`
+  exposes the request's cookies/headers via AsyncLocalStorage. Works in dev,
+  `nowaki start`, and on edge adapters.
+- **Plugin virtual modules** — plugins gain `resolveId(source, importer)` and
+  `load(id)` hooks for modules that don't exist on disk. Client imports bundle
+  the generated source inline; SSR inlines it as a self-contained `data:` module.
+  Only invoked when normal resolution fails — zero overhead otherwise.
+- **Jetstream presence + connection scaling** — a shared hub broadcasts the live
+  connection count (`{type:"presence",count}`, mirrored into
+  `[data-nowaki-presence]`), pings/expires idle connections (heartbeat), and caps
+  concurrent connections (`NOWAKI_LIVE_MAX`), degrading gracefully over the cap.
+- **Head-to-head benchmarks** — `benchmarks/head-to-head.mjs` compares Nowaki,
+  Next.js, and Astro on the same one-counter app (measuring only what's
+  installed, never fabricating). A `bench-regression` CI job gates the
+  deterministic client-JS size against `benchmarks/baseline.json`.
+- **Documentation site** — `/docs` (built with Nowaki, zero client JS): Overview,
+  Quickstart, Routing, Server functions, Jetstream, Plugins, Deploy, and a
+  Migrate-from-Next.js guide.
+
+### Notes
+- State-preserving (prefresh) HMR remains a follow-up; island hot-swap already
+  gives fast feedback. Scoped CSS for TSRX islands also remains on the roadmap.
+
 ## [0.6.0] — 2026-06-13 · "Jetstream"
 
 ### Added

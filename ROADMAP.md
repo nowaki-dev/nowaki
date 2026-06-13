@@ -120,15 +120,23 @@
 - [x] **セキュリティ**: [SECURITY.md](./SECURITY.md) に信頼境界（`/@fs` は dev 限定・各 host は localhost・basename 配信・secrets はサーバー側・Jetstream 状態）を明文化。CI に `cargo audit` ＋ `pnpm audit` の継続監査ジョブ
 - [x] **semver 規律 + 変更履歴**: [CHANGELOG.md](./CHANGELOG.md)（0.1.0→0.6.0）＋ docs/RELEASING.md に SemVer/破壊的変更方針
 
-### v0.8〜v0.9 「Beta」: 拡充・実用化
+### v0.8〜v0.9 「Beta」: 拡充・実用化 ← ほぼ完了
 **テーマ**: 機能の角を取り、採用事例を作る。
 **Exit基準**: API が概ね固定され、本番採用の事例が出る。
 
-- [ ] **サーバー関数（実験的）**: `"use server"` RPC（RSC的なサーバー↔クライアント境界）
-- [ ] パフォーマンスベンチを Next/Astro と head-to-head ＋ 回帰検出を CI に
-- [ ] テストスイート拡充（ルーティングのスナップショット, より広い e2e, Jetstream の負荷）
-- [ ] Jetstream の presence・接続スケール、プラグイン仮想モジュール、prefresh HMR
-- [ ] ドキュメントサイト本格版（API リファレンス, レシピ, 移行ガイド）
+- [x] **サーバー関数（実験的）**: `"use server"` RPC（RSC的なサーバー↔クライアント境界）。
+  ディレクティブを持つモジュールの export はサーバーにだけ残り、クライアントは fetch する極小
+  プロキシのみ。id ベースの allowlist で dispatch（任意 export は呼べない）、`getContext()` で
+  cookie/ヘッダにアクセス。dev・`nowaki start`・edge で検証済
+- [x] パフォーマンスベンチを Next/Astro と head-to-head（`benchmarks/head-to-head.mjs`、同一カウンタ
+  アプリ）＋ 送信 JS サイズの回帰検出を CI に（`benchmarks/check-regression.mjs` + baseline）
+- [x] テストスイート拡充（ルーターの snapshot 単体テスト、Jetstream の複数接続 WS e2e
+  `scripts/livetest.mjs`、server-fn・仮想モジュール・presence の e2e を CI へ）
+- [x] Jetstream の **presence・接続スケール**（presence ブロードキャスト・ハートビート・接続上限）、
+  **プラグイン仮想モジュール**（`resolveId`/`load`）／ prefresh HMR は follow-up（島ホットスワップは
+  既存。状態保持は @prefresh/babel 相当の注入が必要なため見送り）
+- [x] ドキュメントサイト本格版（`/docs`：Overview・Quickstart・Routing・Server functions・
+  Jetstream・Plugins・Deploy・Next 移行ガイド。Nowaki 製・クライアント JS ゼロ）
 
 ### v1.0 「Nowaki」: 安定版
 **テーマ**: 約束できる土台。
