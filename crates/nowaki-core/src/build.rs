@@ -1,7 +1,8 @@
-//! 本番ビルド: クライアント側モジュールグラフを辿り、各モジュールを
-//! 変換+minifyして dist/client/ へコンテンツハッシュ付きESMで出力する。
-//! Phase 1 (MVP+) の unbundled ESM emit。スコープホイスティングによる
-//! 真のチャンクバンドリングは Phase 3。
+//! 本番ビルド: クライアント側モジュールグラフを辿り、変換+minifyして
+//! dist/client/ へコンテンツハッシュ付きESMで出力する。
+//! island ごとに、その island だけが使うアプリモジュールを1スコープへ連結する
+//! （スコープホイスティング、chunk.rs）。node_modules/共有/css/asset は別チャンクとして
+//! 共有・dedup する。連結に未対応のモジュールは従来の unbundled emit にフォールバックする。
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -51,7 +52,9 @@ pub fn build_client(
         None
     };
 
-    // エントリ2..: islands/ 配下の各コンポーネント
+    // エントリ2..: islands/ 配下の各コンポーネント。
+    // 各 island の「その island だけが使うアプリモジュール」を1スコープへ連結する
+    // （スコープホイスティング）。node_modules / 共有 / css / asset は別チャンクで共有する。
     let mut islands: Vec<(String, String)> = Vec::new();
     let islands_dir = core.root.join("islands");
     if islands_dir.is_dir() {
@@ -60,13 +63,26 @@ pub fn build_client(
             .filter(|p| crate::is_transformable(p))
             .collect();
         entries.sort();
-        for path in entries {
-            let name = path
+
+        // 各 island のアプリ到達集合を求め、共有（複数 island から到達）を数える。
+        let reach: Vec<(PathBuf, HashSet<PathBuf>)> = entries
+            .iter()
+            .map(|e| (e.clone(), crate::chunk::collect_app_modules(core, e)))
+            .collect();
+        let mut app_count: HashMap<PathBuf, usize> = HashMap::new();
+        for (_, set) in &reach {
+            for m in set {
+                *app_count.entry(m.clone()).or_default() += 1;
+            }
+        }
+
+        for (island, set) in &reach {
+            let name = island
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .unwrap_or("island")
                 .to_string();
-            let out = emit(core, &path, &client_dir, &mut ctx)?;
+            let out = emit_island(core, island, set, &app_count, &client_dir, &mut ctx)?;
             islands.push((name, out));
         }
     }
@@ -408,6 +424,67 @@ fn emit(core: &NowakiCore, abs: &Path, out_dir: &Path, ctx: &mut EmitCtx) -> Res
     ctx.deps.insert(filename.clone(), dep_names);
     ctx.emitted.insert(abs.to_path_buf(), filename.clone());
     Ok(filename)
+}
+
+/// island を1チャンクへスコープホイスティングして出力する。連結対象は island 本体 +
+/// その island だけが使い連結可能なアプリモジュール。外部依存（node_modules/共有/css/asset）は
+/// emit() で別チャンク化して ESM import で繋ぐ。連結に失敗したら従来の emit にフォールバック。
+fn emit_island(
+    core: &NowakiCore,
+    island: &Path,
+    app_set: &HashSet<PathBuf>,
+    app_count: &HashMap<PathBuf, usize>,
+    out_dir: &Path,
+    ctx: &mut EmitCtx,
+) -> Result<String> {
+    // 連結対象 = island 本体 + その island だけが使い、連結可能なアプリモジュール
+    let mut internal: Vec<PathBuf> = vec![island.to_path_buf()];
+    for m in app_set {
+        if m == island {
+            continue;
+        }
+        if app_count.get(m).copied().unwrap_or(0) == 1 && !crate::chunk::needs_fallback(core, m) {
+            internal.push(m.clone());
+        }
+    }
+    let internal_set: HashSet<&Path> = internal.iter().map(|p| p.as_path()).collect();
+
+    // 外部依存（連結対象外）を emit して名前を得る
+    let mut external_name: HashMap<PathBuf, String> = HashMap::new();
+    for m in &internal {
+        for dep in crate::chunk::module_deps(core, m)? {
+            if !internal_set.contains(dep.as_path()) {
+                let fname = emit(core, &dep, out_dir, ctx)?;
+                external_name.insert(dep, fname);
+            }
+        }
+    }
+
+    let stem = island
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("island");
+    match crate::chunk::hoist_chunk(core, island, &internal, &external_name) {
+        Ok(source) => {
+            let chunk_name = format!("{stem}.js");
+            let (mut code, map) = crate::chunk::minify_chunk(&chunk_name, &source)?;
+            let hash = xxh3_64(code.as_bytes()) as u32;
+            let filename = format!("{stem}.{hash:08x}.js");
+            if let Some(m) = map {
+                let map_name = format!("{filename}.map");
+                fs::write(out_dir.join(&map_name), m)?;
+                code.push_str(&format!("\n//# sourceMappingURL={map_name}\n"));
+            }
+            fs::write(out_dir.join(&filename), &code)?;
+            // preload: このチャンクが import する外部チャンク群（推移依存は render_manifest が辿る）
+            ctx.deps
+                .insert(filename.clone(), external_name.values().cloned().collect());
+            ctx.emitted.insert(island.to_path_buf(), filename.clone());
+            Ok(filename)
+        }
+        // フォールバック: 連結に失敗したら従来の unbundled emit
+        Err(_) => emit(core, island, out_dir, ctx),
+    }
 }
 
 /// あるチャンクの推移的依存（自分を除く、重複排除済み）を返す。preload チェーン用。

@@ -74,11 +74,11 @@
 
 > dev/prod 共有ハンドラ(`handler.mjs`)に集約。dev・prod・prerender とも検証済み、SPA 遷移はヘッドレス Chrome で実機確認。
 
-### v0.4 「Monsoon」: バンドラーの深化 ← ほぼ完了
+### v0.4 「Monsoon」: バンドラーの深化 ← 完了
 **テーマ**: 本番品質の出力と高速なビルド。これが Rust バンドラーの本丸。
 **Exit基準**: 中規模アプリで Next 同等以上のビルド速度と出力品質。
 
-- [x] チャンク分割 + preload: island単位エントリ + 共有チャンク分割（preact 等は dedup）、各エントリの全推移依存を `<link rel=modulepreload>` して瀑布リクエストを回避。**スコープホイスティング（モジュール連結）は将来の最適化**として残す
+- [x] **真のチャンクバンドリング**: island単位エントリ + 共有チャンク分割（node_modules/preact は dedup）+ **スコープホイスティング**（その island だけが使うアプリモジュールを1スコープへ連結。トップレベルをグローバル一意名にリネーム、内部 import を直接参照に、循環も1スコープ内で解決）+ 全推移依存の modulepreload で瀑布回避。連結未対応の構文は従来 emit にフォールバック
 - [x] ツリーシェイキング / dead code elimination（oxc_minifier の compress + mangle）
 - [x] **永続ディスクキャッシュ**（`node_modules/.cache/nowaki`、再起動をまたぐ content-addressed）
 - [x] end-to-end ソースマップ（dev: インライン / prod client: 外部 .map / SSR: インライン + `--enable-source-maps`）

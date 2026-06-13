@@ -87,15 +87,18 @@ jobs:
 
           kill $SERVER_PID
 
-      - name: Production build + cyclic deps + preload + serve
+      - name: Production build + scope hoisting + preload + serve
         run: |
           set -e
           ./target/debug/nowaki build examples/hello
           test -f examples/hello/dist/client/manifest.json
           grep -q '"preload"' examples/hello/dist/client/manifest.json
-          # cyclic modules both emitted and cross-referenced
-          ls examples/hello/dist/client/cycle-a.*.js >/dev/null
-          ls examples/hello/dist/client/cycle-b.*.js >/dev/null
+          # scope hoisting: the cyclic lib modules are concatenated into the Cycle
+          # island chunk, not emitted as separate files, and the chunk has no
+          # internal ./cycle- import (the cycle is resolved within one scope).
+          ! ls examples/hello/dist/client/cycle-a.*.js >/dev/null 2>&1
+          CY=$(ls examples/hello/dist/client/Cycle.*.js | head -1)
+          ! grep -q './cycle-' "$CY"
           ./target/debug/nowaki start examples/hello --port 3300 &
           START_PID=$!
           for i in $(seq 1 20); do curl -sf http://127.0.0.1:3300/ >/dev/null && break; sleep 1; done

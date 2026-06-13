@@ -1,5 +1,6 @@
 pub mod build;
 pub mod cache;
+pub mod chunk;
 pub mod css;
 pub mod env;
 pub mod resolve;
