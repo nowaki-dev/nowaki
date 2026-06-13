@@ -64,7 +64,7 @@ export default function Landing({ locale }: { locale: Locale }) {
               <span class="on-storm-muted" aria-hidden="true">·</span>
               <a href="/ja" aria-current={locale === "ja" ? "true" : undefined}>日本語</a>
             </span>
-            <a class="on-storm-muted hover:text-onstorm" href={`${GH}#readme`}>{s.nav.docs}</a>
+            <a class="on-storm-muted hover:text-onstorm" href="/docs">{s.nav.docs}</a>
             <a class="on-storm-muted hover:text-onstorm" href={GH}>GitHub ↗</a>
           </div>
         </nav>
