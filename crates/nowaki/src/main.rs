@@ -87,8 +87,12 @@ fn main() -> anyhow::Result<()> {
                 report.server_modules,
                 report.out_dir.display()
             );
-            // node/bun/deno: 自己完結のサーバーエントリを出力。
-            adapter::emit_server(&root, &dist, adapter)?;
+            match adapter {
+                // cloudflare: Edge worker（fetch ハンドラ + 静的アセット binding）を生成。
+                Adapter::Cloudflare => adapter::emit_cloudflare(&root, &dist)?,
+                // node/bun/deno: 自己完結のサーバーエントリを出力。
+                _ => adapter::emit_server(&root, &dist, adapter)?,
+            }
             Ok(())
         }
         Command::Start { dir, port } => {

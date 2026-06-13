@@ -4,6 +4,8 @@
 //!   `node dist/server/index.mjs`（または bun/deno）だけで本番配信でき、nowaki バイナリは不要。
 //!   中核は `@nowaki-dev/runtime` の app.mjs（node:http 互換、Bun/Deno の node 互換でも動く）。
 //! - `static`: 事前レンダリング（SSG）。main 側で prerender に委譲する。
+//! - `cloudflare`: Edge（Cloudflare Workers）向け。全サーバーモジュールを静的バンドルした
+//!   fetch ハンドラ worker と wrangler 設定を `dist/worker/` に生成する（emit_cloudflare）。
 
 use std::path::Path;
 
@@ -21,6 +23,8 @@ pub enum Adapter {
     Bun,
     /// Deno ランタイム（node:http 互換の同一エントリ）
     Deno,
+    /// Cloudflare Workers（Edge, fetch ハンドラ + 静的アセット binding）
+    Cloudflare,
 }
 
 impl Adapter {
@@ -30,6 +34,7 @@ impl Adapter {
             Adapter::Static => "static",
             Adapter::Bun => "bun",
             Adapter::Deno => "deno",
+            Adapter::Cloudflare => "cloudflare",
         }
     }
 
@@ -102,13 +107,62 @@ await startServer({{
     Ok(())
 }
 
+/// Cloudflare Workers（Edge）の配備物を `dist/worker/` に生成する。
+/// 実体は runtime の Node 生成器 `server/edge-build.mjs`（dist/server を走査し worker を静的バンドル化）。
+pub fn emit_cloudflare(root: &Path, dist: &Path) -> Result<()> {
+    let script = root.join("node_modules/@nowaki-dev/runtime/server/edge-build.mjs");
+    if !script.exists() {
+        anyhow::bail!("@nowaki-dev/runtime が見つかりません: {}", script.display());
+    }
+    let app_name = read_json_field(&root.join("package.json"), "name")
+        .map(|n| sanitize_worker_name(&n))
+        .unwrap_or_else(|| "nowaki-app".into());
+    let status = std::process::Command::new("node")
+        .arg(&script)
+        .arg(dist.join("server"))
+        .arg(dist.join("client"))
+        .arg(dist.join("worker"))
+        .arg(&app_name)
+        .current_dir(root)
+        .status()
+        .context("node edge-build.mjs の起動に失敗")?;
+    if !status.success() {
+        anyhow::bail!("cloudflare adapter の生成に失敗しました");
+    }
+    println!(
+        "[nowaki] cloudflare adapter: dist/worker を出力。検証: `cd dist/worker && npx wrangler dev` / 配備: `cd dist/worker && npx wrangler deploy`"
+    );
+    Ok(())
+}
+
+/// Worker 名は小文字英数とハイフンのみ許される。
+fn sanitize_worker_name(name: &str) -> String {
+    let s: String = name
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect();
+    let trimmed = s.trim_matches('-').to_string();
+    if trimmed.is_empty() {
+        "nowaki-app".into()
+    } else {
+        trimmed
+    }
+}
+
 /// アプリの node_modules から実インストール版を読む（`^x.y.z` のピン用）。
 fn installed_version(root: &Path, pkg: &str) -> Option<String> {
-    let pj = root.join("node_modules").join(pkg).join("package.json");
+    read_json_field(
+        &root.join("node_modules").join(pkg).join("package.json"),
+        "version",
+    )
+}
+
+/// package.json から `"<field>": "..."` を素朴に拾う（serde を増やさない）。
+fn read_json_field(pj: &Path, field: &str) -> Option<String> {
     let text = std::fs::read_to_string(pj).ok()?;
-    // serde を増やさないため素朴に "version": "x.y.z" を拾う。
-    let key = "\"version\"";
-    let i = text.find(key)?;
+    let key = format!("\"{field}\"");
+    let i = text.find(&key)?;
     let after = &text[i + key.len()..];
     let start = after.find('"')? + 1;
     let rest = &after[start..];

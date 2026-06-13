@@ -15,6 +15,7 @@ import { loadEnv } from "./env.mjs";
 import { stableStringify } from "./serialize.mjs";
 import { scanRoutes } from "./router.mjs";
 import { handleRequest, sendResult } from "./handler.mjs";
+import { prodDocument, prodShell } from "./document.mjs";
 
 const CONTENT_TYPE = {
   js: "text/javascript; charset=utf-8",
@@ -172,88 +173,4 @@ export async function startServer({
     });
   });
   return { server, app };
-}
-
-// 描画済み body を完成 HTML に包む（prod 用: modulepreload + runtime、島なしなら JS ゼロ）。
-function prodDocument(manifest, { mod, body }) {
-  const islandNames = [...body.matchAll(/<nowaki-island name="([^"]+)"/g)].map((m) => m[1]);
-  const hasIslands = islandNames.length > 0 && manifest.runtime;
-  // エントリチャンク（runtime + 使用 island）とその推移的依存をまとめて preload する。
-  const preloadFiles = [];
-  if (hasIslands) {
-    const entryChunks = [
-      manifest.runtime,
-      ...islandNames.map((n) => manifest.islands?.[n]).filter(Boolean),
-    ];
-    const seen = new Set();
-    for (const chunk of entryChunks) {
-      if (!seen.has(chunk)) {
-        seen.add(chunk);
-        preloadFiles.push(chunk);
-      }
-      for (const dep of manifest.preload?.[chunk] ?? []) {
-        if (!seen.has(dep)) {
-          seen.add(dep);
-          preloadFiles.push(dep);
-        }
-      }
-    }
-  }
-  const preload = preloadFiles
-    .map((f) => `<link rel="modulepreload" href="/_nowaki/${f}" />`)
-    .join("\n");
-  const runtime = hasIslands
-    ? `<script type="module" src="/_nowaki/${manifest.runtime}"></script>`
-    : "";
-
-  return `<!DOCTYPE html>
-<html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(mod.title ?? "Nowaki App")}</title>
-${preload}
-${typeof mod.head === "string" ? mod.head : ""}
-</head>
-<body>
-${body}
-${runtime}
-</body>
-</html>`;
-}
-
-// ストリーミング SSR 用の head（…<body>）と tail（runtime script…）。
-// シェル送出時点で島が未確定なので、per-island preload は省き runtime チャンクだけ preload する
-// （runtime が <nowaki-island> を見て各島チャンクを取得する）。
-function prodShell(manifest, mod) {
-  const runtimeChunk = manifest.runtime;
-  const runtimePreload = runtimeChunk
-    ? `<link rel="modulepreload" href="/_nowaki/${runtimeChunk}" />\n`
-    : "";
-  const runtimeScript = runtimeChunk
-    ? `<script type="module" src="/_nowaki/${runtimeChunk}"></script>`
-    : "";
-  const head = `<!DOCTYPE html>
-<html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(mod.title ?? "Nowaki App")}</title>
-${runtimePreload}${typeof mod.head === "string" ? mod.head : ""}
-</head>
-<body>
-`;
-  const tail = `
-${runtimeScript}
-</body>
-</html>`;
-  return { head, tail };
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }

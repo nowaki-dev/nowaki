@@ -4,7 +4,9 @@
 
 export function makeContext(info) {
   const { url, params = {}, method = "GET", req } = info;
-  const reqHeaders = req?.headers ?? {};
+  // headers / readBody は呼び出し側が注入できる（Node: req から、Edge: Web Request から）。
+  const reqHeaders = info.headers ?? req?.headers ?? {};
+  const readBodyFn = info.readBody ?? (() => readBodyNode(req));
   const cookies = parseCookies(reqHeaders["cookie"] ?? "");
   const resHeaders = new Map();
   const setCookies = [];
@@ -26,14 +28,14 @@ export function makeContext(info) {
       return reqHeaders[String(name).toLowerCase()];
     },
     async formData() {
-      const buf = await readBody(req);
+      const buf = await readBodyFn();
       return parseFormBody(buf, reqHeaders["content-type"] ?? "");
     },
     async bodyText() {
-      return (await readBody(req)).toString("utf8");
+      return decodeBody(await readBodyFn());
     },
     async bodyJson() {
-      const s = (await readBody(req)).toString("utf8");
+      const s = decodeBody(await readBodyFn());
       return s ? JSON.parse(s) : null;
     },
 
@@ -105,9 +107,10 @@ function serializeCookie(name, value, opts) {
   return s;
 }
 
-function readBody(req) {
+// Node の IncomingMessage からボディを集める（Edge は info.readBody を注入する）。
+function readBodyNode(req) {
   return new Promise((resolve, reject) => {
-    if (!req || typeof req.on !== "function") return resolve(Buffer.alloc(0));
+    if (!req || typeof req.on !== "function") return resolve(new Uint8Array(0));
     const chunks = [];
     req.on("data", (c) => chunks.push(c));
     req.on("end", () => resolve(Buffer.concat(chunks)));
@@ -115,9 +118,15 @@ function readBody(req) {
   });
 }
 
+// Buffer / Uint8Array / string いずれも UTF-8 文字列へ（Edge には Buffer が無い）。
+function decodeBody(buf) {
+  if (typeof buf === "string") return buf;
+  return new TextDecoder().decode(buf);
+}
+
 // application/x-www-form-urlencoded を URLSearchParams で返す。multipart は未対応。
 function parseFormBody(buf, contentType) {
-  const text = buf.toString("utf8");
+  const text = decodeBody(buf);
   if (contentType.includes("multipart/form-data")) {
     throw new Error("multipart/form-data はまだ未対応です（urlencoded を使ってください）");
   }

@@ -126,6 +126,12 @@ jobs:
           ./target/debug/nowaki build examples/hello --adapter static
           test -f examples/hello/dist/static/index.html
           test -f examples/hello/dist/static/about/index.html
+          # cloudflare (edge) adapter: generates a bundled fetch-handler worker + wrangler config
+          ./target/debug/nowaki build examples/hello --adapter cloudflare
+          test -f examples/hello/dist/worker/index.js
+          test -f examples/hello/dist/worker/wrangler.jsonc
+          grep -q "createFetchHandler" examples/hello/dist/worker/index.js
+          grep -q '"binding": "ASSETS"' examples/hello/dist/worker/wrangler.jsonc
 
   npm-cli:
     name: npm CLI wrapper (smoke)
