@@ -26,6 +26,8 @@ pub struct NowakiCore {
     pub root: PathBuf,
     resolver: Resolver,
     cache: cache::ModuleCache,
+    /// 再起動をまたぐ永続キャッシュ
+    disk_cache: cache::DiskCache,
     /// import.meta.env.PUBLIC_* / MODE のクライアント向け定数置換ペア（.envから）
     pub(crate) client_defines: Vec<(String, String)>,
 }
@@ -33,15 +35,24 @@ pub struct NowakiCore {
 impl NowakiCore {
     pub fn new(root: PathBuf) -> Self {
         let client_defines = env::load_client_defines(&root);
+        // salt = nowakiバージョン + defines。アップグレード/env変更でディスクキャッシュを失効。
+        let mut salt_buf = env!("CARGO_PKG_VERSION").as_bytes().to_vec();
+        for (k, v) in &client_defines {
+            salt_buf.extend_from_slice(k.as_bytes());
+            salt_buf.extend_from_slice(v.as_bytes());
+        }
+        let disk_cache = cache::DiskCache::new(&root, xxh3_64(&salt_buf));
         Self {
             root,
             resolver: resolve::make_resolver(),
             cache: cache::ModuleCache::default(),
+            disk_cache,
             client_defines,
         }
     }
 
     /// ファイルを読み、コンテンツハッシュでキャッシュ照合し、必要なら変換する。
+    /// メモリ → ディスク（再起動をまたぐ）→ 変換 の順で照合する。
     pub fn load_module(&self, abs: &Path, mode: Mode) -> Result<String> {
         let source = std::fs::read_to_string(abs)
             .with_context(|| format!("読み込み失敗: {}", abs.display()))?;
@@ -52,6 +63,19 @@ impl NowakiCore {
             if hit.source_hash == hash {
                 return Ok(hit.code.clone());
             }
+        }
+
+        // 永続ディスクキャッシュ（再起動後の最初のアクセスでヒットする）
+        let disk_key = self.disk_cache.key(abs, mode, hash);
+        if let Some(code) = self.disk_cache.get(disk_key) {
+            self.cache.insert(
+                key,
+                cache::CachedModule {
+                    source_hash: hash,
+                    code: code.clone(),
+                },
+            );
+            return Ok(code);
         }
 
         let code = transform::transform_file(
@@ -69,6 +93,7 @@ impl NowakiCore {
                 code: code.clone(),
             },
         );
+        self.disk_cache.put(disk_key, &code);
         Ok(code)
     }
 
