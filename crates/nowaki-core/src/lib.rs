@@ -21,6 +21,40 @@ pub fn is_transformable(path: &Path) -> bool {
     )
 }
 
+/// import 時に URL 文字列として扱うアセット（画像・フォント・メディア）。
+/// `import logo from "./logo.png"` の logo は配信URLになる。
+pub fn is_asset(path: &Path) -> bool {
+    matches!(
+        path.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_ascii_lowercase())
+            .as_deref(),
+        Some(
+            "png"
+                | "jpg"
+                | "jpeg"
+                | "gif"
+                | "svg"
+                | "webp"
+                | "avif"
+                | "ico"
+                | "bmp"
+                | "woff"
+                | "woff2"
+                | "ttf"
+                | "otf"
+                | "eot"
+                | "mp4"
+                | "webm"
+                | "ogg"
+                | "mp3"
+                | "wav"
+                | "flac"
+                | "pdf"
+        )
+    )
+}
+
 /// バンドラーコア。devサーバー/buildの両方から使う。
 pub struct NowakiCore {
     pub root: PathBuf,
@@ -100,8 +134,8 @@ impl NowakiCore {
     /// 本番ビルド: クライアントグラフを dist/client/ へ、サーバーモジュールを
     /// dist/server/ へ出力する。
     pub fn build(&self, dist: &Path) -> Result<build::BuildReport> {
-        let mut report = build::build_client(self, dist)?;
-        report.server_modules = build::build_server(self, dist)?;
+        let (mut report, assets) = build::build_client(self, dist)?;
+        report.server_modules = build::build_server(self, dist, &assets)?;
         Ok(report)
     }
 }

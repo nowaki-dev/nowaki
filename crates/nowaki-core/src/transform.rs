@@ -58,8 +58,9 @@ pub fn transform_file(
     if mode == Mode::Browser {
         rewrite_imports(&allocator, root, path, &mut program, resolver);
     } else {
-        // SSR: .css import は no-op に（CSS はクライアント専用）
-        noop_css_imports(&allocator, &mut program);
+        // SSR: .css は no-op、アセットは URL 文字列の data モジュールに（Node が svg 等を
+        // 直接 import して落ちないように。描画される <img src> はクライアントと一致する）。
+        rewrite_ssr_imports(&allocator, root, path, &mut program, resolver);
     }
 
     // dev はインラインソースマップを付ける（minify しないので位置は正確）。
@@ -148,13 +149,22 @@ fn render_diagnostics(path: &Path, source: &str, diags: &[OxcDiagnostic]) -> Str
 }
 
 /// 指定子をURLへ解決する。書き換え不要/不能なら None。
+/// アセット（画像・フォント等）は URL 文字列を default export する data モジュールに包む。
 fn map_specifier(spec: &str, dir: &Path, root: &Path, resolver: &Resolver) -> Option<String> {
     // すでにURL・データURI・devサーバー内部パスのものは触らない
     if spec.starts_with('/') || spec.contains("://") || spec.starts_with("data:") {
         return None;
     }
     match resolver.resolve(dir, spec) {
-        Ok(resolution) => Some(fs_path_to_url(root, &resolution.full_path())),
+        Ok(resolution) => {
+            let full = resolution.full_path();
+            let url = fs_path_to_url(root, &full);
+            if crate::is_asset(&full) {
+                Some(asset_module_data_url(&url))
+            } else {
+                Some(url)
+            }
+        }
         Err(err) => {
             eprintln!("[nowaki] 解決失敗 {spec} (from {}): {err}", dir.display());
             None
@@ -162,13 +172,60 @@ fn map_specifier(spec: &str, dir: &Path, root: &Path, resolver: &Resolver) -> Op
     }
 }
 
-/// SSR向け: `.css` の副作用 import を空モジュールに置き換える（サーバーに DOM は無い）。
-fn noop_css_imports<'a>(allocator: &'a Allocator, program: &mut Program<'a>) {
+/// アセットの配信URLを default export する小さな JS モジュールを data: URI で返す。
+/// `import logo from "./logo.png"` → logo === "<asset url>"（実体は別途バイナリ配信）。
+pub(crate) fn asset_module_data_url(url: &str) -> String {
+    let js = format!("export default {url:?}");
+    format!("data:text/javascript,{}", percent_encode_js(&js))
+}
+
+/// data: URI の本文に安全な最小パーセントエンコード。
+fn percent_encode_js(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() * 2);
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// SSR向け: `.css` の副作用 import を空モジュールへ、アセット import は URL 文字列の
+/// data モジュールへ書き換える（サーバーに DOM は無い／Node は svg 等を import できない）。
+fn rewrite_ssr_imports<'a>(
+    allocator: &'a Allocator,
+    root: &Path,
+    path: &Path,
+    program: &mut Program<'a>,
+    resolver: &Resolver,
+) {
+    let dir = path.parent().unwrap_or(root);
     for stmt in program.body.iter_mut() {
-        if let Statement::ImportDeclaration(decl) = stmt {
-            if decl.source.value.as_str().ends_with(".css") {
-                decl.source.value = allocator.alloc_str(crate::css::CSS_NOOP_SPECIFIER).into();
-                decl.source.raw = None;
+        let source = match stmt {
+            Statement::ImportDeclaration(decl) => Some(&mut decl.source),
+            Statement::ExportNamedDeclaration(decl) => decl.source.as_mut(),
+            Statement::ExportAllDeclaration(decl) => Some(&mut decl.source),
+            _ => None,
+        };
+        let Some(lit) = source else { continue };
+        let spec = lit.value.as_str();
+        if spec.ends_with(".css") {
+            lit.value = allocator.alloc_str(crate::css::CSS_NOOP_SPECIFIER).into();
+            lit.raw = None;
+            continue;
+        }
+        if spec.starts_with('/') || spec.contains("://") || spec.starts_with("data:") {
+            continue;
+        }
+        if let Ok(resolution) = resolver.resolve(dir, spec) {
+            let full = resolution.full_path();
+            if crate::is_asset(&full) {
+                let url = fs_path_to_url(root, &full);
+                lit.value = allocator.alloc_str(&asset_module_data_url(&url)).into();
+                lit.raw = None;
             }
         }
     }

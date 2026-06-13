@@ -86,6 +86,28 @@ const CONTENT_TYPE = {
   json: "application/json",
   map: "application/json",
   css: "text/css; charset=utf-8",
+  // アセット（import 経由でハッシュ付き出力される）
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  svg: "image/svg+xml",
+  webp: "image/webp",
+  avif: "image/avif",
+  ico: "image/x-icon",
+  bmp: "image/bmp",
+  woff: "font/woff",
+  woff2: "font/woff2",
+  ttf: "font/ttf",
+  otf: "font/otf",
+  eot: "application/vnd.ms-fontobject",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  ogg: "audio/ogg",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  flac: "audio/flac",
+  pdf: "application/pdf",
 };
 
 const server = createServer(async (req, res) => {

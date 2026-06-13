@@ -1,4 +1,5 @@
 import Counter from "../islands/Counter.tsx";
+import Logo from "../islands/Logo.tsx";
 
 export const title = "Nowaki デモ";
 
@@ -11,7 +12,7 @@ type Data = Awaited<ReturnType<typeof loader>>;
 export default function Home({ data }: { data: Data }) {
   return (
     <main style="font-family:sans-serif;max-width:640px;margin:4rem auto">
-      <h1>{data.message}</h1>
+      <h1><Logo /> {data.message}</h1>
       <p>サーバーでレンダリング: {data.renderedAt}</p>
       <Counter start={5} />
       <p>このページがブラウザに送るJSは、島 (Counter) の分だけです。</p>

@@ -28,13 +28,18 @@ pub struct BuildReport {
 
 /// エントリ（islandsランタイム + islands/配下）からグラフを辿り、
 /// dist/client/ へ出力し manifest.json を書く。
-pub fn build_client(core: &NowakiCore, dist: &Path) -> Result<BuildReport> {
+/// 併せて「アセット絶対パス → 配信URL」のマップを返す（サーバービルドが共有する）。
+pub fn build_client(
+    core: &NowakiCore,
+    dist: &Path,
+) -> Result<(BuildReport, HashMap<PathBuf, String>)> {
     let client_dir = dist.join("client");
     fs::create_dir_all(&client_dir)
         .with_context(|| format!("dist作成失敗: {}", client_dir.display()))?;
 
     let mut emitted: HashMap<PathBuf, String> = HashMap::new();
     let mut visiting: HashSet<PathBuf> = HashSet::new();
+    let mut assets: HashMap<PathBuf, String> = HashMap::new();
 
     // エントリ1: クライアントランタイム（router.js → islands.js を取り込む。
     // ハイドレーション + 島間SPA遷移。島のあるページだけがこれを読み込む）。
@@ -48,6 +53,7 @@ pub fn build_client(core: &NowakiCore, dist: &Path) -> Result<BuildReport> {
             &client_dir,
             &mut emitted,
             &mut visiting,
+            &mut assets,
         )?)
     } else {
         None
@@ -68,7 +74,14 @@ pub fn build_client(core: &NowakiCore, dist: &Path) -> Result<BuildReport> {
                 .and_then(|s| s.to_str())
                 .unwrap_or("island")
                 .to_string();
-            let out = emit(core, &path, &client_dir, &mut emitted, &mut visiting)?;
+            let out = emit(
+                core,
+                &path,
+                &client_dir,
+                &mut emitted,
+                &mut visiting,
+                &mut assets,
+            )?;
             islands.push((name, out));
         }
     }
@@ -78,19 +91,26 @@ pub fn build_client(core: &NowakiCore, dist: &Path) -> Result<BuildReport> {
         render_manifest(runtime_out.as_deref(), &islands),
     )?;
 
-    Ok(BuildReport {
-        modules: emitted.len(),
-        islands: islands.len(),
-        server_modules: 0,
-        out_dir: client_dir,
-    })
+    Ok((
+        BuildReport {
+            modules: emitted.len(),
+            islands: islands.len(),
+            server_modules: 0,
+            out_dir: client_dir,
+        },
+        assets,
+    ))
 }
 
 /// サーバー側ビルド: routes/ と islands/ を SSRモードで変換し、
 /// dist/server/ へ Node が直接実行できる ESM として出力する。
 /// 相対importの .tsx/.ts/.jsx を .js へ書き換える（bare importはNode解決に任せる）。
 /// 出力モジュール数を返す。
-pub fn build_server(core: &NowakiCore, dist: &Path) -> Result<usize> {
+pub fn build_server(
+    core: &NowakiCore,
+    dist: &Path,
+    assets: &HashMap<PathBuf, String>,
+) -> Result<usize> {
     let server_dir = dist.join("server");
     let mut count = 0;
     // routes/islands に加え、共有のサーバーモジュール (components/, lib/) も出力する。
@@ -109,7 +129,7 @@ pub fn build_server(core: &NowakiCore, dist: &Path) -> Result<usize> {
             let out_path = server_dir.join(with_js_ext(rel));
             let source = fs::read_to_string(&path)
                 .with_context(|| format!("読み込み失敗: {}", path.display()))?;
-            let code = transform_for_server(&path, &source, core)?;
+            let code = transform_for_server(&path, &source, core, assets)?;
             if let Some(parent) = out_path.parent() {
                 fs::create_dir_all(parent)?;
             }
@@ -123,7 +143,12 @@ pub fn build_server(core: &NowakiCore, dist: &Path) -> Result<usize> {
 /// SSR向け変換: TS除去 + JSX(automatic, preact)。相対ローカルimportの拡張子を
 /// .js へ書き換える。bare import (npm) はそのまま（Nodeが解決する）。minifyしない
 /// （SSRのスタックトレース可読性のため）。
-fn transform_for_server(path: &Path, source: &str, core: &NowakiCore) -> Result<String> {
+fn transform_for_server(
+    path: &Path,
+    source: &str,
+    core: &NowakiCore,
+    assets: &HashMap<PathBuf, String>,
+) -> Result<String> {
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_else(|_| SourceType::tsx());
 
@@ -163,6 +188,7 @@ fn transform_for_server(path: &Path, source: &str, core: &NowakiCore) -> Result<
         ));
     }
 
+    let dir = path.parent().unwrap_or(&core.root);
     for stmt in program.body.iter_mut() {
         let source_lit = match stmt {
             Statement::ImportDeclaration(d) => Some(&mut d.source),
@@ -171,7 +197,26 @@ fn transform_for_server(path: &Path, source: &str, core: &NowakiCore) -> Result<
             _ => None,
         };
         let Some(lit) = source_lit else { continue };
-        if let Some(rewritten) = rewrite_server_spec(lit.value.as_str()) {
+        let spec = lit.value.as_str();
+        // アセット: クライアントビルドのハッシュ付きURLへ（無ければ basename フォールバック）。
+        if !spec.starts_with('/') && !spec.contains("://") && !spec.starts_with("data:") {
+            if let Ok(resolution) = core.resolver.resolve(dir, spec) {
+                let full = resolution.full_path();
+                if crate::is_asset(&full) {
+                    let url = assets.get(&full).cloned().unwrap_or_else(|| {
+                        format!(
+                            "/_nowaki/{}",
+                            full.file_name().and_then(|n| n.to_str()).unwrap_or("asset")
+                        )
+                    });
+                    let data = crate::transform::asset_module_data_url(&url);
+                    lit.value = allocator.alloc_str(&data).into();
+                    lit.raw = None;
+                    continue;
+                }
+            }
+        }
+        if let Some(rewritten) = rewrite_server_spec(spec) {
             lit.value = allocator.alloc_str(&rewritten).into();
             lit.raw = None;
         }
@@ -239,9 +284,28 @@ fn emit(
     out_dir: &Path,
     emitted: &mut HashMap<PathBuf, String>,
     visiting: &mut HashSet<PathBuf>,
+    assets: &mut HashMap<PathBuf, String>,
 ) -> Result<String> {
     if let Some(name) = emitted.get(abs) {
         return Ok(name.clone());
+    }
+    // アセット（画像・フォント等）: content-hash 付きで raw コピーし、
+    // 配信URLを default export する小さな JS モジュールを出力する。
+    if crate::is_asset(abs) {
+        let bytes = fs::read(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
+        let ext = abs.extension().and_then(|e| e.to_str()).unwrap_or("bin");
+        let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("asset");
+        let asset_hash = xxh3_64(&bytes) as u32;
+        let asset_name = format!("{stem}.{asset_hash:08x}.{ext}");
+        fs::write(out_dir.join(&asset_name), &bytes)?;
+        let url = format!("/_nowaki/{asset_name}");
+        assets.insert(abs.to_path_buf(), url.clone());
+        let code = format!("export default \"{url}\";\n");
+        let mod_hash = xxh3_64(code.as_bytes()) as u32;
+        let mod_name = format!("{stem}.{ext}.{mod_hash:08x}.js");
+        fs::write(out_dir.join(&mod_name), &code)?;
+        emitted.insert(abs.to_path_buf(), mod_name.clone());
+        return Ok(mod_name);
     }
     // .css は <style> 注入の JS シムとして出力（依存なし）
     if crate::css::is_css(abs) {
@@ -273,7 +337,7 @@ fn emit(
 
     let mut code = module.code;
     for dep in &module.deps {
-        let dep_name = emit(core, &dep.abs_path, out_dir, emitted, visiting)?;
+        let dep_name = emit(core, &dep.abs_path, out_dir, emitted, visiting, assets)?;
         code = code.replace(&dep.placeholder, &format!("./{dep_name}"));
     }
 
