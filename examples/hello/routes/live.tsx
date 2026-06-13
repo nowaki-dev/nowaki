@@ -6,10 +6,10 @@ import Counter from "../islands/Counter.tsx";
 export default function LivePage() {
   return (
     <main style="max-width:40rem;margin:3rem auto;padding:0 1.25rem;font-family:system-ui">
-      <h1>Server-reactive island (Jetstream)</h1>
+      <h1>Jetstream island</h1>
       <p>
-        This counter ships <strong>no component JavaScript</strong>. Clicks go to the server over a
-        WebSocket; the server re-renders and pushes an HTML patch that the client morphs in.
+        A Jetstream island ships <strong>no component JavaScript</strong>. Clicks go to the server
+        over a WebSocket; the server re-renders and pushes an HTML patch that the client morphs in.
       </p>
       <LiveCounter />
       <p style="margin-top:2rem">

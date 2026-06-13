@@ -102,7 +102,7 @@
 - [x] サイドカーの抽象化（SSR 中核を `@nowaki-dev/runtime` の `server/app.mjs`＝node:http 互換に集約。`nowaki start`(prod-sidecar)・node/static/bun/deno/cloudflare 各アダプタ・dev が共有。実行系は Node/Bun/Deno をアダプタで選択可）
 - [x] **Rust を prod ホットパスへ**。`nowaki start` が **Rust(axum) フロント**＝静的配信(dist/client, immutable)・HTML 組み立て(island 配線・modulepreload を Rust の `start.rs::assemble` で生成)・HTTP エッジを担い、Node `prod-sidecar.mjs` は「コンポーネント描画」だけ（ページは body+メタを JSON で返す。API/redirect/stream は素通し）。島ハイドレートまで検証済。v0.6 Jetstream（Rust が HTML パッチを押し出す）の足場
 
-### v0.6 「Jetstream」: サーバーリアクティブ島 ★flagship ← 実装完了
+### v0.6 「Jetstream」: サーバーリアクティブ島 ＝ **Jetstream islands** ★flagship ← 実装完了
 **テーマ**: Nowaki だけの差別化。サーバーデータ駆動の更新を、クライアントJSを増やさず Rust サーバーが HTML パッチで押し出す。
 **Exit基準**: 「コンテンツ主体だが動的」なアプリで、サーバーデータ更新が JS 追加ゼロの島として動き、楽観UIの島と共存し、静的デプロイも壊さない。**→ 達成（dev・本番でe2e検証）**。
 

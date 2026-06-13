@@ -93,6 +93,7 @@ export const STRINGS = {
       items: [
         { title: "Full-stack routing", body: `File-based <code>routes/</code> with nested <code>_layout</code>s, <code>_middleware</code>, server <code>loader</code>s, <code>action</code>s for forms, and <code>api/</code> handlers with method dispatch and streaming.` },
         { title: "Islands, zero JS by default", body: `Pages render to HTML on the server. Only components under <code>islands/</code> ship and hydrate, so a page costs only what it actually uses.` },
+        { title: "Jetstream islands (server-reactive)", body: `Mark an island <code>export const live</code> and it ships <strong>no component JavaScript</strong>: state stays on the server, clicks go over a WebSocket, the Rust server re-renders and pushes an HTML patch, and a ~2&nbsp;KB runtime morphs it in. LiveView-style, fused with islands. Client islands (optimistic UI) coexist on the same page.` },
         { title: "Rust toolchain (oxc)", body: "Parse, transform, resolve, bundle, minify, and scope-hoist run in Rust. Fast cold starts, millisecond rebuilds, and a persistent disk cache across restarts." },
         { title: "Installs with npm, no Rust", body: "The CLI ships as prebuilt native binaries through npm's optional dependencies. No cargo, no toolchain, no postinstall." },
         { title: "Island-to-island SPA router", body: "Navigation between island pages is client-side and instant, with prefetch and scroll restoration. Pages with no islands stay zero-JS and navigate normally." },
@@ -111,6 +112,7 @@ export const STRINGS = {
         "Islands + island-to-island SPA router",
         "CSS Modules, asset imports, source maps",
         "Scope-hoisted production bundles",
+        "Jetstream islands: server-reactive, zero client JS",
         "Deploy adapters: Node, static, Bun, Deno, Cloudflare edge",
         "Streaming SSR, config plugins, TSRX (.tsrx) islands",
         "Rust prod hot path: nowaki start serves and assembles in Rust",
@@ -118,7 +120,7 @@ export const STRINGS = {
       ],
       soonTitle: "On the roadmap",
       soon: [
-        "Jetstream: server-reactive islands (HTML patches over a channel)",
+        "Presence and connection scaling for Jetstream islands",
         "Plugin virtual modules and scoped CSS for TSRX",
         "State-preserving (prefresh) HMR",
         "Benchmarks vs Next and Astro",
@@ -221,6 +223,7 @@ export const STRINGS = {
       items: [
         { title: "フルスタックなルーティング", body: `file-based の <code>routes/</code> に、ネスト可能な <code>_layout</code>・<code>_middleware</code>・server <code>loader</code>・フォーム用の <code>action</code>、そしてメソッド分岐と streaming に対応した <code>api/</code> ハンドラ。` },
         { title: "デフォルトで島・JS ゼロ", body: `ページはサーバーで HTML に描画。<code>islands/</code> 配下のコンポーネントだけが配信・ハイドレートされ、ページが払うのは実際に使う分だけ。` },
+        { title: "Jetstream island（サーバーリアクティブ）", body: `島を <code>export const live</code> にすると<strong>コンポーネント JS をクライアントに送りません</strong>。状態はサーバーに置き、クリックは WebSocket で届き、Rust サーバーが再描画して HTML パッチを push、~2&nbsp;KB のランタイムが morph で当てます。LiveView 流を島に融合。クライアント島（楽観UI）と同一ページで共存します。` },
         { title: "Rust ツールチェーン (oxc)", body: "パース・変換・解決・バンドル・minify・スコープホイスティングが Rust で動作。高速なコールドスタート、数ミリ秒の再ビルド、再起動をまたぐ永続ディスクキャッシュ。" },
         { title: "npm で入る、Rust 不要", body: "CLI は npm の optionalDependencies でプリビルドのネイティブバイナリとして配布。cargo もツールチェーンも postinstall も不要。" },
         { title: "島間 SPA ルーター", body: "島のあるページ間の遷移はクライアント側で即時、prefetch とスクロール復元つき。島の無いページは JS ゼロのまま通常遷移。" },
@@ -239,6 +242,7 @@ export const STRINGS = {
         "Islands + 島間 SPA ルーター",
         "CSS Modules・アセット import・ソースマップ",
         "スコープホイスティング済みの本番バンドル",
+        "Jetstream island: サーバーリアクティブ・クライアント JS ゼロ",
         "デプロイアダプタ: Node・静的・Bun・Deno・Cloudflare edge",
         "ストリーミング SSR・設定プラグイン・TSRX（.tsrx）島",
         "Rust 本番ホットパス: nowaki start が Rust で配信・組み立て",
@@ -246,7 +250,7 @@ export const STRINGS = {
       ],
       soonTitle: "ロードマップ",
       soon: [
-        "Jetstream: サーバーリアクティブ島（チャンネル経由の HTML パッチ）",
+        "Jetstream island の presence・接続スケール",
         "プラグイン仮想モジュールと TSRX の scoped CSS",
         "状態保持（prefresh）HMR",
         "Next・Astro とのベンチマーク",
