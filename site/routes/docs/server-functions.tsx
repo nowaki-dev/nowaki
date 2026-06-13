@@ -27,6 +27,12 @@ export async function whoami() {
   const ctx = getContext();              // request context, RPC-time only
   return ctx?.cookies?.user ?? "anonymous";
 }`}</code></pre>
+      <p>
+        <code>getContext</code> and the framework types come from
+        <code>@nowaki-dev/runtime</code>:
+      </p>
+      <pre><code>{`import { getContext } from "@nowaki-dev/runtime";
+import type { LoaderContext, PageProps, Meta } from "@nowaki-dev/runtime";`}</code></pre>
 
       <h2>Call it from an island</h2>
       <p>Import and call it like a normal async function. The browser only ships the proxy.</p>

@@ -4,7 +4,7 @@
 // クライアントへは実装は出ず、fetch する極小プロキシだけが届く。
 // （SERVER_SECRET や store はクライアントのバンドルに含まれない。）
 
-import { getContext } from "@nowaki-dev/runtime/server/functions.mjs";
+import { getContext } from "@nowaki-dev/runtime";
 
 const SERVER_SECRET = "nowaki-server-only-secret-42";
 const store: string[] = ["learn nowaki", "ship server functions"];

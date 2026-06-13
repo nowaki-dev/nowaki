@@ -19,11 +19,18 @@
     "web-framework"
   ],
   "type": "module",
+  "types": "./index.d.ts",
   "files": [
     "client",
-    "server"
+    "server",
+    "index.js",
+    "index.d.ts"
   ],
   "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
     "./client/*": "./client/*",
     "./server/*": "./server/*"
   },

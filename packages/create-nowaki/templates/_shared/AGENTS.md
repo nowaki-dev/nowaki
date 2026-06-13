@@ -38,16 +38,21 @@ nowaki.config.mjs   plugins (optional)
    `onClick`/hooks in route or `components/` files.
 3. **Use explicit file extensions in relative imports**:
    `import Counter from "../islands/Counter.tsx"` (not `"../islands/Counter"`).
-4. **Routes** are components with an optional server-only `loader` and `action`:
+4. **Routes** are components with an optional server-only `loader` and `action`.
+   Optional types come from `@nowaki-dev/runtime` — `PageProps<typeof loader>`
+   infers the page's `data`, `LoaderContext` types `params`/cookies/headers:
    ```tsx
    // routes/blog/[slug].tsx
-   export const loader = async ({ params }) => ({ post: await db.post(params.slug) }); // server-only
-   export async function action(ctx) {            // runs on non-GET requests
+   import type { LoaderContext, PageProps } from "@nowaki-dev/runtime";
+   export const loader = async ({ params }: LoaderContext) => ({ post: await db.post(params.slug) }); // server-only
+   export async function action(ctx: LoaderContext) {  // runs on non-GET requests
      const form = await ctx.formData();
      return ctx.redirect("/blog");                 // Post/Redirect/Get
    }
-   export default function Post({ data }) { return <article><h1>{data.post.title}</h1></article>; }
+   export default function Post({ data }: PageProps<typeof loader>) { return <article><h1>{data.post.title}</h1></article>; }
    ```
+   A catch-all segment `routes/files/[...path].tsx` matches `/files/a/b/c`;
+   `params.path` is the array `["a","b","c"]`.
 5. **API routes** are `routes/api/*.ts` with per-method exports; return a value
    (JSON-encoded) or a `Response`:
    ```ts
@@ -69,7 +74,7 @@ nowaki.config.mjs   plugins (optional)
    ```ts
    // actions/todos.ts
    "use server";
-   import { getContext } from "@nowaki-dev/runtime/server/functions.mjs";
+   import { getContext } from "@nowaki-dev/runtime";
    export async function addTodo(text: string) { /* runs on the server */ }
    ```
    Call it from an island like a normal async function:

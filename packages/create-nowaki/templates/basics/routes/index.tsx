@@ -1,3 +1,4 @@
+import type { PageProps } from "@nowaki-dev/runtime";
 import Counter from "../islands/Counter.tsx";
 
 const CSS = `
@@ -32,9 +33,7 @@ export const head = `<style>${CSS}</style>`;
 
 export const loader = async () => ({ greeting: "Welcome to Nowaki" });
 
-type Data = Awaited<ReturnType<typeof loader>>;
-
-export default function Home({ data }: { data: Data }) {
+export default function Home({ data }: PageProps<typeof loader>) {
   return (
     <main class="wrap">
       <div class="brand">

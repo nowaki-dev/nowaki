@@ -16,12 +16,13 @@ export default function Routing() {
         <tr><td><code>routes/index.tsx</code></td><td><code>/</code></td></tr>
         <tr><td><code>routes/about.tsx</code></td><td><code>/about</code></td></tr>
         <tr><td><code>routes/blog/[slug].tsx</code></td><td><code>/blog/:slug</code> (dynamic param)</td></tr>
+        <tr><td><code>routes/files/[...path].tsx</code></td><td><code>/files/*</code> (catch-all; <code>params.path</code> is an array)</td></tr>
         <tr><td><code>routes/api/posts.ts</code></td><td><code>/api/posts</code> (handler, not a page)</td></tr>
         <tr><td><code>routes/_layout.tsx</code></td><td>Wraps pages in its directory (nests)</td></tr>
         <tr><td><code>routes/_middleware.ts</code></td><td>Runs before routes (nests)</td></tr>
         <tr><td><code>routes/_404.tsx</code> · <code>_500.tsx</code></td><td>Not-found / error pages</td></tr>
       </table>
-      <p>Static segments win over dynamic ones at the same depth, so <code>/users/me</code> beats <code>/users/[id]</code>.</p>
+      <p>Static segments win over dynamic ones at the same depth, so <code>/users/me</code> beats <code>/users/[id]</code>, and a catch-all <code>[...path]</code> only matches once nothing more specific does.</p>
 
       <h2>Loaders run on the server</h2>
       <p>
@@ -29,13 +30,21 @@ export default function Routing() {
         access stay there) and its result is passed to the page as <code>data</code>.
       </p>
       <pre><code>{`// routes/blog/[slug].tsx
-export const loader = async ({ params }) => ({
+import type { LoaderContext, PageProps } from "@nowaki-dev/runtime";
+
+export const loader = async ({ params }: LoaderContext) => ({
   post: await db.post(params.slug),   // server-only
 });
 
-export default function Post({ data }) {
-  return <article><h1>{data.post.title}</h1></article>;
+export default function Post({ data }: PageProps<typeof loader>) {
+  return <article><h1>{data.post.title}</h1></article>;   // data is fully typed
 }`}</code></pre>
+      <p>
+        The optional types ship with <code>@nowaki-dev/runtime</code>: <code>PageProps&lt;typeof
+        loader&gt;</code> infers the page's <code>data</code> from the loader's return type, and
+        <code>LoaderContext</code> types <code>params</code>, cookies, headers, and the request
+        helpers. JavaScript routes work too; the types are there when you want them.
+      </p>
 
       <h2>Actions handle mutations</h2>
       <p>
