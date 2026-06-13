@@ -36,10 +36,11 @@ pub fn build_client(core: &NowakiCore, dist: &Path) -> Result<BuildReport> {
     let mut emitted: HashMap<PathBuf, String> = HashMap::new();
     let mut visiting: HashSet<PathBuf> = HashSet::new();
 
-    // エントリ1: islandsハイドレーションランタイム
+    // エントリ1: クライアントランタイム（router.js → islands.js を取り込む。
+    // ハイドレーション + 島間SPA遷移。島のあるページだけがこれを読み込む）。
     let runtime = core
         .root
-        .join("node_modules/@nowaki-dev/runtime/client/islands.js");
+        .join("node_modules/@nowaki-dev/runtime/client/router.js");
     let runtime_out = if runtime.exists() {
         Some(emit(
             core,

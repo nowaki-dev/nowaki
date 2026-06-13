@@ -38,7 +38,11 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
         hmr_tx: hmr_tx.clone(),
         ssr_version: AtomicU64::new(1),
         sidecar_port: sidecar.port,
-        http: reqwest::Client::new(),
+        // リダイレクト(302等)はブラウザへ素通しする（サーバー側で追従しない）。
+        http: reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("reqwest client の構築に失敗"),
     });
 
     let _watcher = start_watcher(&root, state.clone())?;

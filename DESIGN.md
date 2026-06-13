@@ -114,6 +114,15 @@ oxc_parser (TSX) → oxc_transformer { TS型剥がし, JSX automatic (importSour
 | `routes/blog/[slug].tsx` | `/blog/:slug` |
 | `routes/api/hello.ts` | `/api/hello` (handler関数をexport) |
 
+`_` で始まるファイルは URL にならない規約ファイル:
+
+| ファイル | 役割 |
+|---|---|
+| `_layout.tsx` | そのディレクトリ配下のページを包む（ネスト可、`children` を受け取る） |
+| `_middleware.ts` | そのディレクトリ配下のリクエスト前処理（ネスト可、`Response` を返すと短絡） |
+| `_404.tsx` | 未一致時のページ（status 404） |
+| `_500.tsx` / `_error.tsx` | loader/描画が投げたときのページ（`{ error }` を受け取る、status 500） |
+
 ### データ取得 (Remix風loader)
 
 ```tsx
@@ -129,6 +138,28 @@ export default function Home({ data }: PageProps<typeof loader>) {
   </main>;
 }
 ```
+
+### LoaderContext と action
+
+loader / action / middleware / API ハンドラには共通の `LoaderContext` が渡る。リクエスト側（`url`, `params`, `method`, `headers`, `cookies`, `formData()`, `bodyJson()`）と、レスポンスへの書き込み（`status()`, `setHeader()`, `setCookie()`, `redirect()`, `json()`, `html()`, `text()`）を持つ。
+
+```tsx
+// routes/todos.tsx: action は非 GET（form submission 等）で実行される
+export const loader = (ctx) => ({ todos: readTodos(ctx) });
+export async function action(ctx) {
+  const form = await ctx.formData();
+  ctx.setCookie("todos", add(form.get("text")));
+  return ctx.redirect("/todos"); // PRG
+}
+```
+
+API ルートは `default` に加え `GET` / `POST` 等のメソッド別 export で分岐でき、web の `Response`（ストリーミング含む）をそのまま返せる。
+
+### レンダリングとクライアントルーター
+
+dev/prod で共通の `handler.mjs` が「ルート照合 → ミドルウェア → action → loader → レイアウト合成 → 描画 → 404/500」を担う。環境差分（モジュール読み込み・島解決・ドキュメント組み立て）だけを注入する。
+
+クライアントルーターは島ランタイムに同梱され、島のあるページで内部 `<a>` を横取りして遷移先 HTML を fetch、`<body>` を差し替え、新しい島だけを再ハイドレートする（prefetch・スクロール復元・popstate 対応）。JSゼロのページは素のフルナビゲーションのまま。DOM 差し替え機構は将来の Jetstream（サーバーリアクティブ島）と共有する。
 
 ### Islands
 

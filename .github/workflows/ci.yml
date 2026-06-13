@@ -34,17 +34,51 @@ jobs:
           version: 11
       - run: pnpm install
       - run: cargo build -p nowaki
-      - name: Start dev server and verify SSR + island + API
+      - name: Start dev server and verify SSR, islands, API, and v0.3 routing
         run: |
+          set -e
           ./target/debug/nowaki dev examples/hello &
           SERVER_PID=$!
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:3000/ >/dev/null && break
             sleep 1
           done
-          curl -sf http://127.0.0.1:3000/ | grep -q "nowaki-island"
-          curl -sf http://127.0.0.1:3000/api/hello | grep -q '"hello":"nowaki"'
-          curl -sf "http://127.0.0.1:3000/islands/Counter.tsx" | grep -q "jsx-runtime"
+          B=http://127.0.0.1:3000
+          status() { echo "$(curl -s -o /dev/null -w '%{http_code}' "$@")"; }
+
+          # SSR + islands + transform
+          curl -sf $B/ | grep -q "nowaki-island"
+          curl -sf $B/ | grep -q 'client/router.js'
+          curl -sf "$B/islands/Counter.tsx" | grep -q "jsx-runtime"
+
+          # layouts (root + nested) and dynamic param
+          curl -sf $B/ | grep -q 'href="/todos"'
+          curl -sf $B/blog/hello | grep -q "blog section"
+          curl -sf $B/blog/hello | grep -q "記事: hello"
+          curl -sf $B/blog/hello | grep -q 'href="/about"'
+
+          # middleware: header + auth redirect
+          curl -s -D - -o /dev/null $B/ | grep -qi "x-nowaki-mw: 1"
+          test "$(status $B/secret)" = "302"
+          test "$(status "$B/secret?key=ok")" = "200"
+
+          # 404 / 500 conventions
+          test "$(status $B/nope)" = "404"
+          curl -s $B/nope | grep -q "見つかりません"
+          test "$(status "$B/boom?boom=1")" = "500"
+
+          # API: legacy default, method dispatch, 405, streaming
+          curl -sf $B/api/hello | grep -q '"hello":"nowaki"'
+          curl -sf "$B/api/echo?q=hi" | grep -q '"q":"hi"'
+          curl -sf -X POST -H 'content-type: application/json' -d '{"a":1}' $B/api/echo | grep -q '"received":{"a":1}'
+          test "$(status -X DELETE $B/api/echo)" = "405"
+          test "$(curl -s $B/api/stream | tr -d '\n')" = "chunk1chunk2"
+
+          # action (form submission) via cookie PRG
+          CJ=$(mktemp)
+          test "$(status -c $CJ -X POST -d 'text=ci-todo' $B/todos)" = "302"
+          curl -s -b $CJ $B/todos | grep -q "ci-todo"
+
           kill $SERVER_PID
 
   npm-cli:

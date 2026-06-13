@@ -25,10 +25,12 @@ export async function load(url, context, nextLoad) {
   const u = new URL(url);
   if (u.protocol === "file:" && TS_RE.test(u.pathname)) {
     const v = u.searchParams.get("v") ?? "0";
-    const endpoint = `${RUST}/__nowaki/ssr-module?path=${encodeURIComponent(u.pathname)}&v=${v}`;
+    // u.pathname はパーセントエンコード済み（[slug] → %5Bslug%5D）。実ファイルパスへ復号する。
+    const fsPath = decodeURIComponent(u.pathname);
+    const endpoint = `${RUST}/__nowaki/ssr-module?path=${encodeURIComponent(fsPath)}&v=${v}`;
     const res = await fetch(endpoint);
     if (!res.ok) {
-      throw new Error(`[nowaki] SSR変換に失敗 (${u.pathname}): ${await res.text()}`);
+      throw new Error(`[nowaki] SSR変換に失敗 (${fsPath}): ${await res.text()}`);
     }
     return { format: "module", source: await res.text(), shortCircuit: true };
   }

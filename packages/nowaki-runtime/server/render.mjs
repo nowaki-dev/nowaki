@@ -78,20 +78,18 @@ ${typeof mod.head === "string" ? mod.head : ""}
 </head>
 <body>
 ${body}
-${devScripts(body)}
+${devScripts()}
 </body>
 </html>`;
 }
 
-function devScripts(body) {
-  const islands = body.includes("<nowaki-island")
-    ? '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/islands.js"></script>\n'
-    : "";
+function devScripts() {
+  // router.js が islands.js を取り込む（ハイドレーション + SPA 遷移）。dev は常に読み込む。
   const router =
     '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/router.js"></script>\n';
   const hmr =
     '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/hmr.js"></script>';
-  return `${islands}${router}${hmr}`;
+  return `${router}${hmr}`;
 }
 
 function escapeHtml(s) {

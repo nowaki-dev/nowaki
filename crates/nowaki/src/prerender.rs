@@ -52,8 +52,10 @@ pub async fn run(root: PathBuf, out: PathBuf) -> Result<()> {
         return Err(anyhow!("プリレンダ対象の静的ルートがありません"));
     }
 
-    // 4. 各ルートを fetch して書き出し
-    let client = reqwest::Client::new();
+    // 4. 各ルートを fetch して書き出し（リダイレクトは追従せず、非200はスキップ）
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()?;
     std::fs::create_dir_all(&out)?;
     let mut count = 0;
     for url_path in &routes {
@@ -102,8 +104,11 @@ fn enumerate_routes(routes_dir: &Path) -> Result<Vec<String>> {
         let Some(stem) = rel_str.strip_suffix(".js") else {
             continue;
         };
-        // api ルートと動的 [param] ルートは静的化対象外
-        if stem.starts_with("api/") || stem.contains('[') {
+        // 静的化対象外: api ルート、動的 [param]、規約ファイル（_layout/_middleware/_404/...）
+        if stem.starts_with("api/")
+            || stem.contains('[')
+            || stem.split('/').any(|seg| seg.starts_with('_'))
+        {
             continue;
         }
         let url = if stem == "index" {

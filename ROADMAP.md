@@ -60,17 +60,19 @@
 - [ ] 診断の質（解決失敗・型エラーの分かりやすい表示, コードフレーム）
 - [ ] build 仕上げ: `modulepreload` マニフェスト, island の無いページでの runtime script 省略
 
-### v0.3 「Squall」: ルーティング & データ
+### v0.3 「Squall」: ルーティング & データ ← 実装完了
 **テーマ**: 実用フレームワークの機能面。
 **Exit基準**: 基本的な Next/Remix アプリと機能比較できる。
 
-- [ ] ネストレイアウト（`_layout.tsx`）と共有UI
-- [ ] ミドルウェア（認証・リダイレクト・ヘッダ操作）
-- [ ] データ更新（`action` / form submission, Remix風 mutation）。後で server-reactive で「押せる」形に設計しておく（v0.6 Jetstream の前提）
-- [ ] API routes 拡充（メソッド分岐, 型付きハンドラ, ストリーミング）
-- [ ] クライアントルーター（島間SPA遷移, prefetch, スクロール復元）。DOM パッチ技術を morph ランタイムと共有（v0.6 Jetstream の前提）
-- [ ] 404/500・エラーバウンダリのルート規約
-- [ ] リダイレクト/ヘッダ/Cookie ヘルパ, `LoaderContext` の整備
+- [x] ネストレイアウト（`_layout.tsx`）と共有UI
+- [x] ミドルウェア（`_middleware.ts`、認証・リダイレクト・ヘッダ操作、ネスト可）
+- [x] データ更新（`action` / form submission, Remix風 mutation）。後で server-reactive で「押せる」形（v0.6 Jetstream の前提）
+- [x] API routes 拡充（メソッド分岐 GET/POST/…, 型付きハンドラ, `Response`/ストリーミング, 405）
+- [x] クライアントルーター（島間SPA遷移, prefetch, スクロール復元, popstate）。島ランタイムに同梱しJSゼロページは素のフルナビ。DOM 差し替えは v0.6 Jetstream と共有
+- [x] 404/500・エラーバウンダリのルート規約（`_404.tsx` / `_500.tsx`）
+- [x] リダイレクト/ヘッダ/Cookie ヘルパ, `LoaderContext` の整備
+
+> dev/prod 共有ハンドラ(`handler.mjs`)に集約。dev・prod・prerender とも検証済み、SPA 遷移はヘッドレス Chrome で実機確認。
 
 ### v0.4 「Monsoon」: バンドラーの深化
 **テーマ**: 本番品質の出力と高速なビルド。これが Rust バンドラーの本丸。
