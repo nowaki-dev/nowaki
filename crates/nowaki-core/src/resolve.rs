@@ -11,6 +11,7 @@ pub fn make_resolver() -> Resolver {
             ".jsx".into(),
             ".js".into(),
             ".mjs".into(),
+            ".tsrx".into(),
             ".json".into(),
         ],
         condition_names: vec![

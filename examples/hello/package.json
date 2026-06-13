@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "@nowaki-dev/runtime": "workspace:*",
+    "@tsrx/preact": "^0.1.30",
     "preact": "^10.25.4",
     "preact-render-to-string": "^6.5.13"
   }

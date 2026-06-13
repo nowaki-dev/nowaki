@@ -283,7 +283,7 @@ fn rewrite_server_spec(spec: &str) -> Option<String> {
         // SSR では .css を no-op に（CSS はクライアント専用）
         return Some(crate::css::CSS_NOOP_SPECIFIER.to_string());
     }
-    for ext in [".tsx", ".jsx", ".ts"] {
+    for ext in [".tsx", ".jsx", ".ts", ".tsrx"] {
         if let Some(stem) = spec.strip_suffix(ext) {
             return Some(format!("{stem}.js"));
         }

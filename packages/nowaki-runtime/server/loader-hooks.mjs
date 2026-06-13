@@ -3,7 +3,7 @@
 // 変換器をRust一本に統一するための仕掛け (vite-node方式)。
 
 const RUST = `http://127.0.0.1:${process.env.NOWAKI_RUST_PORT ?? "3000"}`;
-const TS_RE = /\.(tsx|ts|jsx)$/;
+const TS_RE = /\.(tsx|ts|jsx|tsrx)$/;
 
 export async function resolve(specifier, context, nextResolve) {
   const result = await nextResolve(specifier, context);

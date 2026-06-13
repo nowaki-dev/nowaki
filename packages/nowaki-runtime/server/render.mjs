@@ -10,7 +10,7 @@ import { h, options } from "preact";
 
 import { stableStringify } from "./serialize.mjs";
 
-const ISLAND_EXT = /\.(tsx|jsx|ts|js)$/;
+const ISLAND_EXT = /\.(tsx|jsx|ts|js|tsrx)$/;
 
 // コンポーネント実体 → { name, src(ブラウザURL) }
 let registry = new Map();

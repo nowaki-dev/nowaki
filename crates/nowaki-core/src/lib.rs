@@ -22,13 +22,18 @@ pub trait PluginBridge: Send + Sync {
     /// 変換可能なソース（ts/tsx/js/jsx/mjs）に対する `transform(code, id)` フック。
     /// どのプラグインも変更しなければ None。
     fn transform(&self, id: &str, code: &str) -> Option<String>;
+
+    /// `.tsrx` ソースを `@tsrx/preact` で標準 JSX へコンパイルする。出力はそのあと
+    /// oxc の JSX→preact パイプラインにかかる。コンパイラ未導入なら None。
+    fn compile_tsrx(&self, id: &str, code: &str) -> Option<String>;
 }
 
 /// 変換対象の拡張子。これ以外 (css, 画像など) は素通しで配信する。
+/// `.tsrx` はプラグインホストで `@tsrx/preact` により JSX へコンパイルしてから oxc にかける。
 pub fn is_transformable(path: &Path) -> bool {
     matches!(
         path.extension().and_then(|e| e.to_str()),
-        Some("ts" | "tsx" | "js" | "jsx" | "mjs")
+        Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "tsrx")
     )
 }
 
@@ -110,11 +115,18 @@ impl NowakiCore {
     pub fn read_source(&self, abs: &Path) -> Result<String> {
         let source = std::fs::read_to_string(abs)
             .with_context(|| format!("読み込み失敗: {}", abs.display()))?;
-        if is_transformable(abs) {
-            if let Some(bridge) = &self.plugins {
-                if let Some(code) = bridge.transform(&abs.to_string_lossy(), &source) {
-                    return Ok(code);
-                }
+        let Some(bridge) = &self.plugins else {
+            return Ok(source);
+        };
+        let id = abs.to_string_lossy();
+        // .tsrx は @tsrx/preact で JSX へコンパイル（→ 呼び出し側が oxc で JSX→preact）。
+        if abs.extension().and_then(|e| e.to_str()) == Some("tsrx") {
+            if let Some(code) = bridge.compile_tsrx(&id, &source) {
+                return Ok(code);
+            }
+        } else if is_transformable(abs) {
+            if let Some(code) = bridge.transform(&id, &source) {
+                return Ok(code);
             }
         }
         Ok(source)

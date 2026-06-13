@@ -14,20 +14,29 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context, Result};
 use nowaki_core::PluginBridge;
 
-/// Node プラグインホストへ `transform(code, id)` を委譲する PluginBridge 実装。
+/// Node プラグインホストへ `transform` / `.tsrx` コンパイルを委譲する PluginBridge 実装。
 struct HttpPluginBridge {
     port: u16,
 }
 
-impl PluginBridge for HttpPluginBridge {
-    fn transform(&self, id: &str, code: &str) -> Option<String> {
+impl HttpPluginBridge {
+    fn call(&self, path: &str, id: &str, code: &str) -> Option<String> {
         let body = serde_json::json!({ "id": id, "code": code }).to_string();
-        let resp = http_post(self.port, "/transform", &body).ok()?;
+        let resp = http_post(self.port, path, &body).ok()?;
         let v: serde_json::Value = serde_json::from_str(&resp).ok()?;
-        // {code: "..."} なら変換後、{code: null} なら未変更。
+        // {code: "..."} なら結果、{code: null} なら未変更/未対応。
         v.get("code")
             .and_then(|c| c.as_str())
             .map(|s| s.to_string())
+    }
+}
+
+impl PluginBridge for HttpPluginBridge {
+    fn transform(&self, id: &str, code: &str) -> Option<String> {
+        self.call("/transform", id, code)
+    }
+    fn compile_tsrx(&self, id: &str, code: &str) -> Option<String> {
+        self.call("/tsrx", id, code)
     }
 }
 
@@ -50,7 +59,9 @@ pub fn start(root: &Path) -> Result<Option<PluginHost>> {
     let has_config = ["nowaki.config.mjs", "nowaki.config.js"]
         .iter()
         .any(|n| root.join(n).exists());
-    if !has_config {
+    // @tsrx/preact があれば設定が無くても .tsrx のためにホストを起動する。
+    let has_tsrx = root.join("node_modules/@tsrx/preact").is_dir();
+    if !has_config && !has_tsrx {
         return Ok(None);
     }
     let script = root.join("node_modules/@nowaki-dev/runtime/server/plugin-host.mjs");
@@ -85,21 +96,30 @@ pub fn start(root: &Path) -> Result<Option<PluginHost>> {
     }
     let port = port.ok_or_else(|| anyhow!("plugin host が READY を報告しませんでした"))?;
 
-    // transform フックが無ければブリッジは不要（ホストは落とす）。
+    // transform フックも tsrx も無ければブリッジは不要（ホストは落とす）。
     let caps_body = http_get(port, "/caps")?;
     let caps: serde_json::Value = serde_json::from_str(&caps_body).unwrap_or_default();
-    if !caps
-        .get("hasTransform")
-        .and_then(|b| b.as_bool())
-        .unwrap_or(false)
-    {
+    let cap = |k: &str| caps.get(k).and_then(|b| b.as_bool()).unwrap_or(false);
+    let has_transform = cap("hasTransform");
+    let has_tsrx = cap("hasTsrx");
+    if !has_transform && !has_tsrx {
         let _ = child.kill();
         let _ = child.wait();
         return Ok(None);
     }
 
     let bridge: Arc<dyn PluginBridge> = Arc::new(HttpPluginBridge { port });
-    println!("[nowaki] プラグインを読み込みました（transform フック有効）");
+    let mut feats = Vec::new();
+    if has_transform {
+        feats.push("transform フック");
+    }
+    if has_tsrx {
+        feats.push(".tsrx (@tsrx/preact)");
+    }
+    println!(
+        "[nowaki] プラグインを読み込みました（{}）",
+        feats.join(" + ")
+    );
     Ok(Some(PluginHost { child, bridge }))
 }
 

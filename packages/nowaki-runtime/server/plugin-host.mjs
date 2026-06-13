@@ -13,6 +13,7 @@
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 const appRoot = process.cwd();
@@ -31,6 +32,18 @@ async function loadConfig() {
 const config = await loadConfig();
 const plugins = (config.plugins ?? []).filter((p) => p && typeof p === "object");
 const transformers = plugins.filter((p) => typeof p.transform === "function");
+
+// TSRX: アプリに @tsrx/preact があれば .tsrx を標準 JSX へコンパイルできる。
+// 解決は「アプリの node_modules」基準（このホスト自体は runtime パッケージ配下にあるため）。
+let tsrxCompile = null;
+try {
+  const appRequire = createRequire(path.join(appRoot, "package.json"));
+  const resolved = appRequire.resolve("@tsrx/preact");
+  const mod = await import(pathToFileURL(resolved).href);
+  if (typeof mod.compile === "function") tsrxCompile = mod.compile;
+} catch {
+  // 未導入なら .tsrx 非対応（hasTsrx=false）
+}
 
 // 各プラグインの transform を順に適用（前段の出力を次段へ）。誰も変えなければ null。
 async function runTransform(id, code) {
@@ -62,7 +75,7 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
     if (url.pathname === "/caps") {
-      sendJson(res, 200, { hasTransform: transformers.length > 0 });
+      sendJson(res, 200, { hasTransform: transformers.length > 0, hasTsrx: !!tsrxCompile });
       return;
     }
     if (url.pathname === "/transform" && req.method === "POST") {
@@ -70,6 +83,22 @@ const server = createServer(async (req, res) => {
       for await (const c of req) chunks.push(c);
       const { id, code } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
       const out = await runTransform(id, code);
+      sendJson(res, 200, { code: out });
+      return;
+    }
+    if (url.pathname === "/tsrx" && req.method === "POST") {
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const { id, code } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      let out = null;
+      if (tsrxCompile) {
+        const r = tsrxCompile(code, { filename: id });
+        if (r?.errors?.length) {
+          sendJson(res, 200, { code: null, error: JSON.stringify(r.errors) });
+          return;
+        }
+        out = r?.code ?? null;
+      }
       sendJson(res, 200, { code: out });
       return;
     }
@@ -83,6 +112,6 @@ server.listen(0, "127.0.0.1", () => {
   const port = server.address().port;
   console.log(`NOWAKI_PLUGIN_HOST_READY ${port}`);
   console.error(
-    `[nowaki] plugin host: ${plugins.length} plugin(s), ${transformers.length} transform hook(s)`,
+    `[nowaki] plugin host: ${plugins.length} plugin(s), ${transformers.length} transform hook(s), tsrx=${!!tsrxCompile}`,
   );
 });

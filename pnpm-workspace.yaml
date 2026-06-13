@@ -10,3 +10,6 @@ packages:
 # pnpm 10+ の既定 false だと registry から取得してしまい、公開直後の版が
 # minimumReleaseAge ポリシーに引っかかる。公開時の package.json は素の semver のまま。
 linkWorkspacePackages: true
+minimumReleaseAgeExclude:
+  - '@tsrx/core@0.1.30'
+  - '@tsrx/preact@0.1.30'

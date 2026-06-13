@@ -89,6 +89,10 @@ jobs:
           curl -sf $B/plugin | grep -q 'transformed-by-plugin'
           ! curl -sf $B/plugin | grep -q '__PLUGIN_MARK__'
 
+          # v0.5 TSRX: a .tsrx island compiled to Preact via @tsrx/preact, SSR + island wrap
+          curl -sf $B/tsrx | grep -q 'nowaki-island name="TsrxCounter"'
+          curl -sf $B/tsrx | grep -q 'tsrx: 5'
+
           kill $SERVER_PID
 
       - name: Production build + scope hoisting + preload + serve
