@@ -199,6 +199,21 @@ fn transform_for_server(
         };
         let Some(lit) = source_lit else { continue };
         let spec = lit.value.as_str();
+        // CSS Modules: クラス名マップだけを export（DOM が無いので注入はしない）。
+        if spec.ends_with(".module.css") {
+            if let Ok(resolution) = core.resolver.resolve(dir, spec) {
+                let full = resolution.full_path();
+                if let Ok(css) = fs::read_to_string(&full) {
+                    let id = full.to_string_lossy();
+                    let (_scoped, map) = crate::css::scope_css(&id, &css);
+                    let body = format!("export default {}", crate::css::mapping_object(&map));
+                    let data = crate::transform::data_module(&body);
+                    lit.value = allocator.alloc_str(&data).into();
+                    lit.raw = None;
+                }
+            }
+            continue;
+        }
         // アセット: クライアントビルドのハッシュ付きURLへ（無ければ basename フォールバック）。
         if !spec.starts_with('/') && !spec.contains("://") && !spec.starts_with("data:") {
             if let Ok(resolution) = core.resolver.resolve(dir, spec) {
@@ -308,15 +323,18 @@ fn emit(
         emitted.insert(abs.to_path_buf(), mod_name.clone());
         return Ok(mod_name);
     }
-    // .css は <style> 注入の JS シムとして出力（依存なし）
+    // .css は <style> 注入の JS シムとして出力（依存なし）。
+    // *.module.css はスコープ化 + クラス名マップ export。id は絶対パス（SSR と一致）。
     if crate::css::is_css(abs) {
         let css =
             fs::read_to_string(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
-        let id = abs
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("style.css");
-        let code = crate::css::css_shim(id, &css);
+        let id = abs.to_string_lossy();
+        let code = if crate::css::is_css_module(abs) {
+            let (scoped, map) = crate::css::scope_css(&id, &css);
+            crate::css::css_module_client_js(&id, &scoped, &map)
+        } else {
+            crate::css::css_shim(&id, &css)
+        };
         let hash = xxh3_64(code.as_bytes()) as u32;
         let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("style");
         let filename = format!("{stem}.css.{hash:08x}.js");

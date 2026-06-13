@@ -172,11 +172,15 @@ fn map_specifier(spec: &str, dir: &Path, root: &Path, resolver: &Resolver) -> Op
     }
 }
 
+/// 任意の JS 本文を持つ data: モジュールを返す（Node/ブラウザどちらも import 可能）。
+pub(crate) fn data_module(body: &str) -> String {
+    format!("data:text/javascript,{}", percent_encode_js(body))
+}
+
 /// アセットの配信URLを default export する小さな JS モジュールを data: URI で返す。
 /// `import logo from "./logo.png"` → logo === "<asset url>"（実体は別途バイナリ配信）。
 pub(crate) fn asset_module_data_url(url: &str) -> String {
-    let js = format!("export default {url:?}");
-    format!("data:text/javascript,{}", percent_encode_js(&js))
+    data_module(&format!("export default {url:?}"))
 }
 
 /// data: URI の本文に安全な最小パーセントエンコード。
@@ -212,6 +216,20 @@ fn rewrite_ssr_imports<'a>(
         };
         let Some(lit) = source else { continue };
         let spec = lit.value.as_str();
+        // CSS Modules: クラス名マップだけを export する data モジュールに（注入は client 側で）。
+        if spec.ends_with(".module.css") {
+            if let Ok(resolution) = resolver.resolve(dir, spec) {
+                let full = resolution.full_path();
+                if let Ok(css) = std::fs::read_to_string(&full) {
+                    let id = full.to_string_lossy();
+                    let (_scoped, map) = crate::css::scope_css(&id, &css);
+                    let body = format!("export default {}", crate::css::mapping_object(&map));
+                    lit.value = allocator.alloc_str(&data_module(&body)).into();
+                    lit.raw = None;
+                }
+            }
+            continue;
+        }
         if spec.ends_with(".css") {
             lit.value = allocator.alloc_str(crate::css::CSS_NOOP_SPECIFIER).into();
             lit.raw = None;
