@@ -16,6 +16,7 @@ import { stableStringify } from "./serialize.mjs";
 import { scanRoutes } from "./router.mjs";
 import { handleRequest, sendResult } from "./handler.mjs";
 import { prodDocument, prodShell } from "./document.mjs";
+import { liveInitialState } from "./live.mjs";
 
 const CONTENT_TYPE = {
   js: "text/javascript; charset=utf-8",
@@ -67,29 +68,56 @@ export async function createApp({ clientDir, serverDir, loadDotenv = true } = {}
     }
   }
 
-  // 描画中の island を <nowaki-island> でラップ（manifest のハッシュ名を src に）
+  // ライブ島（サーバーリアクティブ）レジストリ: コンポーネント → { name, mod, live }。
+  // クライアントへ JS は送らない（live.js が <nowaki-live> を WS で更新する）。
+  const liveRegistry = new Map();
+  let liveCounter = 0;
+  for (const name of manifest.liveIslands ?? []) {
+    const mod = await import(
+      pathToFileURL(path.join(serverDir, "islands", `${name}.js`)).href
+    );
+    if (typeof mod.default === "function") {
+      liveRegistry.set(mod.default, { name, mod, live: mod.live });
+    }
+  }
+
+  // 描画中の island をラップ。ライブ島は <nowaki-live>、通常島は <nowaki-island>。
   const prevVnode = options.vnode;
   options.vnode = (vnode) => {
     if (
       typeof vnode.type === "function" &&
-      registry.has(vnode.type) &&
-      !vnode.props.__nowakiInner
+      !vnode.props.__nowakiInner &&
+      !vnode.props.__nowakiLiveInner
     ) {
-      const island = registry.get(vnode.type);
       const Original = vnode.type;
-      vnode.type = (props) => {
-        const { __nowakiInner, ...rest } = props;
-        return h(
-          "nowaki-island",
-          {
-            name: island.name,
-            src: island.src,
-            props: stableStringify(rest),
-            style: "display:contents",
-          },
-          h(Original, { ...rest, __nowakiInner: true }),
-        );
-      };
+      if (liveRegistry.has(vnode.type)) {
+        const info = liveRegistry.get(vnode.type);
+        vnode.type = (props) => {
+          const { state: propState, ...rest } = props;
+          const state = propState ?? liveInitialState(info.mod, rest);
+          const nid = `L${liveCounter++}`;
+          return h(
+            "nowaki-live",
+            { name: info.name, nid, state: JSON.stringify(state), style: "display:contents" },
+            h(Original, { state, __nowakiLiveInner: true }),
+          );
+        };
+      } else if (registry.has(vnode.type)) {
+        const island = registry.get(vnode.type);
+        vnode.type = (props) => {
+          const { __nowakiInner, ...rest } = props;
+          return h(
+            "nowaki-island",
+            {
+              name: island.name,
+              src: island.src,
+              props: stableStringify(rest),
+              style: "display:contents",
+            },
+            h(Original, { ...rest, __nowakiInner: true }),
+          );
+        };
+      }
     }
     if (prevVnode) prevVnode(vnode);
   };
@@ -150,7 +178,7 @@ export async function createApp({ clientDir, serverDir, loadDotenv = true } = {}
     }
   };
 
-  return { handle, env, manifest };
+  return { handle, env, manifest, liveRegistry };
 }
 
 /// node:http でリッスンする。アダプタ/`nowaki start` の共通ランチャ。

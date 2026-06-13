@@ -9,9 +9,10 @@ import { Readable } from "node:stream";
 import path from "node:path";
 import { createApp } from "./app.mjs";
 import { handleRequest } from "./handler.mjs";
+import { liveRender } from "./live.mjs";
 
 const appRoot = process.cwd();
-const { env } = await createApp({
+const { env, liveRegistry } = await createApp({
   clientDir: path.join(appRoot, "dist/client"),
   serverDir: path.join(appRoot, "dist/server"),
 });
@@ -27,6 +28,28 @@ env.renderDocument = ({ mod, body }) => ({
 });
 
 const server = createServer(async (req, res) => {
+  // サーバーリアクティブ島の再描画（Rust の /__nowaki/live WS から呼ばれる）。
+  if (req.method === "POST" && req.url.startsWith("/__nowaki/live-render")) {
+    try {
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const { name, state, handler, payload } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      const entry = [...liveRegistry.values()].find((e) => e.name === name);
+      if (!entry) {
+        res.writeHead(404, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "live island not found" }));
+        return;
+      }
+      const result = await liveRender(entry.mod, state, handler, payload);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      console.error("[nowaki live]", err);
+      res.writeHead(500, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: String(err?.stack ?? err) }));
+    }
+    return;
+  }
   try {
     const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
     const result = await handleRequest(env, { method: req.method, url, version: "prod", req });

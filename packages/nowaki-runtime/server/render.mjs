@@ -9,12 +9,14 @@ import { pathToFileURL } from "node:url";
 import { h, options } from "preact";
 
 import { stableStringify } from "./serialize.mjs";
+import { liveInitialState } from "./live.mjs";
 
 const ISLAND_EXT = /\.(tsx|jsx|ts|js|tsrx)$/;
 
-// コンポーネント実体 → { name, src(ブラウザURL) }
+// コンポーネント実体 → { name, src(ブラウザURL), live?, mod? }
 let registry = new Map();
 let registryVersion = null;
+let liveCounter = 0; // ライブ島インスタンスの一意 id（ページ内で衝突しなければよい）
 
 export async function loadIslandRegistry(appRoot, version) {
   if (registryVersion === version) return registry;
@@ -34,6 +36,9 @@ export async function loadIslandRegistry(appRoot, version) {
     next.set(mod.default, {
       name: f.replace(ISLAND_EXT, ""),
       src: `/islands/${f}`,
+      // `export const live` を持つ島はサーバーリアクティブ島（クライアントに JS を送らない）。
+      live: mod.live ?? null,
+      mod,
     });
   }
   registry = next;
@@ -46,23 +51,44 @@ options.vnode = (vnode) => {
   if (
     typeof vnode.type === "function" &&
     registry.has(vnode.type) &&
-    !vnode.props.__nowakiInner
+    !vnode.props.__nowakiInner &&
+    !vnode.props.__nowakiLiveInner
   ) {
     const island = registry.get(vnode.type);
     const Original = vnode.type;
-    vnode.type = (props) => {
-      const { __nowakiInner, ...rest } = props;
-      return h(
-        "nowaki-island",
-        {
-          name: island.name,
-          src: island.src,
-          props: stableStringify(rest),
-          style: "display:contents",
-        },
-        h(Original, { ...rest, __nowakiInner: true }),
-      );
-    };
+    if (island.live) {
+      // サーバーリアクティブ島: <nowaki-live> で包み、初期状態を埋め込む。
+      // コンポーネント JS はクライアントに送らない（サーバーが再描画して patch を push）。
+      vnode.type = (props) => {
+        const { state: propState, ...rest } = props;
+        const state = propState ?? liveInitialState(island.mod, rest);
+        const nid = `L${liveCounter++}`;
+        return h(
+          "nowaki-live",
+          {
+            name: island.name,
+            nid,
+            state: JSON.stringify(state),
+            style: "display:contents",
+          },
+          h(Original, { state, __nowakiLiveInner: true }),
+        );
+      };
+    } else {
+      vnode.type = (props) => {
+        const { __nowakiInner, ...rest } = props;
+        return h(
+          "nowaki-island",
+          {
+            name: island.name,
+            src: island.src,
+            props: stableStringify(rest),
+            style: "display:contents",
+          },
+          h(Original, { ...rest, __nowakiInner: true }),
+        );
+      };
+    }
   }
   if (prevVnodeHook) prevVnodeHook(vnode);
 };
@@ -98,9 +124,12 @@ function devScripts() {
   // router.js が islands.js を取り込む（ハイドレーション + SPA 遷移）。dev は常に読み込む。
   const router =
     '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/router.js"></script>\n';
+  // live.js はサーバーリアクティブ島（<nowaki-live>）用。島が無ければ何もしない。
+  const live =
+    '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/live.js"></script>\n';
   const hmr =
     '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/hmr.js"></script>';
-  return `${router}${hmr}`;
+  return `${router}${live}${hmr}`;
 }
 
 function escapeHtml(s) {

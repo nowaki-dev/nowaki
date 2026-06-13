@@ -56,13 +56,31 @@ pub fn build_client(
     // 各 island の「その island だけが使うアプリモジュール」を1スコープへ連結する
     // （スコープホイスティング）。node_modules / 共有 / css / asset は別チャンクで共有する。
     let mut islands: Vec<(String, String)> = Vec::new();
+    let mut live_islands: Vec<String> = Vec::new();
     let islands_dir = core.root.join("islands");
     if islands_dir.is_dir() {
-        let mut entries: Vec<PathBuf> = fs::read_dir(&islands_dir)?
-            .filter_map(|e| e.ok().map(|e| e.path()))
-            .filter(|p| crate::is_transformable(p))
-            .collect();
-        entries.sort();
+        // ライブ島（サーバーリアクティブ）はクライアントへ JS を出さない。先に振り分ける。
+        let all: Vec<PathBuf> = {
+            let mut v: Vec<PathBuf> = fs::read_dir(&islands_dir)?
+                .filter_map(|e| e.ok().map(|e| e.path()))
+                .filter(|p| crate::is_transformable(p))
+                .collect();
+            v.sort();
+            v
+        };
+        let mut entries: Vec<PathBuf> = Vec::new();
+        for p in all {
+            let name = p
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("island")
+                .to_string();
+            if is_live_island(core, &p) {
+                live_islands.push(name); // クライアントチャンクは出さない
+            } else {
+                entries.push(p);
+            }
+        }
 
         // 各 island のアプリ到達集合を求め、共有（複数 island から到達）を数える。
         let reach: Vec<(PathBuf, HashSet<PathBuf>)> = entries
@@ -87,9 +105,29 @@ pub fn build_client(
         }
     }
 
+    // ライブ島があれば live.js（WS + DOM morph）を1チャンク出力する。
+    let live_runtime_out = if !live_islands.is_empty() {
+        let live_rt = core
+            .root
+            .join("node_modules/@nowaki-dev/runtime/client/live.js");
+        if live_rt.exists() {
+            Some(emit(core, &live_rt, &client_dir, &mut ctx)?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     fs::write(
         client_dir.join("manifest.json"),
-        render_manifest(runtime_out.as_deref(), &islands, &ctx.deps),
+        render_manifest(
+            runtime_out.as_deref(),
+            &islands,
+            &live_islands,
+            live_runtime_out.as_deref(),
+            &ctx.deps,
+        ),
     )?;
 
     Ok((
@@ -621,15 +659,33 @@ fn transform_for_bundle(path: &Path, source: &str, core: &NowakiCore) -> Result<
 /// ファイル名は ascii のみなのでエスケープ不要。
 /// `preload`: 各エントリチャンク → 推移的依存チャンク。瀑布リクエストを避けるため、
 /// ページは島チャンクとその全依存を一括で `<link rel=modulepreload>` する。
+/// ライブ島か（`export const live` を持つ）。read_source 後（.tsrx もコンパイル済み）で判定。
+fn is_live_island(core: &NowakiCore, abs: &Path) -> bool {
+    core.read_source(abs)
+        .map(|s| s.contains("export const live"))
+        .unwrap_or(false)
+}
+
 fn render_manifest(
     runtime: Option<&str>,
     islands: &[(String, String)],
+    live_islands: &[String],
+    live_runtime: Option<&str>,
     deps: &HashMap<String, Vec<String>>,
 ) -> String {
     let runtime_field = match runtime {
         Some(r) => format!("\"{r}\""),
         None => "null".to_string(),
     };
+    let live_runtime_field = match live_runtime {
+        Some(r) => format!("\"{r}\""),
+        None => "null".to_string(),
+    };
+    let live_islands_field = live_islands
+        .iter()
+        .map(|n| format!("\"{n}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
     let island_fields: Vec<String> = islands
         .iter()
         .map(|(name, file)| format!("    \"{name}\": \"{file}\""))
@@ -658,7 +714,7 @@ fn render_manifest(
         .collect();
 
     format!(
-        "{{\n  \"runtime\": {runtime_field},\n  \"islands\": {{\n{}\n  }},\n  \"preload\": {{\n{}\n  }}\n}}\n",
+        "{{\n  \"runtime\": {runtime_field},\n  \"liveRuntime\": {live_runtime_field},\n  \"liveIslands\": [{live_islands_field}],\n  \"islands\": {{\n{}\n  }},\n  \"preload\": {{\n{}\n  }}\n}}\n",
         island_fields.join(",\n"),
         preload_fields.join(",\n")
     )

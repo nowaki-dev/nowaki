@@ -102,16 +102,15 @@
 - [x] サイドカーの抽象化（SSR 中核を `@nowaki-dev/runtime` の `server/app.mjs`＝node:http 互換に集約。`nowaki start`(prod-sidecar)・node/static/bun/deno/cloudflare 各アダプタ・dev が共有。実行系は Node/Bun/Deno をアダプタで選択可）
 - [x] **Rust を prod ホットパスへ**。`nowaki start` が **Rust(axum) フロント**＝静的配信(dist/client, immutable)・HTML 組み立て(island 配線・modulepreload を Rust の `start.rs::assemble` で生成)・HTTP エッジを担い、Node `prod-sidecar.mjs` は「コンポーネント描画」だけ（ページは body+メタを JSON で返す。API/redirect/stream は素通し）。島ハイドレートまで検証済。v0.6 Jetstream（Rust が HTML パッチを押し出す）の足場
 
-### v0.6 「Jetstream」: サーバーリアクティブ島 ★flagship
+### v0.6 「Jetstream」: サーバーリアクティブ島 ★flagship ← 実装完了
 **テーマ**: Nowaki だけの差別化。サーバーデータ駆動の更新を、クライアントJSを増やさず Rust サーバーが HTML パッチで押し出す。
-**Exit基準**: 「コンテンツ主体だが動的」なアプリで、サーバーデータ更新が JS 追加ゼロの島として動き、楽観UIの島と共存し、静的デプロイも壊さない。
+**Exit基準**: 「コンテンツ主体だが動的」なアプリで、サーバーデータ更新が JS 追加ゼロの島として動き、楽観UIの島と共存し、静的デプロイも壊さない。**→ 達成（dev・本番でe2e検証）**。
 
-狙い: インタラクティブ性を2種類に割る。ローカルで完結する対話はクライアント島（従来通り）、サーバーデータ駆動の更新は持続チャンネル経由で Rust が差分を押す。「過剰 hydrate な Next ユーザー × コンテンツ主体だが動的」の層に直接刺す。先行は Phoenix LiveView / Hotwire / HTMX だが、JSX島 + npm エコシステム + Rust への融合は前例がない。
+> **実装**: 島が `export const live = { state, on }` を持てば「ライブ島」。コンポーネント JS はクライアントへ送らず（build がチャンクを出さず、`<nowaki-live>` で SSR）、状態は Rust が `/__nowaki/live` WebSocket 接続ごとに保持。クリック等の `data-live` イベントを Rust が Node サイドカー（純粋な `handler(state)→state` ＋ `render(state)→html`）へ橋渡しし、新 HTML を patch として push。クライアント `live.js`（~2KB, WS＋DOM morph）が当てる。`crates/nowaki/src/live.rs`（WS セッション）＋ `server/live.mjs`（再評価）＋ `client/live.js`。
 
-- [ ] **SR-0 スパイク**（捨てる前提・v0.3 と並行可）: 1ルートで Rust → WebSocket → HTMLパッチ → ~2KB morph ランタイムを通し、体感を確かめてから旗艦に格上げ判断
-- [ ] **SR-1 MVP**: 持続チャンネル(WS/SSE) + morph ランタイム + オーサリングAPI（`export const live` / `export const on`）。サーバー状態の変化で再評価 → 差分push を1モードで成立
-- [ ] **SR-2 実用**: 接続スケール・再接続、クライアント島（楽観UI）との橋渡し、ターゲット限定パッチ、複数クライアント/presence
-- [ ] **SR-3 両建て**: 静的デプロイ可能な島モード ↔ 接続するサーバーリアクティブ島モードの共存。prerender → CDN の手軽さを失わないことを明示的な成果物に
+- [x] **SR-0 スパイク / SR-1 MVP**: `/__nowaki/live` WS + DOM morph ランタイム + オーサリングAPI（`export const live` / `on`）。イベント→サーバー再評価→patch push を dev・本番（`nowaki start` の Rust front）で通し、`examples/hello`(LiveCounter) でカウンタが 0→1→2→reset を WS 往復で更新（headless 検証）
+- [x] **SR-2 実用**: 再接続（指数バックオフ＋再 join で状態回復）、**クライアント島（楽観UI）との共存**（同一ページで `<nowaki-live>` と `<nowaki-island>` が両立・検証済）、ターゲット限定パッチ（nid 単位）、複数クライアント（WS 接続ごとに独立した状態）。接続スケールの本格チューニングは Beta で継続
+- [x] **SR-3 両建て**: 静的島モード（prerender/static・node・edge は初期 SSR を配信し、WS 無しでも壊れず劣化のみ）↔ 接続モード（`nowaki start` の Rust front が WS を保持）。build は `manifest.liveIslands`/`liveRuntime` で振り分け、ライブ島の **クライアント JS はゼロ**
 
 ### v0.7〜v0.9 「Beta」: 安定化
 **テーマ**: 壊れない・速い・信頼できる。

@@ -12,10 +12,11 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
 use axum::body::Body;
+use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::{Request, State};
 use axum::http::{header, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::any;
+use axum::routing::{any, get};
 use axum::Router;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
@@ -23,6 +24,8 @@ use tokio::process::{Child, Command};
 #[derive(serde::Deserialize, Default)]
 struct Manifest {
     runtime: Option<String>,
+    #[serde(default, rename = "liveRuntime")]
+    live_runtime: Option<String>,
     #[serde(default)]
     islands: HashMap<String, String>,
     #[serde(default)]
@@ -100,7 +103,10 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
         _child: child,
     });
 
-    let app = Router::new().fallback(any(handle)).with_state(state);
+    let app = Router::new()
+        .route("/__nowaki/live", get(live_ws))
+        .fallback(any(handle))
+        .with_state(state);
     let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
     let actual = listener.local_addr()?.port();
     // PORT=0 のときの実ポートも報告（将来の prerender 等が利用できるよう）
@@ -108,6 +114,13 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
     println!("[nowaki] 本番配信 (Rust front + Node renderer): http://{host}:{actual}");
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+/// サーバーリアクティブ島の WS。セッションは crate::live、描画は Node prod-sidecar へ橋渡し。
+async fn live_ws(ws: WebSocketUpgrade, State(state): State<Arc<ProdState>>) -> Response {
+    let http = state.http.clone();
+    let port = state.sidecar_port;
+    ws.on_upgrade(move |socket| crate::live::handle(socket, http, port, "prod".to_string()))
 }
 
 async fn handle(State(state): State<Arc<ProdState>>, req: Request) -> Response {
@@ -252,9 +265,18 @@ fn assemble(manifest: &Manifest, meta: &PageMeta) -> String {
     } else {
         String::new()
     };
+    // サーバーリアクティブ島があれば live.js（WS + morph）を読み込む。
+    let live_script = if meta.body.contains("<nowaki-live") {
+        match &manifest.live_runtime {
+            Some(f) => format!("<script type=\"module\" src=\"/_nowaki/{f}\"></script>"),
+            None => String::new(),
+        }
+    } else {
+        String::new()
+    };
 
     format!(
-        "<!DOCTYPE html>\n<html lang=\"{lang}\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n<title>{title}</title>\n{preload}\n{head}\n</head>\n<body>\n{body}\n{runtime_script}\n</body>\n</html>",
+        "<!DOCTYPE html>\n<html lang=\"{lang}\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n<title>{title}</title>\n{preload}\n{head}\n</head>\n<body>\n{body}\n{runtime_script}\n{live_script}\n</body>\n</html>",
         lang = escape_html(&meta.lang),
         title = escape_html(&meta.title),
         head = meta.head,

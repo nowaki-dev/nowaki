@@ -31,6 +31,11 @@ export function prodDocument(manifest, { mod, body }) {
   const runtime = hasIslands
     ? `<script type="module" src="/_nowaki/${manifest.runtime}"></script>`
     : "";
+  // サーバーリアクティブ島があれば live.js（WS + morph）を読み込む。
+  const live =
+    body.includes("<nowaki-live") && manifest.liveRuntime
+      ? `<script type="module" src="/_nowaki/${manifest.liveRuntime}"></script>`
+      : "";
 
   return `<!DOCTYPE html>
 <html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
@@ -44,6 +49,7 @@ ${typeof mod.head === "string" ? mod.head : ""}
 <body>
 ${body}
 ${runtime}
+${live}
 </body>
 </html>`;
 }

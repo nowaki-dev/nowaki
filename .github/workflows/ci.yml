@@ -93,6 +93,13 @@ jobs:
           curl -sf $B/tsrx | grep -q 'nowaki-island name="TsrxCounter"'
           curl -sf $B/tsrx | grep -q 'tsrx: 5'
 
+          # v0.6 Jetstream: server-reactive island SSRs as <nowaki-live> with initial state,
+          # loads live.js, and coexists with a client island on the same page
+          curl -sf $B/live | grep -q 'nowaki-live name="LiveCounter"'
+          curl -sf $B/live | grep -q 'live: 0'
+          curl -sf $B/live | grep -q 'client/live.js'
+          curl -sf $B/live | grep -q 'nowaki-island name="Counter"'
+
           kill $SERVER_PID
 
       - name: Production build + scope hoisting + preload + serve
@@ -107,11 +114,20 @@ jobs:
           ! ls examples/hello/dist/client/cycle-a.*.js >/dev/null 2>&1
           CY=$(ls examples/hello/dist/client/Cycle.*.js | head -1)
           ! grep -q './cycle-' "$CY"
+          # v0.6 Jetstream build: the live island ships NO client component JS (only live.js),
+          # is listed in the manifest, and is still built as a server module for rendering.
+          grep -q '"liveIslands": \["LiveCounter"\]' examples/hello/dist/client/manifest.json
+          ! ls examples/hello/dist/client/LiveCounter.*.js >/dev/null 2>&1
+          ls examples/hello/dist/client/live.*.js >/dev/null 2>&1
+          test -f examples/hello/dist/server/islands/LiveCounter.js
+          # nowaki start (Rust front) serves the live island, assembled with live.js
           ./target/debug/nowaki start examples/hello --port 3300 &
           START_PID=$!
           for i in $(seq 1 20); do curl -sf http://127.0.0.1:3300/ >/dev/null && break; sleep 1; done
           curl -sf http://127.0.0.1:3300/ | grep -q "modulepreload"
           curl -sf http://127.0.0.1:3300/ | grep -q '<code>a→b</code>'
+          curl -sf http://127.0.0.1:3300/live | grep -q 'nowaki-live name="LiveCounter"'
+          curl -sf http://127.0.0.1:3300/live | grep -q 'live\.'  # live.js script
           kill $START_PID
 
       - name: Deploy adapters — self-contained node entry + static + streaming SSR

@@ -56,6 +56,7 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
 
     let app = Router::new()
         .route("/__nowaki/hmr", get(hmr_ws))
+        .route("/__nowaki/live", get(live_ws))
         .route("/__nowaki/ssr-module", get(ssr_module))
         .route("/@fs/{*path}", get(serve_fs))
         .fallback(serve_or_proxy)
@@ -119,6 +120,14 @@ fn start_watcher(root: &Path, state: Arc<DevState>) -> Result<notify::Recommende
 
 async fn hmr_ws(ws: WebSocketUpgrade, State(state): State<Arc<DevState>>) -> Response {
     ws.on_upgrade(move |socket| handle_hmr(socket, state))
+}
+
+/// サーバーリアクティブ島の WS。セッションロジックは crate::live が担う。
+async fn live_ws(ws: WebSocketUpgrade, State(state): State<Arc<DevState>>) -> Response {
+    let http = state.http.clone();
+    let port = state.sidecar_port;
+    let version = state.ssr_version.load(Ordering::SeqCst).to_string();
+    ws.on_upgrade(move |socket| crate::live::handle(socket, http, port, version))
 }
 
 async fn handle_hmr(mut socket: WebSocket, state: Arc<DevState>) {

@@ -1,5 +1,6 @@
 mod adapter;
 mod dev;
+mod live;
 mod plugins;
 mod prerender;
 mod sidecar;
