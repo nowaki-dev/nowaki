@@ -177,7 +177,21 @@ fn transform_for_server(path: &Path, source: &str, core: &NowakiCore) -> Result<
         }
     }
 
-    Ok(Codegen::new().build(&program).code)
+    // SSR は minify しないのでインラインソースマップが正確（node --enable-source-maps 用）。
+    let rel = path.strip_prefix(&core.root).unwrap_or(path).to_path_buf();
+    let ret = Codegen::new()
+        .with_options(CodegenOptions {
+            source_map_path: Some(rel),
+            ..CodegenOptions::default()
+        })
+        .build(&program);
+    let mut code = ret.code;
+    if let Some(map) = ret.map {
+        code.push_str("\n//# sourceMappingURL=");
+        code.push_str(&map.to_data_url());
+        code.push('\n');
+    }
+    Ok(code)
 }
 
 /// 相対ローカルimportの TS拡張子を .js へ。bare/absolute/.js は触らない。
@@ -268,6 +282,15 @@ fn emit(
     let hash = xxh3_64(code.as_bytes()) as u32;
     let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("module");
     let filename = format!("{stem}.{hash:08x}.js");
+
+    // 外部ソースマップ（sourcesContent 埋め込み）。minify + プレースホルダ置換のため
+    // 列は近似だが、行マッピングと原文表示は機能する。
+    if let Some(map) = &module.map {
+        let map_name = format!("{filename}.map");
+        fs::write(out_dir.join(&map_name), map)?;
+        code.push_str(&format!("\n//# sourceMappingURL={map_name}\n"));
+    }
+
     fs::write(out_dir.join(&filename), &code)?;
     emitted.insert(abs.to_path_buf(), filename.clone());
     Ok(filename)
@@ -276,6 +299,8 @@ fn emit(
 struct BundleModule {
     code: String,
     deps: Vec<DepRef>,
+    /// 外部ソースマップ JSON（sourcesContent 埋め込み）。
+    map: Option<String>,
 }
 
 struct DepRef {
@@ -353,15 +378,22 @@ fn transform_for_bundle(path: &Path, source: &str, core: &NowakiCore) -> Result<
         });
     }
 
-    let code = Codegen::new()
+    // sources はルート相対にして prod で絶対パスを晒さない（sourcesContent は埋まる）。
+    let rel = path.strip_prefix(&core.root).unwrap_or(path).to_path_buf();
+    let ret = Codegen::new()
         .with_options(CodegenOptions {
             minify: true,
+            source_map_path: Some(rel),
             ..CodegenOptions::default()
         })
-        .build(&program)
-        .code;
+        .build(&program);
+    let map = ret.map.map(|m| m.to_json_string());
 
-    Ok(BundleModule { code, deps })
+    Ok(BundleModule {
+        code: ret.code,
+        deps,
+        map,
+    })
 }
 
 /// manifest.json を手書きで生成（依存を増やさないため serde 不使用）。

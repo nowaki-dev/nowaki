@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{anyhow, Result};
 use oxc::allocator::Allocator;
 use oxc::ast::ast::{Program, Statement};
-use oxc::codegen::Codegen;
+use oxc::codegen::{Codegen, CodegenOptions};
 use oxc::diagnostics::{GraphicalReportHandler, GraphicalTheme, NamedSource, OxcDiagnostic};
 use oxc::parser::Parser;
 use oxc::semantic::{Scoping, SemanticBuilder};
@@ -62,7 +62,20 @@ pub fn transform_file(
         noop_css_imports(&allocator, &mut program);
     }
 
-    Ok(Codegen::new().build(&program).code)
+    // dev はインラインソースマップを付ける（minify しないので位置は正確）。
+    let ret = Codegen::new()
+        .with_options(CodegenOptions {
+            source_map_path: Some(path.to_path_buf()),
+            ..CodegenOptions::default()
+        })
+        .build(&program);
+    let mut code = ret.code;
+    if let Some(map) = ret.map {
+        code.push_str("\n//# sourceMappingURL=");
+        code.push_str(&map.to_data_url());
+        code.push('\n');
+    }
+    Ok(code)
 }
 
 /// トップレベルの import / re-export の指定子をdevサーバーURLへ書き換える。

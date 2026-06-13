@@ -88,6 +88,7 @@ fn main() -> anyhow::Result<()> {
                 );
             }
             let status = std::process::Command::new("node")
+                .arg("--enable-source-maps")
                 .arg(&entry)
                 .current_dir(&root)
                 .env("PORT", port.to_string())

@@ -22,6 +22,7 @@ pub async fn spawn(root: &Path, rust_port: u16) -> Result<Sidecar> {
     }
 
     let mut child = Command::new("node")
+        .arg("--enable-source-maps")
         .arg(&entry)
         .current_dir(root)
         .env("NOWAKI_RUST_PORT", rust_port.to_string())

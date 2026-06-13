@@ -26,6 +26,7 @@ pub async fn run(root: PathBuf, out: PathBuf) -> Result<()> {
 
     // 2. 本番サーバーをエフェメラルポートで起動
     let mut child = Command::new("node")
+        .arg("--enable-source-maps")
         .arg(&entry)
         .current_dir(&root)
         .env("PORT", "0")
