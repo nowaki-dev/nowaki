@@ -213,6 +213,11 @@ fn transform_for_server(
             _ => None,
         };
         let Some(lit) = source_lit else { continue };
+        // React 系 bare import → Preact 互換（bare のまま残し、Node が preact/compat を解決）。
+        if let Some(aliased) = crate::resolve::alias_specifier(lit.value.as_str()) {
+            lit.value = allocator.alloc_str(aliased).into();
+            lit.raw = None;
+        }
         let spec = lit.value.as_str();
         // CSS Modules: クラス名マップだけを export（DOM が無いので注入はしない）。
         if spec.ends_with(".module.css") {
@@ -574,6 +579,11 @@ fn transform_for_bundle(path: &Path, source: &str, core: &NowakiCore) -> Result<
             _ => None,
         };
         let Some(lit) = source_lit else { continue };
+        // React 系 bare import → Preact 互換（解決して別チャンクへ）。
+        if let Some(aliased) = crate::resolve::alias_specifier(lit.value.as_str()) {
+            lit.value = allocator.alloc_str(aliased).into();
+            lit.raw = None;
+        }
         let spec = lit.value.as_str();
         if spec.starts_with('/') || spec.contains("://") || spec.starts_with("data:") {
             continue;

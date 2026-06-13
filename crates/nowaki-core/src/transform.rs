@@ -97,6 +97,10 @@ fn rewrite_imports<'a>(
             _ => None,
         };
         let Some(lit) = source else { continue };
+        if let Some(aliased) = crate::resolve::alias_specifier(lit.value.as_str()) {
+            lit.value = allocator.alloc_str(aliased).into();
+            lit.raw = None;
+        }
         let Some(url) = map_specifier(lit.value.as_str(), dir, root, resolver) else {
             continue;
         };
@@ -215,6 +219,11 @@ fn rewrite_ssr_imports<'a>(
             _ => None,
         };
         let Some(lit) = source else { continue };
+        // React 系 bare import は Preact 互換へ（bare のまま残し、Node が preact/compat を解決）。
+        if let Some(aliased) = crate::resolve::alias_specifier(lit.value.as_str()) {
+            lit.value = allocator.alloc_str(aliased).into();
+            lit.raw = None;
+        }
         let spec = lit.value.as_str();
         // CSS Modules: クラス名マップだけを export する data モジュールに（注入は client 側で）。
         if spec.ends_with(".module.css") {

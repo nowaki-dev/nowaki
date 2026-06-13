@@ -1,11 +1,18 @@
 import WindHero from "../islands/WindHero.tsx";
 import CopyCommand from "../islands/CopyCommand.tsx";
+import Animator from "../islands/Animator.tsx";
 import { STRINGS, GH, CRATES, NPM } from "../lib/i18n.ts";
 import type { Locale } from "../lib/i18n.ts";
 
 export default function Landing({ locale }: { locale: Locale }) {
   const s = STRINGS[locale];
   const home = locale === "ja" ? "/ja" : "/";
+
+  // 風のマーキーに流すキーワード（両ロケール共通の技術用語）
+  const winds = [
+    "Rust toolchain", "oxc", "islands", "zero JS by default", "server loaders",
+    "actions", "middleware", "API routes", "scope-hoisted", "SSR", "npm install", "source maps",
+  ];
 
   // ルート + loader + 島
   const routeHtml = `<span class="c">// routes/blog/[slug].tsx</span>
@@ -38,8 +45,12 @@ export default function Landing({ locale }: { locale: Locale }) {
 
   return (
     <>
-      <header class="storm">
+      <div class="progressbar" data-progress aria-hidden="true" />
+      <Animator />
+
+      <header class="storm" data-hero>
         <WindHero />
+        <div class="watermark" data-parallax="0.18" aria-hidden="true">野分</div>
         <div class="storm__scrim" aria-hidden="true" />
 
         <nav class="wrap z1 flex items-center justify-between py-5" style="gap:1rem;flex-wrap:wrap">
@@ -58,44 +69,57 @@ export default function Landing({ locale }: { locale: Locale }) {
           </div>
         </nav>
 
-        <div class="wrap z1" style="padding-block:clamp(3.5rem,2rem + 7vw,7rem)">
-          <span class="eyetag" style="border:1px solid oklch(0.78 0.1 256 / 0.4);color:var(--cyan)">
+        <div class="wrap z1" style="padding-block:clamp(3.5rem,2rem + 7vw,7.5rem);max-width:60rem">
+          <span class="eyetag" data-reveal style="border:1px solid oklch(0.78 0.1 256 / 0.4);color:var(--cyan)">
             {s.hero.badge}
           </span>
-          <h1 class="hero-title" style="margin-top:1.4rem;max-width:20ch">
+          <h1 class="hero-title" data-hero-title style="margin-top:1.5rem;max-width:18ch">
             <span style="display:block">{s.hero.h1a}</span>
             <span class="mark" style="display:block">{s.hero.h1b}</span>
           </h1>
-          <p class="lead" style="margin-top:1.5rem;max-width:54ch;color:var(--on-storm);font-weight:450">
+          <p class="lead" data-reveal style="margin-top:1.6rem;max-width:54ch;color:var(--on-storm);font-weight:450">
             {s.hero.sub}
           </p>
 
-          <div style="margin-top:2.2rem;max-width:30rem;display:flex;flex-direction:column;gap:.7rem">
+          <div data-reveal style="margin-top:2.3rem;max-width:30rem;display:flex;flex-direction:column;gap:.7rem">
             <CopyCommand cmd="npm create nowaki@latest my-app" primary labelCopy={s.copy.copy} labelCopied={s.copy.copied} />
             <CopyCommand cmd="npm i -g nowaki" labelCopy={s.copy.copy} labelCopied={s.copy.copied} />
           </div>
 
-          <p style="margin-top:1.3rem;max-width:46ch;font-size:.95rem;color:var(--cyan);font-weight:500">
+          <p data-reveal style="margin-top:1.3rem;max-width:46ch;font-size:.95rem;color:var(--cyan);font-weight:500">
             {s.hero.rustfree}
           </p>
-          <p style="margin-top:.7rem;font-size:.9rem;color:var(--on-storm-muted)">
+          <p data-reveal style="margin-top:.7rem;font-size:.9rem;color:var(--on-storm-muted)">
             {s.hero.alpha}
           </p>
         </div>
       </header>
 
+      <div class="marquee" aria-hidden="true">
+        <div class="marquee__track" data-marquee>
+          {[0, 1].map((k) => (
+            <div class="marquee__item" key={k}>
+              {winds.flatMap((w, i) => [
+                <b key={`w${i}`}>{w}</b>,
+                <span class="marquee__dot" key={`d${i}`}>◆</span>,
+              ])}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <main>
         {/* Ship: the honest benchmark */}
         <section class="section wrap">
-          <p class="kicker">Show, don't claim</p>
-          <h2 class="h-sec" style="margin-top:.7rem;max-width:20ch">{s.ship.h2}</h2>
-          <p class="lead measure" style="margin-top:1.1rem">{s.ship.lead}</p>
-          <div style="margin-top:2.4rem;max-width:46rem">
+          <p class="kicker" data-rise>Show, don't claim</p>
+          <h2 class="h-sec" data-rise style="margin-top:.8rem;max-width:20ch">{s.ship.h2}</h2>
+          <p class="lead measure" data-rise style="margin-top:1.1rem">{s.ship.lead}</p>
+          <div style="margin-top:2.6rem;max-width:48rem">
             {s.ship.bars.map((bar) => (
               <div class="bar-row">
                 <div class="bar-top">
                   <span class="bar-label">{bar.label}</span>
-                  <span class="bar-val" style={bar.muted ? "color:var(--muted)" : "color:var(--primary-strong)"}>
+                  <span class="bar-val" data-countup style={bar.muted ? "color:var(--muted)" : "color:var(--primary-strong)"}>
                     {bar.value}
                   </span>
                 </div>
@@ -108,37 +132,40 @@ export default function Landing({ locale }: { locale: Locale }) {
               </div>
             ))}
           </div>
-          <p style="margin-top:1.4rem;font-size:.88rem;color:var(--muted);max-width:60ch">{s.ship.note}</p>
+          <p style="margin-top:1.5rem;font-size:.88rem;color:var(--muted);max-width:60ch">{s.ship.note}</p>
         </section>
 
-        {/* Speed */}
-        <section style="background:var(--surface);border-block:1px solid var(--line)">
-          <div class="section wrap">
-            <h2 class="h-sec" style="max-width:18ch">{s.speed.h2}</h2>
-            <p class="lead measure" style="margin-top:1.1rem">{s.speed.lead}</p>
-            <div style="margin-top:2.8rem;display:grid;gap:2.2rem" class="grid-cols-1 sm:grid-cols-3">
-              {s.speed.stats.map((st) => (
+        {/* Speed — 嵐バンド（前線） */}
+        <section class="storm">
+          <div class="section wrap z1">
+            <h2 class="h-sec" data-rise style="max-width:18ch">{s.speed.h2}</h2>
+            <p class="lead measure" data-rise style="margin-top:1.1rem;color:var(--on-storm-muted)">{s.speed.lead}</p>
+            <div style="margin-top:3rem;display:grid;gap:2.4rem" class="grid-cols-1 sm:grid-cols-3" data-rise-group>
+              {s.speed.stats.map((st, i) => (
                 <div>
-                  <div style="font-size:clamp(1.7rem,1.2rem + 2vw,2.6rem);font-weight:800;letter-spacing:-0.03em;color:var(--primary-strong);line-height:1.05">
+                  <div
+                    {...(i === 0 ? { "data-countup": true } : {})}
+                    style="font-size:clamp(1.8rem,1.2rem + 2.2vw,2.8rem);font-weight:800;letter-spacing:-0.04em;color:var(--cyan);line-height:1.04"
+                  >
                     {st.value}
                   </div>
-                  <p style="margin-top:.6rem;color:var(--muted);max-width:28ch">{st.label}</p>
+                  <p style="margin-top:.7rem;color:var(--on-storm-muted);max-width:28ch">{st.label}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* How it works */}
+        {/* How it works — 本物の3ステップ（順次表示） */}
         <section class="section wrap">
-          <h2 class="h-sec" style="max-width:18ch">{s.how.h2}</h2>
-          <div style="margin-top:2.6rem;display:grid;gap:2.2rem" class="grid-cols-1 md:grid-cols-3">
+          <h2 class="h-sec" data-rise style="max-width:18ch">{s.how.h2}</h2>
+          <div style="margin-top:2.8rem;display:grid;gap:2.4rem" class="grid-cols-1 md:grid-cols-3" data-steps>
             {s.how.steps.map((step) => (
               <div>
                 <code style="display:inline-block;font-size:.82rem;padding:.4rem .65rem;border-radius:.5rem;background:var(--surface);border:1px solid var(--line);color:var(--primary-strong)">
                   {step.cmd}
                 </code>
-                <h3 style="margin-top:.95rem;font-size:1.2rem;letter-spacing:-0.02em">{step.title}</h3>
+                <h3 style="margin-top:.95rem;font-size:1.25rem;letter-spacing:-0.025em">{step.title}</h3>
                 <p
                   style="margin-top:.5rem;color:var(--muted);max-width:46ch"
                   dangerouslySetInnerHTML={{ __html: step.body }}
@@ -151,9 +178,9 @@ export default function Landing({ locale }: { locale: Locale }) {
         {/* Code showcase */}
         <section style="background:var(--surface);border-block:1px solid var(--line)">
           <div class="section wrap">
-            <h2 class="h-sec" style="max-width:20ch">{s.code.h2}</h2>
-            <p class="lead measure" style="margin-top:1.1rem" dangerouslySetInnerHTML={{ __html: s.code.lead }} />
-            <div style="margin-top:2.2rem;display:grid;gap:1.5rem" class="grid-cols-1 md:grid-cols-2">
+            <h2 class="h-sec" data-rise style="max-width:20ch">{s.code.h2}</h2>
+            <p class="lead measure" data-rise style="margin-top:1.1rem" dangerouslySetInnerHTML={{ __html: s.code.lead }} />
+            <div style="margin-top:2.4rem;display:grid;gap:1.5rem" class="grid-cols-1 md:grid-cols-2" data-rise-group>
               <div>
                 <p class="kicker" style="color:var(--muted)">{s.code.tabs[0]}</p>
                 <pre class="code" style="margin-top:.7rem" aria-label="A route with a loader">
@@ -167,10 +194,10 @@ export default function Landing({ locale }: { locale: Locale }) {
                 </pre>
               </div>
             </div>
-            <p class="kicker" style="color:var(--muted);margin-top:2.4rem">{s.code.tabs[2]}</p>
+            <p class="kicker" style="color:var(--muted);margin-top:2.6rem">{s.code.tabs[2]}</p>
             <div style="margin-top:1rem;display:grid;gap:.1rem" class="grid-cols-1 sm:grid-cols-2">
               {s.code.conventions.map((c) => (
-                <div style="display:flex;gap:1rem;align-items:baseline;padding:.7rem .2rem;border-top:1px solid var(--line)">
+                <div style="display:flex;gap:1rem;align-items:baseline;padding:.75rem .2rem;border-top:1px solid var(--line)">
                   <code style="color:var(--primary-strong);font-size:.85rem;white-space:nowrap">{c.f}</code>
                   <span style="color:var(--muted);font-size:.9rem">{c.d}</span>
                 </div>
@@ -181,9 +208,9 @@ export default function Landing({ locale }: { locale: Locale }) {
 
         {/* Compare */}
         <section class="section wrap">
-          <h2 class="h-sec" style="max-width:20ch">{s.compare.h2}</h2>
-          <p class="lead measure" style="margin-top:1.1rem">{s.compare.lead}</p>
-          <div class="ctable-scroll">
+          <h2 class="h-sec" data-rise style="max-width:20ch">{s.compare.h2}</h2>
+          <p class="lead measure" data-rise style="margin-top:1.1rem">{s.compare.lead}</p>
+          <div class="ctable-scroll" data-rise>
             <table class="ctable">
               <colgroup>
                 <col />
@@ -211,15 +238,15 @@ export default function Landing({ locale }: { locale: Locale }) {
               </tbody>
             </table>
           </div>
-          <p style="margin-top:1.3rem;font-size:.88rem;color:var(--muted);max-width:64ch">{s.compare.note}</p>
+          <p style="margin-top:1.4rem;font-size:.88rem;color:var(--muted);max-width:64ch">{s.compare.note}</p>
         </section>
 
         {/* Positioning */}
         <section style="background:var(--surface);border-block:1px solid var(--line)">
           <div class="section wrap">
-            <h2 class="h-sec" style="max-width:16ch">{s.positioning.h2}</h2>
-            <p class="lead measure" style="margin-top:1.1rem">{s.positioning.lead}</p>
-            <div style="margin-top:2.4rem;display:grid;gap:2.4rem" class="grid-cols-1 md:grid-cols-2">
+            <h2 class="h-sec" data-rise style="max-width:16ch">{s.positioning.h2}</h2>
+            <p class="lead measure" data-rise style="margin-top:1.1rem">{s.positioning.lead}</p>
+            <div style="margin-top:2.6rem;display:grid;gap:2.6rem" class="grid-cols-1 md:grid-cols-2" data-rise-group>
               <div class="pcol">
                 <h3 style="color:var(--primary-strong)">{s.positioning.forTitle}</h3>
                 <ul>
@@ -242,13 +269,13 @@ export default function Landing({ locale }: { locale: Locale }) {
 
         {/* Features */}
         <section class="section wrap">
-          <h2 class="h-sec" style="max-width:18ch">{s.features.h2}</h2>
-          <p class="lead measure" style="margin-top:1.1rem">{s.features.lead}</p>
-          <div style="margin-top:2rem;display:grid;column-gap:3rem" class="grid-cols-1 md:grid-cols-2">
+          <h2 class="h-sec" data-rise style="max-width:18ch">{s.features.h2}</h2>
+          <p class="lead measure" data-rise style="margin-top:1.1rem">{s.features.lead}</p>
+          <div style="margin-top:2.2rem;display:grid;column-gap:3rem" class="grid-cols-1 md:grid-cols-2" data-rise-group>
             {s.features.items.map((f) => (
               <div style="border-top:1px solid var(--line)">
-                <div style="padding-block:1.4rem">
-                  <h3 style="font-size:1.12rem;letter-spacing:-0.02em">{f.title}</h3>
+                <div style="padding-block:1.5rem">
+                  <h3 style="font-size:1.15rem;letter-spacing:-0.025em">{f.title}</h3>
                   <p
                     style="margin-top:.5rem;color:var(--muted);max-width:52ch"
                     dangerouslySetInnerHTML={{ __html: f.body }}
@@ -262,9 +289,9 @@ export default function Landing({ locale }: { locale: Locale }) {
         {/* Honest alpha */}
         <section style="background:var(--surface);border-block:1px solid var(--line)">
           <div class="section wrap">
-            <h2 class="h-sec">{s.alpha.h2}</h2>
-            <p class="lead measure" style="margin-top:1.1rem">{s.alpha.lead}</p>
-            <div style="margin-top:2rem;display:grid;gap:2rem" class="grid-cols-1 md:grid-cols-2">
+            <h2 class="h-sec" data-rise>{s.alpha.h2}</h2>
+            <p class="lead measure" data-rise style="margin-top:1.1rem">{s.alpha.lead}</p>
+            <div style="margin-top:2.2rem;display:grid;gap:2.2rem" class="grid-cols-1 md:grid-cols-2" data-rise-group>
               <div>
                 <h3 style="font-size:1rem;font-family:'JetBrains Mono',monospace;letter-spacing:.02em">{s.alpha.worksTitle}</h3>
                 <ul style="margin-top:.9rem;list-style:none;padding:0;display:flex;flex-direction:column;gap:.55rem">

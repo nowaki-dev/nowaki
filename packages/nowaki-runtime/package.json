@@ -1,6 +1,6 @@
 {
   "name": "@nowaki-dev/runtime",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Runtime for Nowaki — islands hydration client, SSR sidecar, and Node loader hooks",
   "license": "MIT",
   "author": "Voredge <dev@voredge.com>",

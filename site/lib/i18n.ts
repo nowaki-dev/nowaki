@@ -20,10 +20,10 @@ export const STRINGS = {
       alpha: "Alpha. Not for production yet, but real, fast, and published on npm and crates.io.",
     },
     ship: {
-      h2: "This page ships 11 KB of JavaScript.",
-      lead: "Everything interactive on this site, the wind animation and the copy buttons, is 11 KB gzipped with Preact included. A page with no islands ships zero. For comparison, React and ReactDOM alone are about 45 KB gzipped, before any of your own code.",
+      h2: "This page ships 12 KB of JavaScript.",
+      lead: "Everything interactive on this site, the wind animation, the copy buttons, and the scroll choreography, is 12 KB gzipped with Preact included. A page with no islands ships zero. For comparison, React and ReactDOM alone are about 45 KB gzipped, before any of your own code.",
       bars: [
-        { label: "This page (two islands + wind)", value: "11 KB", pct: 24 },
+        { label: "This page (islands + wind + motion)", value: "12 KB", pct: 27 },
         { label: "A content page, no islands", value: "0 KB", pct: 1, zero: true },
         { label: "React + ReactDOM, baseline only", value: "~45 KB", pct: 100, muted: true },
       ],
@@ -145,10 +145,10 @@ export const STRINGS = {
       alpha: "alpha 版。まだ本番向けではありませんが、実在し、本当に速く、npm と crates.io に公開済みです。",
     },
     ship: {
-      h2: "このページが送る JavaScript は 11 KB。",
-      lead: "このサイトの動く部分すべて、風のアニメーションとコピーボタンを合わせて、Preact 込みで gzip 後 11 KB です。島の無いページは 0 KB。参考までに、React と ReactDOM だけで gzip 後およそ 45 KB、あなたのコードを書く前にこれです。",
+      h2: "このページが送る JavaScript は 12 KB。",
+      lead: "このサイトの動く部分すべて、風のアニメーション・コピーボタン・スクロール演出を合わせて、Preact 込みで gzip 後 12 KB です。島の無いページは 0 KB。参考までに、React と ReactDOM だけで gzip 後およそ 45 KB、あなたのコードを書く前にこれです。",
       bars: [
-        { label: "このページ（島2つ + 風）", value: "11 KB", pct: 24 },
+        { label: "このページ（島3つ + 風 + モーション）", value: "12 KB", pct: 27 },
         { label: "コンテンツだけのページ（島なし）", value: "0 KB", pct: 1, zero: true },
         { label: "React + ReactDOM の土台だけ", value: "約45 KB", pct: 100, muted: true },
       ],
@@ -269,7 +269,7 @@ const HEAD_STYLE = `
       extend: {
         colors: {
           bg: "var(--bg)", surface: "var(--surface)", ink: "var(--ink)",
-          muted: "var(--muted)", primary: "var(--primary)", accent: "var(--accent)",
+          muted: "var(--muted)", primary: "var(--primary)", ember: "var(--ember)",
           storm: "var(--storm)", line: "var(--line)", onstorm: "var(--on-storm)"
         },
         fontFamily: {
@@ -280,23 +280,37 @@ const HEAD_STYLE = `
     }
   };
 </script>
+<script>
+  /* ヒーローの導入モーション用クラスを描画前に付ける（チラつき防止）。
+     JS が動くブラウザだけが付与し、静的HTML/クローラ/JS無効では付かない＝常に見える。
+     Animator が起動したら .anim-on を付け、起動しなければ保険で .anim を外して全表示。 */
+  (function () {
+    var d = document.documentElement;
+    try { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) { return; }
+    d.classList.add("anim");
+    setTimeout(function () { if (!d.classList.contains("anim-on")) d.classList.remove("anim"); }, 2200);
+  })();
+</script>
 <style>
   :root{
-    --bg: oklch(1 0 0);
-    --surface: oklch(0.976 0.006 255);
-    --ink: oklch(0.205 0.014 258);
-    --muted: oklch(0.435 0.022 258);
-    --primary: oklch(0.50 0.155 256);
-    --primary-strong: oklch(0.435 0.16 256);
-    --accent: oklch(0.64 0.19 42);
-    --accent-strong: oklch(0.55 0.2 40);
-    --storm: oklch(0.155 0.032 263);
-    --storm-2: oklch(0.215 0.044 265);
-    --on-storm: oklch(0.965 0.012 256);
-    --on-storm-muted: oklch(0.91 0.022 256);
-    --line: oklch(0.905 0.01 258);
-    --cyan: #9fd4ff;
-    --ease: cubic-bezier(0.16,1,0.3,1);
+    --bg: oklch(0.986 0.004 250);
+    --surface: oklch(0.966 0.008 252);
+    --ink: oklch(0.205 0.03 262);
+    --muted: oklch(0.452 0.03 260);
+    --faint: oklch(0.6 0.026 258);
+    --line: oklch(0.9 0.012 256);
+    --line-strong: oklch(0.84 0.016 256);
+    --primary: oklch(0.52 0.17 256);
+    --primary-strong: oklch(0.44 0.17 257);
+    --ember: oklch(0.64 0.19 46);
+    --ember-strong: oklch(0.55 0.2 41);
+    --storm: oklch(0.175 0.035 264);
+    --storm-2: oklch(0.245 0.052 266);
+    --on-storm: oklch(0.97 0.012 250);
+    --on-storm-muted: oklch(0.8 0.03 252);
+    --cyan: oklch(0.87 0.1 228);
+    --ease: cubic-bezier(0.22,1,0.36,1);
+    --ease-expo: cubic-bezier(0.16,1,0.3,1);
   }
   *{ box-sizing:border-box }
   html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth }
@@ -304,57 +318,79 @@ const HEAD_STYLE = `
     margin:0; background:var(--bg); color:var(--ink);
     font-family:"Bricolage Grotesque", system-ui, sans-serif;
     font-optical-sizing:auto; -webkit-font-smoothing:antialiased;
-    font-size:1.0625rem; line-height:1.62;
+    font-size:1.0625rem; line-height:1.62; overflow-x:hidden;
   }
-  h1,h2,h3{ font-weight:800; letter-spacing:-0.032em; line-height:1.06; text-wrap:balance; margin:0 }
+  h1,h2,h3{ font-weight:800; letter-spacing:-0.038em; line-height:1.04; text-wrap:balance; margin:0 }
   p{ text-wrap:pretty; margin:0 }
   a{ color:inherit; text-decoration:none }
   code,kbd,pre{ font-family:"JetBrains Mono", ui-monospace, monospace }
-  ::selection{ background: oklch(0.50 0.155 256 / 0.20) }
+  ::selection{ background: oklch(0.52 0.17 256 / 0.22) }
   :focus-visible{ outline:2px solid var(--primary); outline-offset:2px; border-radius:3px }
 
-  .wrap{ width:100%; max-width:1080px; margin-inline:auto; padding-inline:clamp(1.25rem,4vw,2rem) }
-  .section{ padding-block:clamp(4.5rem,3rem + 6vw,8rem) }
-  .measure{ max-width:60ch }
-  .lead{ font-size:clamp(1.08rem,1rem + .55vw,1.32rem); line-height:1.55; color:var(--muted) }
-  .h-sec{ font-size:clamp(1.85rem,1.2rem + 2.4vw,2.95rem); letter-spacing:-0.03em }
-  .eyetag{ display:inline-flex; align-items:center; gap:.5rem; font-family:"JetBrains Mono",monospace;
-    font-size:.74rem; letter-spacing:.06em; padding:.35rem .6rem; border-radius:99px; }
-  .kicker{ font-family:"JetBrains Mono",monospace; font-size:.74rem; letter-spacing:.14em; text-transform:uppercase;
-    color:var(--accent-strong); font-weight:600 }
+  /* スクロール進捗の細い風の線（装飾。JS無効なら scaleX(0) のまま不可視） */
+  .progressbar{ position:fixed; inset:0 0 auto 0; height:2px; z-index:50; transform:scaleX(0);
+    transform-origin:0 50%; background:linear-gradient(90deg, var(--primary), var(--cyan)); }
 
+  .wrap{ width:100%; max-width:1140px; margin-inline:auto; padding-inline:clamp(1.25rem,4vw,2.25rem) }
+  .section{ padding-block:clamp(4.5rem,3rem + 6vw,8.5rem) }
+  .measure{ max-width:62ch }
+  .lead{ font-size:clamp(1.1rem,1rem + .6vw,1.4rem); line-height:1.55; color:var(--muted) }
+  .h-sec{ font-size:clamp(2rem,1.3rem + 2.7vw,3.35rem); letter-spacing:-0.04em }
+  .eyetag{ display:inline-flex; align-items:center; gap:.5rem; font-family:"JetBrains Mono",monospace;
+    font-size:.74rem; letter-spacing:.05em; padding:.4rem .7rem; border-radius:99px; }
+  .kicker{ font-family:"JetBrains Mono",monospace; font-size:.76rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--primary-strong); font-weight:600 }
+
+  /* 嵐バンド。ヒーロー・速度・フッターに前線のように差し込む。 */
   .storm{ background:
-    radial-gradient(70% 80% at 92% -25%, var(--storm-2), transparent 50%),
+    radial-gradient(80% 90% at 88% -20%, var(--storm-2), transparent 55%),
+    radial-gradient(60% 70% at 12% 120%, oklch(0.3 0.06 262 / 0.6), transparent 60%),
     var(--storm);
     color:var(--on-storm); position:relative; overflow:hidden; isolation:isolate;
   }
   .wind-canvas{ position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;
-    mask-image: linear-gradient(90deg, transparent 0%, transparent 72%, #000 86%, #000 97%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, transparent 58%, #000 78%, #000 97%, transparent 100%);
   }
   .storm__scrim{ position:absolute; inset:0; z-index:0; pointer-events:none;
-    background:linear-gradient(90deg, rgba(11,16,26,0.82) 0%, rgba(11,16,26,0.6) 52%, transparent 76%); }
+    background:linear-gradient(94deg, oklch(0.16 0.035 264 / 0.9) 0%, oklch(0.16 0.035 264 / 0.55) 50%, transparent 78%); }
+  /* ヒーロー背後の巨大な透かし「野分」。視差で流れる。 */
+  .watermark{ position:absolute; z-index:0; right:clamp(-3rem,-4vw,-1rem); top:50%; translate:0 -50%;
+    font-weight:800; font-size:min(48vw,40rem); line-height:.8; letter-spacing:-0.04em;
+    color:oklch(1 0 0 / 0.038); pointer-events:none; user-select:none; white-space:nowrap }
   .z1{ position:relative; z-index:1 }
-  .hero-title{ font-size:clamp(2.7rem,1.55rem + 6.2vw,5.4rem); letter-spacing:-0.038em; line-height:1.0 }
-  .mark{ color:var(--cyan) }
+  .hero-title{ font-size:clamp(2.85rem,1.5rem + 6.6vw,5.6rem); letter-spacing:-0.044em; line-height:0.98 }
+  .hero-title .mark{ color:var(--cyan) }
   .on-storm-muted{ color:var(--on-storm-muted) }
   .lang a{ color:var(--on-storm-muted) }
   .lang a[aria-current="true"]{ color:var(--on-storm); font-weight:600 }
 
+  /* 導入モーションで隠すのはヒーローだけ（折り返し以降は常時表示） */
+  .anim [data-hero] [data-reveal], .anim [data-hero-title] > span{ opacity:0 }
+
   .copybar{ display:inline-flex; align-items:center; gap:.7rem; width:100%;
-    padding:.9rem 1rem; border-radius:.7rem; border:1px solid oklch(0.72 0.05 256 / 0.28);
+    padding:.95rem 1.05rem; border-radius:.75rem; border:1px solid oklch(0.72 0.05 256 / 0.3);
     background: oklch(1 0 0 / 0.05); color:var(--on-storm); font:inherit; cursor:pointer; text-align:left;
     transition:border-color .25s var(--ease), background .25s var(--ease), transform .25s var(--ease);
   }
-  .copybar:hover{ border-color: oklch(0.78 0.1 256 / 0.55); background: oklch(1 0 0 / 0.09) }
-  .copybar:active{ transform:translateY(1px) }
+  .copybar:hover{ border-color: oklch(0.8 0.12 256 / 0.6); background: oklch(1 0 0 / 0.09); transform:translateY(-1px) }
+  .copybar:active{ transform:translateY(0) }
   .copybar:focus-visible{ outline:2px solid var(--cyan); outline-offset:2px }
-  .copybar--primary{ background: oklch(1 0 0 / 0.10); border-color: oklch(0.8 0.12 256 / 0.6) }
+  .copybar--primary{ background: oklch(0.52 0.17 256 / 0.22); border-color: oklch(0.82 0.12 256 / 0.7) }
+  .copybar--primary:hover{ background: oklch(0.52 0.17 256 / 0.32) }
   .copybar__prompt{ color:var(--cyan); font-family:"JetBrains Mono",monospace }
   .copybar__cmd{ flex:1; font-size:.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   .copybar__state{ font-size:.7rem; letter-spacing:.09em; text-transform:uppercase; color:var(--on-storm-muted) }
 
-  .code{ background:var(--storm); color:var(--on-storm); border-radius:.95rem; padding:1.35rem 1.5rem; overflow:auto;
-    font-size:.86rem; line-height:1.75; margin:0; tab-size:2 }
+  /* 風のマーキー（キーワードが読み方向に流れる） */
+  .marquee{ overflow:hidden; border-block:1px solid var(--line); background:var(--surface) }
+  .marquee__track{ display:inline-flex; align-items:center; white-space:nowrap; padding-block:1.05rem; will-change:transform }
+  .marquee__item{ display:inline-flex; align-items:center; gap:2.6rem; padding-inline:1.3rem;
+    font-family:"JetBrains Mono",monospace; font-size:.92rem; letter-spacing:.01em; color:var(--muted) }
+  .marquee__item b{ color:var(--ink); font-weight:600 }
+  .marquee__dot{ color:var(--primary) }
+
+  .code{ background:var(--storm); color:var(--on-storm); border-radius:1rem; padding:1.4rem 1.6rem; overflow:auto;
+    font-size:.86rem; line-height:1.75; margin:0; tab-size:2; border:1px solid oklch(1 0 0 / 0.08) }
   .code .k{ color:#c7adff } .code .s{ color:#9fe3b6 } .code .c{ color:oklch(0.68 0.02 256) }
   .code .f{ color:var(--cyan) } .code .a{ color:#ffc08a }
 
@@ -365,28 +401,29 @@ const HEAD_STYLE = `
   p code{ color:var(--ink); font-weight:560; font-size:.94em }
   .lead code{ color:var(--ink); font-weight:560 }
 
-  /* ship: バンドルサイズの棒 */
-  .bar-row{ display:grid; grid-template-columns:1fr; gap:.4rem; padding-block:1.05rem; border-top:1px solid var(--line) }
+  /* ship: バンドルサイズの棒（scaleX で伸ばす。transform-origin は左） */
+  .bar-row{ display:grid; grid-template-columns:1fr; gap:.5rem; padding-block:1.25rem; border-top:1px solid var(--line) }
   .bar-row:last-child{ border-bottom:1px solid var(--line) }
   .bar-top{ display:flex; align-items:baseline; justify-content:space-between; gap:1rem }
   .bar-label{ color:var(--ink); font-weight:550 }
-  .bar-val{ font-family:"JetBrains Mono",monospace; font-weight:700; font-size:1.05rem; letter-spacing:-0.01em }
-  .bar-track{ height:.7rem; border-radius:99px; background:var(--surface); border:1px solid var(--line); overflow:hidden }
-  .bar-fill{ height:100%; border-radius:99px; background:linear-gradient(90deg, var(--primary), var(--primary-strong)) }
-  .bar-fill--accent{ background:linear-gradient(90deg, var(--accent), var(--accent-strong)) }
-  .bar-fill--muted{ background:oklch(0.78 0.02 258) }
+  .bar-val{ font-family:"JetBrains Mono",monospace; font-weight:700; font-size:1.1rem; letter-spacing:-0.01em }
+  .bar-track{ height:.85rem; border-radius:99px; background:var(--surface); border:1px solid var(--line); overflow:hidden }
+  .bar-fill{ height:100%; border-radius:99px; transform-origin:left center;
+    background:linear-gradient(90deg, var(--primary), var(--primary-strong)) }
+  .bar-fill--accent{ background:linear-gradient(90deg, var(--ember), var(--ember-strong)) }
+  .bar-fill--muted{ background:oklch(0.74 0.02 258) }
 
   /* compare: テーブル */
   .ctable{ width:100%; border-collapse:collapse; font-size:.95rem }
-  .ctable th, .ctable td{ text-align:left; padding:.95rem 1rem; border-top:1px solid var(--line); vertical-align:top }
+  .ctable th, .ctable td{ text-align:left; padding:1rem 1.05rem; border-top:1px solid var(--line); vertical-align:top }
   .ctable thead th{ border-top:0; font-family:"JetBrains Mono",monospace; font-size:.78rem; letter-spacing:.04em;
     text-transform:uppercase; color:var(--muted); font-weight:600 }
   .ctable thead th:first-child{ color:transparent }
   .ctable td:first-child, .ctable th:first-child{ color:var(--muted) }
-  .ctable col.col-nowaki{ background:oklch(0.50 0.155 256 / 0.05) }
+  .ctable col.col-nowaki{ background:oklch(0.52 0.17 256 / 0.06) }
   .ctable th.is-nowaki, .ctable td.is-nowaki{ color:var(--ink); font-weight:600 }
   .ctable th.is-nowaki{ color:var(--primary-strong) }
-  .ctable-scroll{ overflow-x:auto; margin-top:1.6rem; border-radius:.8rem; border:1px solid var(--line) }
+  .ctable-scroll{ overflow-x:auto; margin-top:1.6rem; border-radius:.9rem; border:1px solid var(--line) }
   .ctable td, .ctable th{ min-width:9rem }
   .ctable td:first-child, .ctable th:first-child{ min-width:13rem }
 
@@ -394,11 +431,10 @@ const HEAD_STYLE = `
   .pcol ul{ margin-top:.9rem; list-style:none; padding:0; display:flex; flex-direction:column; gap:.7rem }
   .pcol li{ display:flex; gap:.7rem; align-items:baseline; color:var(--muted) }
 
-  .tabbtn{ font-family:"JetBrains Mono",monospace; font-size:.8rem; padding:.4rem .7rem; border-radius:.5rem;
-    border:1px solid var(--line); background:var(--bg); color:var(--muted); cursor:pointer }
-  .tabbtn[aria-selected="true"]{ color:var(--ink); border-color:var(--primary); background:oklch(0.50 0.155 256 / 0.06) }
-
-  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto } }
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto }
+    .anim [data-hero] [data-reveal], .anim [data-hero-title] > span{ opacity:1 }
+  }
 </style>
 `;
 

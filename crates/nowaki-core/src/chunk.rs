@@ -438,6 +438,7 @@ fn resolve(core: &NowakiCore, dir: &Path, spec: &str) -> Option<PathBuf> {
     if spec.starts_with('/') || spec.contains("://") || spec.starts_with("data:") {
         return None;
     }
+    let spec = crate::resolve::alias_specifier(spec).unwrap_or(spec);
     core.resolver.resolve(dir, spec).ok().map(|r| r.full_path())
 }
 

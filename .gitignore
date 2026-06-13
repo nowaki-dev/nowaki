@@ -17,3 +17,6 @@ packages/nowaki-cli/npm/
 # impeccable design skill (installed via `npx impeccable skills install`)
 .github/skills/
 .impeccable/
+
+# Claude Code local session state
+.claude/
