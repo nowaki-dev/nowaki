@@ -157,6 +157,7 @@ export default function Home({ data }: PageProps<typeof loader>) {
 - **Phase 2**: TSRXブリッジ, API routes拡充, ミドルウェア, 環境変数
 - **Phase 3**: チャンクバンドリング(スコープホイスティング), prefresh部分HMR, 永続ディスクキャッシュ, クライアントルーター(島間SPA遷移)
 - **Phase 4**: Bun/Denoサイドカー対応, Edgeランタイムビルド, RSC的サーバー関数 (`"use server"` RPC)
+- **Phase 5 (Jetstream)**: サーバーリアクティブ島。サーバーデータ駆動の更新を、クライアントJSを増やさず Rust サーバーが HTML パッチで押し出す（持続チャンネル + morph ランタイム）。`export const live` / `export const on` でクライアント島と書き分け。LiveView/Hotwire を JSX島 + Rust に融合する Nowaki の差別化軸。詳細は [ROADMAP.md](./ROADMAP.md) の v0.6 を参照
 
 ## 8. 主要依存
 
