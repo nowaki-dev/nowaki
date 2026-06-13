@@ -8,6 +8,30 @@ breaking changes (documented per entry), patch versions do not.
 The npm version and the milestone codename are offset — each release bundles a
 milestone's worth of work; the codename is noted per entry.
 
+## [0.10.0] — 2026-06-13 · DevEx
+
+### Added
+- **Interactive `npm create nowaki` wizard** (dependency-free) — prompts for
+  project name, package manager (auto-detected), git init, and dependency
+  install; sets the package name and tailors the next steps. Non-interactive
+  runs (`-y`, CI, pipes) scaffold with defaults and never auto-install (use
+  `--install` to opt in). Flags: `-y/--yes`, `--install`, `--no-install`,
+  `--no-git`, `--pm`.
+- **dev/start banners** — `nowaki dev` and `nowaki start` print a clean banner
+  (version, Local URL, ready time, active features). `--host` exposes the server
+  on the LAN and shows the Network URL; `nowaki dev --open` opens the browser.
+  Color respects `NO_COLOR` and non-TTY.
+- **Fuller scaffold** — new apps now include `tsconfig.json` (Preact JSX, bundler
+  resolution, `.tsx` extensions, `react`→`preact/compat` paths), `nowaki-env.d.ts`
+  (css/asset/virtual/`import.meta.env` ambient types), a `README.md`, and a
+  `.gitignore`, so editors give correct IntelliSense out of the box.
+- **`nowaki build` summary** — build time, client modules/islands/JS size, server
+  modules, and output path.
+
+### Changed
+- Missing-dependency errors are now actionable and package-manager-agnostic.
+- The runtime (`@nowaki-dev/runtime`) is unchanged and stays at 0.9.0.
+
 ## [0.9.1] — 2026-06-13 · scaffolder patch
 
 ### Added

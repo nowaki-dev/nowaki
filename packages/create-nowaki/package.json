@@ -1,6 +1,6 @@
 {
   "name": "create-nowaki",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Scaffold a new Nowaki app",
   "license": "MIT",
   "author": "VorEdge <dev@voredge.com>",
