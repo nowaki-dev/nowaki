@@ -8,6 +8,19 @@ breaking changes (documented per entry), patch versions do not.
 The npm version and the milestone codename are offset — each release bundles a
 milestone's worth of work; the codename is noted per entry.
 
+## [0.11.0] — 2026-06-13 · scaffold templates
+
+### Added
+- **Template selection** in `npm create nowaki` (Astro-style): `-t/--template
+  <basics|minimal>` or an interactive menu (default `basics`). `basics` is the
+  starter with an interactive island; `minimal` is a single zero-JS page.
+- **Polished starter designs** — both templates ship a clean, brand-aligned page
+  (cyan accent, 野分 wordmark, subtle gradient) styled via `<style>` in
+  `export const head`, so it works on zero-JS pages too.
+
+Scaffolder-only (`create-nowaki` / `create-nowaki-app`); the CLI stays at 0.10.0
+and the runtime at 0.9.0.
+
 ## [0.10.0] — 2026-06-13 · DevEx
 
 ### Added
