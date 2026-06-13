@@ -12,7 +12,7 @@ export const STRINGS = {
     ogTitle: "Nowaki: full-stack like Next.js, islands like Astro, installed with npm",
     nav: { docs: "Docs", github: "GitHub" },
     hero: {
-      badge: "v0.5 · Typhoon · alpha",
+      badge: "v0.6 · Jetstream · alpha",
       h1a: "Full-stack like Next.js.",
       h1b: "Islands like Astro.",
       sub: "Layouts, middleware, server loaders, actions, SSR, and API routes. Pages render to HTML and only the islands you mark hydrate. The whole toolchain is Rust (oxc), so the dev server is ready in about 90 milliseconds and rebuilds land in single milliseconds.",
@@ -142,7 +142,7 @@ export const STRINGS = {
     ogTitle: "Nowaki: Next.js のようなフルスタック、Astro のような Islands、npm で入る",
     nav: { docs: "ドキュメント", github: "GitHub" },
     hero: {
-      badge: "v0.5 · Typhoon · alpha",
+      badge: "v0.6 · Jetstream · alpha",
       h1a: "Next.js のようなフルスタック。",
       h1b: "Astro のような Islands。",
       sub: "layout・middleware・server loader・action・SSR・API routes。ページは HTML に描画され、印した島だけがハイドレートします。ツールチェーン全体が Rust（oxc）なので、dev 起動は約90ミリ秒、再ビルドは数ミリ秒で返ります。",
