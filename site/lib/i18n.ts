@@ -64,13 +64,15 @@ export const STRINGS = {
       lead: "None of these ideas is new on its own. Nowaki's bet is the combination. Here is where it actually differs, without spin.",
       cols: ["Nowaki", "Next.js", "Astro"],
       rows: [
-        { feature: "Toolchain", nowaki: "Rust (oxc), from scratch", next: "Turbopack (SWC)", astro: "Vite → Rolldown" },
+        { feature: "Server-reactive islands (zero client JS)", nowaki: "Jetstream — state on the server, HTML patches over a WebSocket, no component JS", next: "RSC re-renders ship the React runtime", astro: "Server Islands defer SSR (one-shot, not live)", highlight: true },
+        { feature: "Toolchain", nowaki: "Rust (oxc), from scratch — and in the production request path", next: "Turbopack (SWC), JS runtime", astro: "Vite → Rolldown, JS runtime" },
         { feature: "JavaScript by default", nowaki: "Zero, islands only", next: "Ships React + hydrates", astro: "Zero, islands only" },
-        { feature: "Full-stack app DX", nowaki: "Routing, loaders, actions, middleware, API", next: "Yes, mature", astro: "Growing, content-first" },
+        { feature: "Full-stack app DX", nowaki: "Routing, loaders, actions, middleware, API, server functions", next: "Yes, mature", astro: "Growing, content-first" },
         { feature: "Install without the toolchain's language", nowaki: "npm, no Rust", next: "npm", astro: "npm" },
         { feature: "Maturity", nowaki: "Alpha", next: "Mature, huge ecosystem", astro: "Mature" },
       ],
-      note: "Next and Astro are mature and battle-tested. Nowaki is alpha. The point of the table is the architecture, not a scoreboard.",
+      only: "Only here: a <b>live, stateful island that ships zero component JavaScript</b>. The server holds the state and pushes HTML patches over a WebSocket — LiveView's idea, fused with islands. RSC re-renders still ship React; Astro's Server Islands defer the initial render but don't update live. This is the one thing neither framework has.",
+      note: "Server functions, streaming SSR, plugins, and deploy adapters are parity, not differentiators — Astro and Next have their own. The real edge is Jetstream, the Rust production runtime, and hitting all of full-stack + zero-JS + npm-install at once. Next and Astro are mature and battle-tested; Nowaki is alpha.",
     },
     positioning: {
       h2: "Who it's for.",
@@ -198,13 +200,15 @@ export const STRINGS = {
       lead: "どのアイデアも単体では新しくありません。Nowaki の賭けはその組み合わせです。誇張なしで、実際にどこが違うかを示します。",
       cols: ["Nowaki", "Next.js", "Astro"],
       rows: [
-        { feature: "ツールチェーン", nowaki: "Rust (oxc) を自作", next: "Turbopack (SWC)", astro: "Vite → Rolldown" },
+        { feature: "サーバーリアクティブ島（クライアントJSゼロ）", nowaki: "Jetstream — 状態はサーバー、HTML パッチを WebSocket で push、コンポーネントJSゼロ", next: "RSC 再描画は React ランタイムを積む", astro: "Server Islands は SSR を遅延（一発・生更新ではない）", highlight: true },
+        { feature: "ツールチェーン", nowaki: "Rust (oxc) を自作 — 本番リクエストパスも Rust", next: "Turbopack (SWC)、本番はJS", astro: "Vite → Rolldown、本番はJS" },
         { feature: "デフォルトの JavaScript", nowaki: "ゼロ、島だけ", next: "React を送り hydrate", astro: "ゼロ、島だけ" },
-        { feature: "フルスタックなアプリ DX", nowaki: "routing・loader・action・middleware・API", next: "あり、成熟", astro: "成長中・コンテンツ寄り" },
+        { feature: "フルスタックなアプリ DX", nowaki: "routing・loader・action・middleware・API・サーバー関数", next: "あり、成熟", astro: "成長中・コンテンツ寄り" },
         { feature: "ツールチェーンの言語なしで入る", nowaki: "npm、Rust 不要", next: "npm", astro: "npm" },
         { feature: "成熟度", nowaki: "alpha", next: "成熟・巨大なエコシステム", astro: "成熟" },
       ],
-      note: "Next と Astro は成熟し実戦で揉まれています。Nowaki は alpha です。この表の主旨はアーキテクチャであって、勝敗表ではありません。",
+      only: "ここだけ: <b>状態を持ち生更新するのに、コンポーネントJSをゼロで送る島</b>。状態はサーバーが持ち、HTML パッチを WebSocket で押し出します — LiveView の発想を島に融合。RSC 再描画は React を積み、Astro の Server Islands は初期描画を遅延するだけで生更新はしません。これが両者にない一点です。",
+      note: "サーバー関数・ストリーミングSSR・プラグイン・デプロイアダプタは parity（同等）で差別化ではありません — Astro/Next にもあります。本当の強みは Jetstream、Rust の本番ランタイム、そして「フルスタック＋JSゼロ＋npmインストール」を同時に満たすこと。Next と Astro は成熟し実戦で揉まれていますが、Nowaki は alpha です。",
     },
     positioning: {
       h2: "どんなアプリに向くか。",
@@ -444,6 +448,15 @@ const HEAD_STYLE = `
   .ctable-scroll{ overflow-x:auto; margin-top:1.6rem; border-radius:.9rem; border:1px solid var(--line) }
   .ctable td, .ctable th{ min-width:9rem }
   .ctable td:first-child, .ctable th:first-child{ min-width:13rem }
+  /* Jetstream の差別化行を立てる */
+  .ctable tr.is-jet td, .ctable tr.is-jet th{ background:oklch(0.87 0.1 228 / 0.10) }
+  .ctable tr.is-jet th[scope=row]{ color:var(--ink); font-weight:700 }
+  .jet-tag{ display:inline-block; margin-top:.4rem; font-family:"JetBrains Mono",monospace; font-size:.64rem;
+    letter-spacing:.05em; text-transform:uppercase; color:var(--primary-strong);
+    border:1px solid var(--line-strong); border-radius:999px; padding:.08rem .5rem }
+  .jet-only{ margin-top:1.6rem; border:1px solid var(--line-strong); border-left:3px solid var(--cyan);
+    border-radius:.9rem; background:var(--surface); padding:1.2rem 1.4rem; max-width:64ch }
+  .jet-only b{ color:var(--ink) }
 
   .pcol h3{ font-size:1rem; font-family:"JetBrains Mono",monospace; letter-spacing:.02em }
   .pcol ul{ margin-top:.9rem; list-style:none; padding:0; display:flex; flex-direction:column; gap:.7rem }

@@ -228,8 +228,11 @@ export default function Landing({ locale }: { locale: Locale }) {
               </thead>
               <tbody>
                 {s.compare.rows.map((r) => (
-                  <tr>
-                    <th scope="row">{r.feature}</th>
+                  <tr class={r.highlight ? "is-jet" : undefined}>
+                    <th scope="row">
+                      {r.feature}
+                      {r.highlight ? <span class="jet-tag">Only Nowaki</span> : null}
+                    </th>
                     <td class="is-nowaki">{r.nowaki}</td>
                     <td>{r.next}</td>
                     <td>{r.astro}</td>
@@ -238,6 +241,7 @@ export default function Landing({ locale }: { locale: Locale }) {
               </tbody>
             </table>
           </div>
+          <p class="jet-only" data-rise dangerouslySetInnerHTML={{ __html: s.compare.only }} />
           <p style="margin-top:1.4rem;font-size:.88rem;color:var(--muted);max-width:64ch">{s.compare.note}</p>
         </section>
 
