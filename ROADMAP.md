@@ -112,15 +112,22 @@
 - [x] **SR-2 実用**: 再接続（指数バックオフ＋再 join で状態回復）、**クライアント島（楽観UI）との共存**（同一ページで `<nowaki-live>` と `<nowaki-island>` が両立・検証済）、ターゲット限定パッチ（nid 単位）、複数クライアント（WS 接続ごとに独立した状態）。接続スケールの本格チューニングは Beta で継続
 - [x] **SR-3 両建て**: 静的島モード（prerender/static・node・edge は初期 SSR を配信し、WS 無しでも壊れず劣化のみ）↔ 接続モード（`nowaki start` の Rust front が WS を保持）。build は `manifest.liveIslands`/`liveRuntime` で振り分け、ライブ島の **クライアント JS はゼロ**
 
-### v0.7〜v0.9 「Beta」: 安定化
-**テーマ**: 壊れない・速い・信頼できる。
+### v0.7 「Beta」: 安定化の土台 ← 完了
+**テーマ**: 壊れない・速い・信頼できる、を測れる形にする。
+
+- [x] **自動テストスイート**: `cargo test` のユニット（alias/拡張子判定/CSS スコープ化の決定性）＋ 統合（`transform_file` の型剥がし・JSX→preact・react alias・defines）＋ CLI 統合（バイナリで examples/hello をビルドし manifest・スコープホイスティング・ライブ島ゼロJS を検証）。CI の Rust ジョブで実行。e2e/ハイドレーションは既存 e2e ジョブが担当
+- [x] **正直なベンチマーク**: 再現可能な `benchmarks/bench.mjs`（dev ready cold/warm・build・送信JS gzip・TTFB）＋ [BENCHMARKS.md](./BENCHMARKS.md) に実測値と方法論。site/ で dev ready ~70〜90ms を裏取り（ランディングの主張と整合）。Next/Astro との head-to-head は今後
+- [x] **セキュリティ**: [SECURITY.md](./SECURITY.md) に信頼境界（`/@fs` は dev 限定・各 host は localhost・basename 配信・secrets はサーバー側・Jetstream 状態）を明文化。CI に `cargo audit` ＋ `pnpm audit` の継続監査ジョブ
+- [x] **semver 規律 + 変更履歴**: [CHANGELOG.md](./CHANGELOG.md)（0.1.0→0.6.0）＋ docs/RELEASING.md に SemVer/破壊的変更方針
+
+### v0.8〜v0.9 「Beta」: 拡充・実用化
+**テーマ**: 機能の角を取り、採用事例を作る。
 **Exit基準**: API が概ね固定され、本番採用の事例が出る。
 
-- [ ] パフォーマンスベンチ（dev起動/HMR/ビルド/TTFB を Next と継続比較, 回帰検出をCIに）
-- [ ] テストスイート拡充（変換のスナップショット, ルーティング, e2e, ハイドレーション）
-- [ ] セキュリティレビュー（SSR境界, `/@fs`, サイドカー, 依存監査の継続化）
-- [ ] semver 規律, 変更履歴, 非互換の明文化
 - [ ] **サーバー関数（実験的）**: `"use server"` RPC（RSC的なサーバー↔クライアント境界）
+- [ ] パフォーマンスベンチを Next/Astro と head-to-head ＋ 回帰検出を CI に
+- [ ] テストスイート拡充（ルーティングのスナップショット, より広い e2e, Jetstream の負荷）
+- [ ] Jetstream の presence・接続スケール、プラグイン仮想モジュール、prefresh HMR
 - [ ] ドキュメントサイト本格版（API リファレンス, レシピ, 移行ガイド）
 
 ### v1.0 「Nowaki」: 安定版

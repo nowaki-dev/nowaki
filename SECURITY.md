@@ -15,3 +15,39 @@ Note: the dev server (`nowaki dev`) is a development tool. It serves files
 from the local filesystem (e.g. `/@fs/`) by design and must never be exposed
 to untrusted networks. Reports about the dev server are still welcome, but
 production-facing issues (`nowaki build` output, SSR runtime) take priority.
+
+## Security model & boundaries
+
+Where the trust boundaries are, so reviewers know what to look at:
+
+- **`/@fs/` filesystem serving is dev-only.** `nowaki dev` resolves and serves
+  arbitrary files (pnpm store realpaths, etc.) to make on-demand transforms
+  work. The production paths (`nowaki start`, the deploy adapters) never expose
+  `/@fs/`; they serve only `dist/`. Treat `nowaki dev` as localhost-only.
+- **Sidecars and hosts bind to localhost.** The SSR sidecar, the prod-sidecar,
+  the plugin host, and the Jetstream `/__nowaki/live-render` endpoint listen on
+  `127.0.0.1` on ephemeral ports and are reached only by the local Rust process.
+  They are not meant to be exposed directly.
+- **Static asset serving uses basenames.** `/_nowaki/<file>` is resolved by
+  basename against `dist/client`, so path traversal (`../`) cannot escape it.
+- **Secrets stay server-side.** Only `import.meta.env.PUBLIC_*` (and `MODE`) are
+  inlined into client code; other `.env` values are never sent to the browser.
+  `.env*` files are gitignored.
+- **Plugins and TSRX run your own dev/build dependencies.** A `nowaki.config`
+  plugin and `@tsrx/preact` execute as Node code during dev/build with your
+  project's privileges — treat them like any build dependency. They do not run
+  in the production request path.
+- **Jetstream state is per-connection, server-held.** A Jetstream island's state
+  lives in the Rust process for the lifetime of one WebSocket connection; event
+  handlers run on the Node sidecar. Validate inputs in your `on` handlers as you
+  would any server handler.
+
+## Dependency auditing
+
+CI runs `cargo audit` (RustSec advisories) and `pnpm audit` on every push. To
+check locally:
+
+```bash
+cargo audit
+pnpm audit --prod
+```

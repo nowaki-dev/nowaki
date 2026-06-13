@@ -18,6 +18,29 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo build --workspace
+      # unit + transform tests run here; the CLI integration test skips without
+      # the example app's node_modules (it runs fully in the e2e job's build).
+      - run: cargo test --workspace
+
+  security:
+    name: Security audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: cargo audit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - run: pnpm install
+      # JS の本番依存の既知脆弱性を継続監査（推移的な警告ではジョブを落とさない）。
+      - run: pnpm audit --prod || true
 
   e2e:
     name: End-to-end (example app)

@@ -187,3 +187,27 @@ impl NowakiCore {
         Ok(report)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transformable_extensions() {
+        for ext in ["ts", "tsx", "js", "jsx", "mjs", "tsrx"] {
+            assert!(is_transformable(Path::new(&format!("a.{ext}"))), "{ext}");
+        }
+        for ext in ["css", "json", "png", "txt", "md"] {
+            assert!(!is_transformable(Path::new(&format!("a.{ext}"))), "{ext}");
+        }
+    }
+
+    #[test]
+    fn asset_extensions_case_insensitive() {
+        assert!(is_asset(Path::new("logo.svg")));
+        assert!(is_asset(Path::new("photo.PNG"))); // 大文字でも
+        assert!(is_asset(Path::new("font.woff2")));
+        assert!(!is_asset(Path::new("mod.ts")));
+        assert!(!is_asset(Path::new("style.css"))); // css はアセット扱いしない
+    }
+}

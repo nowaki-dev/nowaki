@@ -1,5 +1,20 @@
 # リリース手順
 
+## バージョニング方針（SemVer）
+
+Nowaki は [SemVer](https://semver.org/) に従う。ただし **0.x alpha** の間は:
+
+- **minor（0.x.0）** は新機能 ＋ 破壊的変更を含みうる。破壊的変更は必ず
+  [CHANGELOG.md](../CHANGELOG.md) に明記し、移行メモを添える。
+- **patch（0.x.y）** はバグ修正のみ。破壊的変更は入れない。
+- 公開 API（CLI コマンド・オーサリング規約・`@nowaki-dev/runtime` の公開
+  エクスポート）が概ね固定できたら **1.0.0** とし、そこからは破壊的変更を
+  major でのみ行う。
+- crate・npm の全パッケージは同一バージョンで揃える（同じコミットから出す）。
+- すべての release に対応するタグ `vX.Y.Z` と CHANGELOG 項目を用意する。
+
+## 配布チャンネル
+
 Nowaki は2系統で配布する:
 
 - **crates.io**: `nowaki` / `nowaki-core`（`cargo install nowaki`）

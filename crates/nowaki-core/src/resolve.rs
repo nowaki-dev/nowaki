@@ -47,3 +47,47 @@ pub fn fs_path_to_url(root: &Path, abs: &Path) -> String {
         Err(_) => format!("/@fs{}", abs.to_string_lossy()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn react_family_aliases_to_preact() {
+        assert_eq!(alias_specifier("react"), Some("preact/compat"));
+        assert_eq!(alias_specifier("react-dom"), Some("preact/compat"));
+        assert_eq!(alias_specifier("react-dom/client"), Some("preact/compat"));
+        assert_eq!(
+            alias_specifier("react/jsx-runtime"),
+            Some("preact/jsx-runtime")
+        );
+        assert_eq!(
+            alias_specifier("react/jsx-dev-runtime"),
+            Some("preact/jsx-dev-runtime")
+        );
+    }
+
+    #[test]
+    fn non_react_specifiers_are_not_aliased() {
+        assert_eq!(alias_specifier("preact"), None);
+        assert_eq!(alias_specifier("preact/hooks"), None);
+        assert_eq!(alias_specifier("./local.tsx"), None);
+        assert_eq!(alias_specifier("lodash"), None);
+        // 部分一致で誤爆しない
+        assert_eq!(alias_specifier("react-icons"), None);
+    }
+
+    #[test]
+    fn fs_path_to_url_maps_under_root_and_outside() {
+        let root = PathBuf::from("/app");
+        assert_eq!(
+            fs_path_to_url(&root, &PathBuf::from("/app/islands/Counter.tsx")),
+            "/islands/Counter.tsx"
+        );
+        assert_eq!(
+            fs_path_to_url(&root, &PathBuf::from("/store/preact/index.js")),
+            "/@fs/store/preact/index.js"
+        );
+    }
+}

@@ -89,3 +89,53 @@ if (!__el) {{ __el = document.createElement('style'); __el.setAttribute('data-no
 __el.textContent = __css;\n"
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_css_and_modules() {
+        assert!(is_css(Path::new("a.css")));
+        assert!(!is_css(Path::new("a.ts")));
+        assert!(is_css_module(Path::new("Badge.module.css")));
+        assert!(!is_css_module(Path::new("global.css")));
+    }
+
+    #[test]
+    fn scope_css_scopes_classes_and_keeps_values() {
+        let css = ".badge { color: red } .badge-x { padding: 0.5rem }";
+        let (scoped, map) = scope_css("/app/Badge.module.css", css);
+        assert!(scoped.contains(".badge_"));
+        assert!(scoped.contains(".badge-x_"));
+        // 値の中の数字付きドット（0.5rem）はクラスとして誤爆しない
+        assert!(scoped.contains("0.5rem"));
+        assert_eq!(map.len(), 2);
+        assert_eq!(map[0].0, "badge");
+        assert!(map[0].1.starts_with("badge_"));
+        assert_eq!(map[0].1.len(), "badge".len() + 1 + 8); // name_ + 8 hex
+    }
+
+    #[test]
+    fn scope_css_is_deterministic_and_id_scoped() {
+        let css = ".x { color: blue }";
+        let (a, _) = scope_css("id-a", css);
+        let (a2, _) = scope_css("id-a", css);
+        assert_eq!(a, a2, "same id+css must be stable (dev/build/SSR 一致)");
+        let (_, mb) = scope_css("id-b", css);
+        let (_, ma) = scope_css("id-a", css);
+        assert_ne!(ma[0].1, mb[0].1, "different id → different scoped name");
+    }
+
+    #[test]
+    fn mapping_object_and_shim() {
+        assert_eq!(
+            mapping_object(&[("a".into(), "a_1".into()), ("b".into(), "b_1".into())]),
+            r#"{"a":"a_1","b":"b_1"}"#
+        );
+        let shim = css_shim("/app/x.css", ".x{color:red}");
+        assert!(shim.contains("data-nowaki-css"));
+        assert!(shim.contains("color:red"));
+        assert!(shim.contains("/app/x.css"));
+    }
+}
