@@ -1,18 +1,19 @@
 // 本番配信サーバー。`nowaki start` から cwd=アプリルートで起動される。
 // dist/client/ を /_nowaki/ で静的配信し、dist/server/ の built ルートで prod SSR。
 // dev の sidecar.mjs と違い Rust devサーバーには依存しない（自己完結）。
+// ルーティング/レイアウト/ミドルウェア/loader/action/404/500 は handler.mjs に集約。
 
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { h, options } from "preact";
-import { renderToStringAsync } from "preact-render-to-string";
 import { loadEnv } from "./env.mjs";
 
 loadEnv();
 
-const { scanRoutes, matchRoute } = await import("./router.mjs");
+const { scanRoutes } = await import("./router.mjs");
+const { handleRequest, sendResult } = await import("./handler.mjs");
 
 const appRoot = process.cwd();
 const clientDir = path.join(appRoot, "dist/client");
@@ -24,8 +25,6 @@ const manifest = JSON.parse(
 );
 
 // island登録: コンポーネント実体 → { name, src(クライアントの静的URL) }。
-// dist/server/islands の同一ファイルをルートも import するため、Nodeのモジュール
-// キャッシュにより実体（default関数）が一致し、vnodeフックで検出できる。
 const registry = new Map();
 for (const [name, file] of Object.entries(manifest.islands ?? {})) {
   const mod = await import(
@@ -63,7 +62,24 @@ options.vnode = (vnode) => {
   if (prevVnode) prevVnode(vnode);
 };
 
-const routes = await scanRoutes(serverDir);
+// ルートテーブルは起動時に1回スキャン（built dist/server/routes）。
+const routeTable = await scanRoutes(serverDir);
+
+const env = {
+  dev: false,
+  routeTable: () => routeTable,
+  importModule: (file) => import(pathToFileURL(file).href),
+  ensureIslands: () => {}, // レジストリは起動時に構築済み
+  renderDocument: prodDocument,
+  renderError: (err) => {
+    console.error("[nowaki start]", err);
+    return {
+      status: 500,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+      body: String(err?.stack ?? err),
+    };
+  },
+};
 
 const CONTENT_TYPE = {
   js: "text/javascript; charset=utf-8",
@@ -93,62 +109,42 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    const match = matchRoute(routes, url.pathname);
-    if (!match) {
-      res.writeHead(404, { "content-type": "text/html; charset=utf-8" });
-      res.end("<h1>404 Not Found</h1>");
-      return;
-    }
+    const result = await handleRequest(env, {
+      method: req.method,
+      url,
+      version: "prod",
+      req,
+    });
+    await sendResult(res, result);
+  } catch (err) {
+    console.error("[nowaki start]", err);
+    res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+    res.end(String(err?.stack ?? err));
+  }
+});
 
-    const mod = await import(pathToFileURL(match.file).href);
+// 描画済み body を完成 HTML に包む（prod 用: modulepreload + runtime、島なしなら JS ゼロ）。
+function prodDocument({ mod, body }) {
+  const islandNames = [...body.matchAll(/<nowaki-island name="([^"]+)"/g)].map(
+    (m) => m[1],
+  );
+  const hasIslands = islandNames.length > 0 && manifest.runtime;
+  const preloadFiles = hasIslands
+    ? [
+        ...new Set([
+          manifest.runtime,
+          ...islandNames.map((n) => manifest.islands?.[n]).filter(Boolean),
+        ]),
+      ]
+    : [];
+  const preload = preloadFiles
+    .map((f) => `<link rel="modulepreload" href="/_nowaki/${f}" />`)
+    .join("\n");
+  const runtime = hasIslands
+    ? `<script type="module" src="/_nowaki/${manifest.runtime}"></script>`
+    : "";
 
-    if (match.isApi) {
-      const result = await mod.default({
-        url,
-        params: match.params,
-        method: req.method,
-      });
-      res.writeHead(result?.status ?? 200, {
-        "content-type": "application/json; charset=utf-8",
-        ...(result?.headers ?? {}),
-      });
-      res.end(
-        typeof result?.body === "string"
-          ? result.body
-          : JSON.stringify(result?.body ?? null),
-      );
-      return;
-    }
-
-    const Page = mod.default;
-    const data = mod.loader
-      ? await mod.loader({ url, params: match.params })
-      : undefined;
-    const body = await renderToStringAsync(
-      h(Page, { data, params: match.params, url }),
-    );
-    // ページに島があるときだけ runtime を読み込み、その島と runtime を modulepreload する。
-    const islandNames = [...body.matchAll(/<nowaki-island name="([^"]+)"/g)].map(
-      (m) => m[1],
-    );
-    const hasIslands = islandNames.length > 0 && manifest.runtime;
-    const preloadFiles = hasIslands
-      ? [
-          ...new Set([
-            manifest.runtime,
-            ...islandNames.map((n) => manifest.islands?.[n]).filter(Boolean),
-          ]),
-        ]
-      : [];
-    const preload = preloadFiles
-      .map((f) => `<link rel="modulepreload" href="/_nowaki/${f}" />`)
-      .join("\n");
-    const runtime = hasIslands
-      ? `<script type="module" src="/_nowaki/${manifest.runtime}"></script>`
-      : "";
-
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    res.end(`<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
 <head>
 <meta charset="utf-8" />
@@ -161,13 +157,8 @@ ${typeof mod.head === "string" ? mod.head : ""}
 ${body}
 ${runtime}
 </body>
-</html>`);
-  } catch (err) {
-    console.error("[nowaki start]", err);
-    res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
-    res.end(String(err?.stack ?? err));
-  }
-});
+</html>`;
+}
 
 function escapeHtml(s) {
   return String(s)

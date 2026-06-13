@@ -7,7 +7,6 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { h, options } from "preact";
-import { renderToStringAsync } from "preact-render-to-string";
 
 const ISLAND_EXT = /\.(tsx|jsx|ts|js)$/;
 
@@ -66,15 +65,9 @@ options.vnode = (vnode) => {
   if (prevVnodeHook) prevVnodeHook(vnode);
 };
 
-export async function renderPage(mod, ctx) {
-  const Page = mod.default;
-  if (typeof Page !== "function") {
-    throw new Error(`ルートがコンポーネントをdefault exportしていません: ${ctx.url.pathname}`);
-  }
-  const data = mod.loader ? await mod.loader(ctx) : undefined;
-  const body = await renderToStringAsync(
-    h(Page, { data, params: ctx.params, url: ctx.url }),
-  );
+// 描画済み body を完成 HTML に包む（dev 用: islands.js + クライアントルーター + hmr.js）。
+// 実際のページ描画・loader 実行は handler.mjs が担当する。
+export function renderDocument({ mod, body }) {
   return `<!DOCTYPE html>
 <html lang="${typeof mod.lang === "string" ? mod.lang : "en"}">
 <head>
@@ -85,9 +78,20 @@ ${typeof mod.head === "string" ? mod.head : ""}
 </head>
 <body>
 ${body}
-${body.includes("<nowaki-island") ? '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/islands.js"></script>\n' : ""}<script type="module" src="/node_modules/@nowaki-dev/runtime/client/hmr.js"></script>
+${devScripts(body)}
 </body>
 </html>`;
+}
+
+function devScripts(body) {
+  const islands = body.includes("<nowaki-island")
+    ? '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/islands.js"></script>\n'
+    : "";
+  const router =
+    '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/router.js"></script>\n';
+  const hmr =
+    '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/hmr.js"></script>';
+  return `${islands}${router}${hmr}`;
 }
 
 function escapeHtml(s) {

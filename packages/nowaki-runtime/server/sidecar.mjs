@@ -1,5 +1,6 @@
 // SSRサイドカー。Rust devサーバーから起動され、ページ描画とAPIルートを担当する。
 // 起動完了は stdout の "NOWAKI_SIDECAR_READY <port>" でRustへ通知する。
+// ルーティング/レイアウト/ミドルウェア/loader/action/404/500 は handler.mjs に集約。
 
 import { createServer } from "node:http";
 import { register } from "node:module";
@@ -11,46 +12,41 @@ loadEnv();
 // 以降のdynamic importする .tsx/.ts はRustの変換エンドポイント経由で読み込まれる
 register(new URL("./loader-hooks.mjs", import.meta.url));
 
-const { scanRoutes, matchRoute } = await import("./router.mjs");
-const { loadIslandRegistry, renderPage, errorPage } = await import("./render.mjs");
+const { scanRoutes } = await import("./router.mjs");
+const { loadIslandRegistry, renderDocument, errorPage } = await import("./render.mjs");
+const { handleRequest, sendResult } = await import("./handler.mjs");
 const { pathToFileURL } = await import("node:url");
 
 const appRoot = process.cwd();
+
+const env = {
+  dev: true,
+  // dev は毎リクエスト再スキャン（ファイル変更を反映）
+  routeTable: () => scanRoutes(appRoot),
+  importModule: (file, version) => import(`${pathToFileURL(file).href}?v=${version}`),
+  ensureIslands: (version) => loadIslandRegistry(appRoot, version),
+  renderDocument,
+  renderError: (err) => {
+    console.error("[nowaki ssr]", err);
+    return {
+      status: 500,
+      headers: { "content-type": "text/html; charset=utf-8" },
+      body: errorPage(String(err?.stack ?? err)),
+    };
+  },
+};
 
 const server = createServer(async (req, res) => {
   try {
     const version = String(req.headers["x-nowaki-ssr-version"] ?? "0");
     const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
-
-    const routes = await scanRoutes(appRoot);
-    const match = matchRoute(routes, url.pathname);
-    if (!match) {
-      res.writeHead(404, { "content-type": "text/html; charset=utf-8" });
-      res.end("<h1>404 Not Found</h1>");
-      return;
-    }
-
-    const mod = await import(`${pathToFileURL(match.file).href}?v=${version}`);
-
-    if (match.isApi) {
-      const handler = mod.default;
-      const result = await handler({ url, params: match.params, method: req.method });
-      res.writeHead(result?.status ?? 200, {
-        "content-type": "application/json; charset=utf-8",
-        ...(result?.headers ?? {}),
-      });
-      res.end(
-        typeof result?.body === "string"
-          ? result.body
-          : JSON.stringify(result?.body ?? null),
-      );
-      return;
-    }
-
-    await loadIslandRegistry(appRoot, version);
-    const html = await renderPage(mod, { url, params: match.params });
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    res.end(html);
+    const result = await handleRequest(env, {
+      method: req.method,
+      url,
+      version,
+      req,
+    });
+    await sendResult(res, result);
   } catch (err) {
     console.error("[nowaki ssr]", err);
     res.writeHead(500, { "content-type": "text/html; charset=utf-8" });
