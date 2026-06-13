@@ -94,7 +94,7 @@
 - [ ] **TSRX ブリッジ**（`.tsrx`, `@tsrx/core` 経由で Preact ターゲットへ → oxc パイプライン合流）※外部 alpha 依存で保留
 - [x] デプロイアダプタ（`nowaki build --adapter <node|static|bun|deno|cloudflare>`）。**Node**=自己完結エントリ `dist/server/index.mjs`（`node` だけで配信、nowaki バイナリ不要）/ **static**=prerender 出力 / **Bun・Deno**=node:http 互換の同一エントリで移植可 / **Cloudflare Workers（Edge）**=全サーバーモジュールを静的バンドルした fetch ハンドラ worker ＋ wrangler 設定を生成（node:http も実行時 import も不使用、静的アセットは Assets binding）。SSR・API・ストリーミング・404・島ハイドレートを `wrangler dev`（workerd）で検証済
 - [x] プリレンダリング（SSG, v0.1済）と **ストリーミング SSR**（ルートが `export const streaming = true` でオプトイン、`renderToReadableStream` でシェル先行送出。島ハイドレートまで検証済）
-- [ ] プラグイン API（変換フック, 仮想モジュール）
+- [~] プラグイン API。`nowaki.config.{mjs,js}` の `plugins[].transform(code, id)` 変換フックを **dev・build 両方**で適用（Node プラグインホスト経由。nowaki-core は `PluginBridge` trait で疎結合、設定が無ければオーバーヘッドゼロ）。**仮想モジュール（resolveId/load）と新規拡張子は次段**
 - [~] サイドカーの抽象化（中核を `@nowaki-dev/runtime` の `server/app.mjs` に集約＝`nowaki start`・各アダプタで共有。Bun/Deno は同一エントリで選択可。実行系の本格抽象化は継続）
 - [ ] **Rust を prod ホットパスへ**（HTML組み立て・island配線・キャッシュを Rust に。Node はコンポーネント描画のみ → v0.6 Jetstream の足場）
 

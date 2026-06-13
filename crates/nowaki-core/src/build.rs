@@ -137,8 +137,7 @@ pub fn build_server(
                 .strip_prefix(&core.root)
                 .with_context(|| format!("rel化失敗: {}", path.display()))?;
             let out_path = server_dir.join(with_js_ext(rel));
-            let source = fs::read_to_string(path)
-                .with_context(|| format!("読み込み失敗: {}", path.display()))?;
+            let source = core.read_source(path)?;
             let code = transform_for_server(path, &source, core, assets)?;
             Ok((out_path, code))
         })
@@ -386,8 +385,7 @@ fn emit(core: &NowakiCore, abs: &Path, out_dir: &Path, ctx: &mut EmitCtx) -> Res
     }
     ctx.visiting.insert(abs.to_path_buf());
 
-    let source =
-        fs::read_to_string(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
+    let source = core.read_source(abs)?;
     let module = transform_for_bundle(abs, &source, core)?;
     let stem = abs
         .file_stem()

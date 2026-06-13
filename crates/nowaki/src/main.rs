@@ -1,5 +1,6 @@
 mod adapter;
 mod dev;
+mod plugins;
 mod prerender;
 mod sidecar;
 
@@ -78,7 +79,13 @@ fn main() -> anyhow::Result<()> {
                     .block_on(prerender::run(root.clone(), out));
             }
             let dist = root.join("dist");
-            let core = nowaki_core::NowakiCore::new(root.clone());
+            // nowaki.config があればプラグインホストを起動し、変換フックを注入する。
+            // build 終了まで生かす（drop でホストを落とす）。
+            let plugin_host = plugins::start(&root)?;
+            let mut core = nowaki_core::NowakiCore::new(root.clone());
+            if let Some(host) = &plugin_host {
+                core.set_plugins(host.bridge.clone());
+            }
             let report = core.build(&dist)?;
             println!(
                 "[nowaki] build完了: client {} modules / {} islands, server {} modules → {}",

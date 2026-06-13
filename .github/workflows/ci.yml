@@ -85,6 +85,10 @@ jobs:
           curl -sf $B/ | grep -q '<code>a→b</code>'       # cyclic dependency resolves
           curl -sf "$B/islands/Counter.tsx" | grep -q 'sourceMappingURL=data'  # dev source map
 
+          # v0.5 plugin transform hook (nowaki.config.mjs rewrites a token before oxc)
+          curl -sf $B/plugin | grep -q 'transformed-by-plugin'
+          ! curl -sf $B/plugin | grep -q '__PLUGIN_MARK__'
+
           kill $SERVER_PID
 
       - name: Production build + scope hoisting + preload + serve

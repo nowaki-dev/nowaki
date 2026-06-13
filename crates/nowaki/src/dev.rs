@@ -32,9 +32,16 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
     let sidecar = sidecar::spawn(&root, port).await?;
     println!("[nowaki] SSRサイドカー起動 (port {})", sidecar.port);
 
+    // nowaki.config があればプラグインホストを起動し、変換フックを core に注入する。
+    let plugin_host = crate::plugins::start(&root)?;
+    let mut core = NowakiCore::new(root.clone());
+    if let Some(host) = &plugin_host {
+        core.set_plugins(host.bridge.clone());
+    }
+
     let (hmr_tx, _) = broadcast::channel(64);
     let state = Arc::new(DevState {
-        core: NowakiCore::new(root.clone()),
+        core,
         hmr_tx: hmr_tx.clone(),
         ssr_version: AtomicU64::new(1),
         sidecar_port: sidecar.port,
@@ -60,6 +67,7 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
         started.elapsed().as_millis()
     );
     axum::serve(listener, app).await?;
+    drop(plugin_host);
     drop(sidecar);
     Ok(())
 }

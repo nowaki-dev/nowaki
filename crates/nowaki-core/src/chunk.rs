@@ -10,7 +10,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use oxc::allocator::Allocator;
 use oxc::ast::ast::{
     Declaration, ExportDefaultDeclarationKind, ImportDeclarationSpecifier, ModuleExportName,
@@ -229,8 +229,7 @@ fn ext_imports_push(list: &mut Vec<String>, seen: &mut HashSet<String>, line: St
 /// import/export のメタデータだけ抽出する（連結順・配線計算に使う）。
 fn extract_meta(core: &NowakiCore, abs: &Path, idx: usize) -> Result<ModuleMeta> {
     let allocator = Allocator::default();
-    let source =
-        std::fs::read_to_string(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
+    let source = core.read_source(abs)?;
     let source_type = SourceType::from_path(abs).unwrap_or_else(|_| SourceType::tsx());
     let mut program = Parser::new(&allocator, &source, source_type)
         .parse()
@@ -336,8 +335,7 @@ fn extract_meta(core: &NowakiCore, abs: &Path, idx: usize) -> Result<ModuleMeta>
 /// モジュール本体を、リネーム + import/export 除去して codegen した文字列にする。
 fn render_body(core: &NowakiCore, abs: &Path, idx: usize, wiring: &ImportWiring) -> Result<String> {
     let allocator = Allocator::default();
-    let source =
-        std::fs::read_to_string(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
+    let source = core.read_source(abs)?;
     let source_type = SourceType::from_path(abs).unwrap_or_else(|_| SourceType::tsx());
     let mut program = Parser::new(&allocator, &source, source_type)
         .parse()

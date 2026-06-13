@@ -7,12 +7,22 @@ pub mod resolve;
 pub mod transform;
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use oxc_resolver::Resolver;
 use xxhash_rust::xxh3::xxh3_64;
 
 pub use cache::Mode;
+
+/// プラグインの変換フックを Rust から呼ぶための橋渡し。実装は CLI 側が
+/// Node プラグインホスト（`nowaki.config` を読み込む）へ HTTP で委譲する。
+/// nowaki-core 自体は JS を実行しないので、この trait 経由で疎結合に保つ。
+pub trait PluginBridge: Send + Sync {
+    /// 変換可能なソース（ts/tsx/js/jsx/mjs）に対する `transform(code, id)` フック。
+    /// どのプラグインも変更しなければ None。
+    fn transform(&self, id: &str, code: &str) -> Option<String>;
+}
 
 /// 変換対象の拡張子。これ以外 (css, 画像など) は素通しで配信する。
 pub fn is_transformable(path: &Path) -> bool {
@@ -65,6 +75,8 @@ pub struct NowakiCore {
     disk_cache: cache::DiskCache,
     /// import.meta.env.PUBLIC_* / MODE のクライアント向け定数置換ペア（.envから）
     pub(crate) client_defines: Vec<(String, String)>,
+    /// プラグインの変換フック（任意）。未設定なら素のファイル読込のまま。
+    plugins: Option<Arc<dyn PluginBridge>>,
 }
 
 impl NowakiCore {
@@ -83,14 +95,37 @@ impl NowakiCore {
             cache: cache::ModuleCache::default(),
             disk_cache,
             client_defines,
+            plugins: None,
         }
+    }
+
+    /// プラグインの変換ブリッジを設定する（CLI が nowaki.config 検出時に呼ぶ）。
+    pub fn set_plugins(&mut self, bridge: Arc<dyn PluginBridge>) {
+        self.plugins = Some(bridge);
+    }
+
+    /// モジュールのソースを取得する（ファイル読込 + プラグイン transform フック）。
+    /// プラグイン未設定なら素のファイル読込と同一（＝挙動不変）。dev/build/chunk の
+    /// 全ソース読込はここを通すことで、変換フックを一貫適用する。
+    pub fn read_source(&self, abs: &Path) -> Result<String> {
+        let source = std::fs::read_to_string(abs)
+            .with_context(|| format!("読み込み失敗: {}", abs.display()))?;
+        if is_transformable(abs) {
+            if let Some(bridge) = &self.plugins {
+                if let Some(code) = bridge.transform(&abs.to_string_lossy(), &source) {
+                    return Ok(code);
+                }
+            }
+        }
+        Ok(source)
     }
 
     /// ファイルを読み、コンテンツハッシュでキャッシュ照合し、必要なら変換する。
     /// メモリ → ディスク（再起動をまたぐ）→ 変換 の順で照合する。
     pub fn load_module(&self, abs: &Path, mode: Mode) -> Result<String> {
-        let source = std::fs::read_to_string(abs)
-            .with_context(|| format!("読み込み失敗: {}", abs.display()))?;
+        // read_source はプラグイン transform 適用後のソースを返す。ハッシュもその後の
+        // 内容で取るので、ファイル変更・プラグイン出力変更のどちらでもキャッシュが正しく失効する。
+        let source = self.read_source(abs)?;
         let hash = xxh3_64(source.as_bytes());
         let key = (abs.to_path_buf(), mode);
 
