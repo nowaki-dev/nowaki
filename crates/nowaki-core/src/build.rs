@@ -153,9 +153,9 @@ pub fn build_server(
     use rayon::prelude::*;
 
     let server_dir = dist.join("server");
-    // routes/islands に加え、共有のサーバーモジュール (components/, lib/) も出力する。
+    // routes/islands に加え、共有のサーバーモジュール (components/, lib/, actions/) も出力する。
     let mut files = Vec::new();
-    for sub in ["routes", "islands", "components", "lib"] {
+    for sub in ["routes", "islands", "components", "lib", "actions"] {
         let src_root = core.root.join(sub);
         if !src_root.is_dir() {
             continue;
@@ -190,7 +190,38 @@ pub fn build_server(
         fs::write(&out_path, code)?;
         count += 1;
     }
+
+    // サーバー関数（`"use server"`）の allowlist を dist/server/functions.json に書く。
+    // ランタイムはこの id→{module,export} で dispatch する（クライアントは任意 export を呼べない）。
+    // client manifest には載せない（サーバーのファイル構成を露出しないため）。
+    write_server_functions(core, &server_dir)?;
+
     Ok(count)
+}
+
+/// dist/server/functions.json を生成する。module は serverDir 相対の .js パス。
+fn write_server_functions(core: &NowakiCore, server_dir: &Path) -> Result<()> {
+    let found =
+        crate::server_fn::discover(core, &["routes", "islands", "components", "lib", "actions"]);
+    let mut entries: Vec<String> = Vec::new();
+    for f in &found {
+        let module_js = with_js_suffix(&f.source_rel);
+        entries.push(format!(
+            "  \"{}\": {{ \"module\": \"{}\", \"export\": \"{}\" }}",
+            f.id, module_js, f.export
+        ));
+    }
+    let json = format!("{{\n{}\n}}\n", entries.join(",\n"));
+    fs::write(server_dir.join("functions.json"), json)?;
+    Ok(())
+}
+
+/// posix の相対パスの拡張子を .js に差し替える（`actions/x.ts` → `actions/x.js`）。
+fn with_js_suffix(rel: &str) -> String {
+    match rel.rfind('.') {
+        Some(i) if !rel[i..].contains('/') => format!("{}.js", &rel[..i]),
+        _ => format!("{rel}.js"),
+    }
 }
 
 /// SSR向け変換: TS除去 + JSX(automatic, preact)。相対ローカルimportの拡張子を
@@ -424,6 +455,21 @@ fn emit(core: &NowakiCore, abs: &Path, out_dir: &Path, ctx: &mut EmitCtx) -> Res
     ctx.visiting.insert(abs.to_path_buf());
 
     let source = core.read_source(abs)?;
+    // サーバーモジュール（`"use server"`）: 実装はクライアントへ出さず、プロキシ（依存なしの
+    // リーフ）を出力する。サーバー専用の依存はここで打ち切られ、クライアントグラフへ入らない。
+    if crate::server_fn::has_use_server(&source) {
+        ctx.visiting.remove(abs);
+        let key = crate::server_fn::module_key(&core.root, abs);
+        let exports = crate::server_fn::collect_exports(abs, &source)?;
+        let code = crate::server_fn::client_proxy(&key, &exports);
+        let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("module");
+        let hash = xxh3_64(code.as_bytes()) as u32;
+        let filename = format!("{stem}.{hash:08x}.js");
+        fs::write(out_dir.join(&filename), &code)?;
+        ctx.deps.insert(filename.clone(), Vec::new());
+        ctx.emitted.insert(abs.to_path_buf(), filename.clone());
+        return Ok(filename);
+    }
     let module = transform_for_bundle(abs, &source, core)?;
     let stem = abs
         .file_stem()

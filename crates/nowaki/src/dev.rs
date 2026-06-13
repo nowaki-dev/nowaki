@@ -57,6 +57,7 @@ pub async fn run(root: PathBuf, port: u16) -> Result<()> {
     let app = Router::new()
         .route("/__nowaki/hmr", get(hmr_ws))
         .route("/__nowaki/live", get(live_ws))
+        .route("/__nowaki/server-functions", get(server_functions))
         .route("/__nowaki/ssr-module", get(ssr_module))
         .route("/@fs/{*path}", get(serve_fs))
         .fallback(serve_or_proxy)
@@ -146,6 +147,36 @@ async fn handle_hmr(mut socket: WebSocket, state: Arc<DevState>) {
                 }
             }
         }
+    }
+}
+
+/// サーバー関数（`"use server"`）の allowlist を dev サイドカーへ返す。
+/// Rust が oxc で discover し、id → { module(ソース相対), export } を返す。
+/// dev は build しないので、サイドカーはこれを引いて RPC を dispatch する。
+async fn server_functions(State(state): State<Arc<DevState>>) -> Response {
+    let core_state = state.clone();
+    let body = tokio::task::spawn_blocking(move || {
+        let found = nowaki_core::server_fn::discover(
+            &core_state.core,
+            &["routes", "islands", "components", "lib", "actions"],
+        );
+        let mut entries = serde_json::Map::new();
+        for f in found {
+            entries.insert(f.id, json!({ "module": f.source_rel, "export": f.export }));
+        }
+        json!({ "entries": entries }).to_string()
+    })
+    .await;
+    match body {
+        Ok(json) => (
+            [
+                (header::CONTENT_TYPE, "application/json"),
+                (header::CACHE_CONTROL, "no-cache"),
+            ],
+            json,
+        )
+            .into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 

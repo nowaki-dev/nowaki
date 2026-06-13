@@ -9,6 +9,7 @@ import { renderToReadableStream } from "preact-render-to-string/stream";
 
 import { matchRoute } from "./router.mjs";
 import { makeContext } from "./context.mjs";
+import { dispatchServerFn, SERVER_FN_PATH } from "./functions.mjs";
 
 // handleRequest の結果を Node のレスポンスへ書き出す（stream 対応）。
 export async function sendResult(res, result) {
@@ -34,6 +35,11 @@ export async function handleRequest(env, info) {
   const table = await env.routeTable(version);
   const match = matchRoute(table.routes, url.pathname);
   const ctx = makeContext({ ...info, params: match?.params ?? {} });
+
+  // サーバー関数 RPC（`"use server"`）。ルーティングより前に処理する。
+  if (env.serverFunctions && url.pathname === SERVER_FN_PATH) {
+    return finalize(ctx, await dispatchServerFn(ctx, info, env.serverFunctions));
+  }
 
   try {
     // 1. ミドルウェア（root → leaf）。Response を返したら短絡。

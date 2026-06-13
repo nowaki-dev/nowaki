@@ -24,6 +24,14 @@ pub fn transform_file(
     resolver: &Resolver,
     client_defines: &[(String, String)],
 ) -> Result<String> {
+    // サーバーモジュール（`"use server"`）をブラウザ向けに変換するときは、実装を出さず
+    // クライアントプロキシ（fetch する極小 async 関数）に差し替える。SSR 変換では本物を残す。
+    if mode == Mode::Browser && crate::server_fn::has_use_server(source) {
+        let key = crate::server_fn::module_key(root, path);
+        let exports = crate::server_fn::collect_exports(path, source)?;
+        return Ok(crate::server_fn::client_proxy(&key, &exports));
+    }
+
     let allocator = Allocator::default();
     let source_type = SourceType::from_path(path).unwrap_or_else(|_| SourceType::tsx());
 

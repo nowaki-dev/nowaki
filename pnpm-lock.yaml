@@ -8,6 +8,18 @@ importers:
 
   .: {}
 
+  benchmarks/apps/nowaki-counter:
+    dependencies:
+      '@nowaki-dev/runtime':
+        specifier: workspace:*
+        version: link:../../../packages/nowaki-runtime
+      preact:
+        specifier: ^10.25.4
+        version: 10.29.2
+      preact-render-to-string:
+        specifier: ^6.5.13
+        version: 6.7.0(preact@10.29.2)
+
   examples/hello:
     dependencies:
       '@nowaki-dev/runtime':

@@ -4,6 +4,7 @@
 
 import { createServer } from "node:http";
 import { register } from "node:module";
+import path from "node:path";
 import { loadEnv } from "./env.mjs";
 
 // .env を process.env に読み込む（ルート/loader が読めるように、ルート読込より前に）
@@ -19,6 +20,23 @@ const { liveRender } = await import("./live.mjs");
 const { pathToFileURL } = await import("node:url");
 
 const appRoot = process.cwd();
+const RUST = `http://127.0.0.1:${process.env.NOWAKI_RUST_PORT ?? "3000"}`;
+
+// サーバー関数（`"use server"`）の allowlist は Rust が oxc で discover する（dev は build しない）。
+// 世代（version）ごとにキャッシュし、HMR でファイルが変わると新世代で引き直す。
+const fnCache = new Map();
+async function serverFnEntries(version) {
+  if (fnCache.has(version)) return fnCache.get(version);
+  let entries = {};
+  try {
+    const r = await fetch(`${RUST}/__nowaki/server-functions?v=${encodeURIComponent(version)}`);
+    if (r.ok) entries = (await r.json()).entries ?? {};
+  } catch {
+    // Rust 未応答ならサーバー関数なし扱い
+  }
+  fnCache.set(version, entries);
+  return entries;
+}
 
 const env = {
   dev: true,
@@ -26,6 +44,15 @@ const env = {
   routeTable: () => scanRoutes(appRoot),
   importModule: (file, version) => import(`${pathToFileURL(file).href}?v=${version}`),
   ensureIslands: (version) => loadIslandRegistry(appRoot, version),
+  serverFunctions: {
+    async lookup(id, version) {
+      const entries = await serverFnEntries(String(version ?? "0"));
+      return entries[id] ?? null;
+    },
+    // dev は dist が無いのでソースを直接 import（loader-hooks が Rust 変換へ橋渡し）。
+    importModule: (m, version) =>
+      import(`${pathToFileURL(path.join(appRoot, m)).href}?v=${version}`),
+  },
   renderDocument,
   renderShell,
   renderError: (err) => {

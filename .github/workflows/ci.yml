@@ -123,6 +123,17 @@ jobs:
           curl -sf $B/live | grep -q 'client/live.js'
           curl -sf $B/live | grep -q 'nowaki-island name="Counter"'
 
+          # v0.8 server functions: "use server" RPC. The browser gets a fetch proxy
+          # (no impl/secret); POST /__nowaki/fn runs the real function server-side,
+          # and getContext() reads the request cookie. Unknown id is rejected.
+          curl -sf "$B/actions/todos.ts" | grep -q '__nowakiCall'
+          ! curl -sf "$B/actions/todos.ts" | grep -q 'nowaki-server-only-secret'
+          curl -sf "$B/__nowaki/server-functions" | grep -q '"export":"listTodos"'
+          curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn | grep -q 'learn nowaki'
+          curl -sf -XPOST -H 'content-type: application/json' -H 'cookie: user=alice' -d '{"id":"781de5a7f5ba2469","args":[]}' $B/__nowaki/fn | grep -q 'alice'
+          test "$(status -XPOST -H 'content-type: application/json' -d '{"id":"deadbeefdeadbeef","args":[]}' $B/__nowaki/fn)" = "404"
+          curl -sf $B/server-fn | grep -q 'nowaki-island name="ServerTodos"'
+
           kill $SERVER_PID
 
       - name: Production build + scope hoisting + preload + serve
@@ -151,6 +162,12 @@ jobs:
           curl -sf http://127.0.0.1:3300/ | grep -q '<code>a→b</code>'
           curl -sf http://127.0.0.1:3300/live | grep -q 'nowaki-live name="LiveCounter"'
           curl -sf http://127.0.0.1:3300/live | grep -q 'live\.'  # live.js script
+          # v0.8 server functions in production: allowlist written, no impl leaked to
+          # the client, and the Rust front proxies /__nowaki/fn to the renderer.
+          test -f examples/hello/dist/server/functions.json
+          grep -q '"export": "addTodo"' examples/hello/dist/server/functions.json
+          ! grep -rl 'nowaki-server-only-secret' examples/hello/dist/client >/dev/null 2>&1
+          curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' http://127.0.0.1:3300/__nowaki/fn | grep -q 'learn nowaki'
           kill $START_PID
 
       - name: Deploy adapters — self-contained node entry + static + streaming SSR
@@ -179,6 +196,25 @@ jobs:
           test -f examples/hello/dist/worker/wrangler.jsonc
           grep -q "createFetchHandler" examples/hello/dist/worker/index.js
           grep -q '"binding": "ASSETS"' examples/hello/dist/worker/wrangler.jsonc
+
+  bench-regression:
+    name: Client JS size (regression gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - run: pnpm install
+      - run: cargo build -p nowaki
+      # 送信 JS は決定的。benchmarks/baseline.json から +12% を超えたら fail。
+      # head-to-head（Next/Astro 比較）は手元/別ジョブで実行（重い依存のため CI 既定では走らせない）。
+      - run: node benchmarks/check-regression.mjs
 
   npm-cli:
     name: npm CLI wrapper (smoke)

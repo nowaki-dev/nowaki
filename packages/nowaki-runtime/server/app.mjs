@@ -125,11 +125,26 @@ export async function createApp({ clientDir, serverDir, loadDotenv = true } = {}
   // ルートテーブルは起動時に1回スキャン（built dist/server/routes）。
   const routeTable = await scanRoutes(serverDir);
 
+  // サーバー関数（`"use server"`）の allowlist。dist/server/functions.json（build が生成）。
+  let serverFnTable = {};
+  try {
+    serverFnTable = JSON.parse(await readFile(path.join(serverDir, "functions.json"), "utf8"));
+  } catch {
+    // functions.json が無ければサーバー関数なし（機能オフ）。
+  }
+  const serverFunctions = Object.keys(serverFnTable).length
+    ? {
+        lookup: (id) => serverFnTable[id] ?? null,
+        importModule: (m) => import(pathToFileURL(path.join(serverDir, m)).href),
+      }
+    : null;
+
   const env = {
     dev: false,
     routeTable: () => routeTable,
     importModule: (file) => import(pathToFileURL(file).href),
     ensureIslands: () => {}, // レジストリは起動時に構築済み
+    serverFunctions,
     renderDocument: (args) => prodDocument(manifest, args),
     renderShell: ({ mod }) => prodShell(manifest, mod),
     renderError: (err) => {

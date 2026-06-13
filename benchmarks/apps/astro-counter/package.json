@@ -1,0 +1,16 @@
+{
+  "name": "astro-counter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/preact": "^4.0.0",
+    "astro": "^5.1.0",
+    "preact": "^10.25.4"
+  }
+}

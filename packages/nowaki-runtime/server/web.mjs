@@ -58,7 +58,13 @@ function installIslandHook(registry) {
 ///   islandComponents : island 名 → コンポーネント実体（default export）
 ///   routeTable       : scanRoutes 相当（file は modules のキー）
 /// 返り値は `(request) => Promise<Response>`。
-export function createFetchHandler({ manifest, modules, islandComponents, routeTable }) {
+export function createFetchHandler({
+  manifest,
+  modules,
+  islandComponents,
+  routeTable,
+  serverFunctions: serverFnTable,
+}) {
   const registry = new Map();
   for (const [name, comp] of Object.entries(islandComponents ?? {})) {
     if (typeof comp === "function") {
@@ -67,11 +73,21 @@ export function createFetchHandler({ manifest, modules, islandComponents, routeT
   }
   installIslandHook(registry);
 
+  // サーバー関数（`"use server"`）: id→{module,export} を静的 import 済み modules で引く。
+  const serverFunctions =
+    serverFnTable && Object.keys(serverFnTable).length
+      ? {
+          lookup: (id) => serverFnTable[id] ?? null,
+          importModule: (key) => modules[key],
+        }
+      : null;
+
   const env = {
     dev: false,
     routeTable: () => routeTable,
     importModule: (key) => modules[key],
     ensureIslands: () => {},
+    serverFunctions,
     renderDocument: (args) => prodDocument(manifest, args),
     renderShell: ({ mod }) => prodShell(manifest, mod),
     renderError: (err) => ({

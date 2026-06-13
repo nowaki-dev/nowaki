@@ -65,6 +65,17 @@ for (const name of Object.keys(manifest.islands ?? {})) {
   islandEntries.push(`  ${JSON.stringify(name)}: ${v}.default,`);
 }
 
+// サーバー関数（`"use server"`）モジュールを静的 import に含める（実行時 import 不可なため）。
+let serverFnTable = {};
+try {
+  serverFnTable = JSON.parse(await readFile(path.join(serverDir, "functions.json"), "utf8"));
+} catch {
+  // functions.json が無ければサーバー関数なし
+}
+for (const entry of Object.values(serverFnTable)) {
+  addModule(path.join(serverDir, entry.module));
+}
+
 const moduleImports = order.map((key) => `import * as ${seen.get(key)} from ${JSON.stringify(specOf(key))};`);
 const moduleEntries = order.map((key) => `  ${JSON.stringify(key)}: ${seen.get(key)},`);
 
@@ -82,8 +93,9 @@ const islandComponents = {
 ${islandEntries.join("\n")}
 };
 const routeTable = ${JSON.stringify(routeTable)};
+const serverFunctions = ${JSON.stringify(serverFnTable)};
 
-const handler = createFetchHandler({ manifest, modules, islandComponents, routeTable });
+const handler = createFetchHandler({ manifest, modules, islandComponents, routeTable, serverFunctions });
 
 export default {
   async fetch(request, env) {

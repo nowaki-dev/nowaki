@@ -41,6 +41,16 @@ Where the trust boundaries are, so reviewers know what to look at:
   lives in the Rust process for the lifetime of one WebSocket connection; event
   handlers run on the Node sidecar. Validate inputs in your `on` handlers as you
   would any server handler.
+- **Server functions (`"use server"`) are an allowlisted RPC surface.** Only the
+  exports of `"use server"` modules are callable, via a build-time id→{module,
+  export} allowlist (`dist/server/functions.json`; the client never sends the
+  module/export, only an opaque id). A client cannot reach an arbitrary export.
+  The function implementation and its server-only imports are stripped from the
+  client bundle — the browser receives a `fetch` proxy only. Treat each server
+  function like a public HTTP endpoint: **validate its arguments** (they arrive
+  as JSON from the client) and check authorization via `getContext()` (request
+  cookies/headers). Errors return only `error.message` to the client, never the
+  stack.
 
 ## Dependency auditing
 

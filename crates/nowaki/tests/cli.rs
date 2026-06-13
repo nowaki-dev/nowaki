@@ -65,5 +65,47 @@ fn build_produces_expected_manifest_and_zero_js_live_island() {
         "live island server module expected"
     );
 
+    // --- サーバー関数（"use server"）の不変条件 ---
+    // allowlist（dist/server/functions.json）に actions/todos の export が並ぶ。
+    let functions =
+        std::fs::read_to_string(root.join("dist/server/functions.json")).expect("functions.json");
+    for export in ["addTodo", "listTodos", "whoami"] {
+        assert!(
+            functions.contains(&format!("\"export\": \"{export}\"")),
+            "server function {export} should be in functions.json"
+        );
+    }
+    assert!(
+        functions.contains("\"module\": \"actions/todos.js\""),
+        "functions.json module should point at the built server module"
+    );
+
+    // 実装はクライアントへ出ない（サーバー専用の secret/store がバンドルに無い）。
+    for chunk in &names {
+        if chunk.ends_with(".js") {
+            let body = std::fs::read_to_string(client.join(chunk)).unwrap_or_default();
+            assert!(
+                !body.contains("nowaki-server-only-secret"),
+                "server secret leaked into client chunk {chunk}"
+            );
+        }
+    }
+
+    // 島チャンクはサーバー関数の本体ではなく、別チャンクのプロキシ（todos.*.js）を import する。
+    let todos_proxy = names
+        .iter()
+        .find(|n| n.starts_with("todos.") && n.ends_with(".js"))
+        .expect("server-fn proxy chunk (todos.*.js) expected");
+    let proxy = std::fs::read_to_string(client.join(todos_proxy)).unwrap();
+    assert!(
+        proxy.contains("__nowakiCall(") && proxy.contains("/__nowaki/fn"),
+        "proxy chunk should be the fetch shim, not the impl"
+    );
+    // プロキシの id は functions.json の id と一致する（クライアント／サーバーで独立に算出）。
+    for id in ["675f80133a1699f8", "6c90d7dc921a9a3f", "781de5a7f5ba2469"] {
+        assert!(functions.contains(id), "functions.json missing id {id}");
+        assert!(proxy.contains(id), "proxy missing id {id}");
+    }
+
     let _ = std::fs::remove_dir_all(root.join("dist"));
 }

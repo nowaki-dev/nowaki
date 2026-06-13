@@ -1,10 +1,9 @@
 # Benchmarks
 
 Honest, reproducible numbers — measured with the **release** binary on the apps
-in this repo. These are Nowaki's *own* numbers, not a head-to-head against
-Next.js or Astro. A like-for-like comparison needs equivalent apps and a shared
-harness; that's on the roadmap (Beta). We'd rather ship real measurements now
-than a fabricated scoreboard.
+in this repo. Two harnesses: `bench.mjs` (Nowaki's own numbers) and
+`head-to-head.mjs` (a like-for-like comparison against Next.js and Astro on the
+same app). We measure what's actually installed and never fabricate a number.
 
 Reproduce:
 
@@ -12,7 +11,39 @@ Reproduce:
 cargo build --release -p nowaki
 node benchmarks/bench.mjs site            # a clean content-first app
 node benchmarks/bench.mjs examples/hello  # a kitchen-sink app
+node benchmarks/head-to-head.mjs          # Nowaki vs Next vs Astro (same counter app)
 ```
+
+## Head-to-head: Nowaki vs Next.js vs Astro
+
+The same minimal app — one server-rendered page with a single interactive
+counter island (Preact for Nowaki *and* Astro, so the UI library is equal) —
+built and booted on one machine.
+
+| framework | dev ready (cold) | production build | first-load JS (raw) | first-load JS (gzip) |
+|---|---|---|---|---|
+| **Nowaki** | **74 ms** | **10 ms** | **21.6 KB** | **9.9 KB** |
+| Astro | 544 ms | 999 ms | 23.1 KB | 10.0 KB |
+| Next.js | 1374 ms | 7580 ms | 103.0 KB\* | — |
+
+\* Next's own *First Load JS* figure from `next build` (parsed/uncompressed). For
+Nowaki and Astro, *raw* is the summed uncompressed size of the production client
+chunks and *gzip* is what's transferred.
+
+Reading it: Nowaki boots dev ~7× faster than Astro and ~18× faster than Next,
+builds ~100× faster than Astro and ~750× faster than Next, and ships about the
+same tiny client payload as Astro (both are islands frameworks) — roughly **5×
+less than Next's app-router baseline**. The apps live in
+`benchmarks/apps/{nowaki,next,astro}-counter`; install the peers and re-run
+`head-to-head.mjs` to reproduce on your machine.
+
+> The numbers move run-to-run and machine-to-machine; the *orders of magnitude*
+> are the point, not the third digit. The harness skips any framework whose
+> toolchain isn't installed rather than guessing.
+
+A CI job (`bench-regression`) also gates the deterministic part — the gzipped
+client JS of `nowaki-counter` — against `benchmarks/baseline.json`, failing the
+build if a change inflates the bundle by more than 12 %.
 
 ## `site/` — 2 pages, no plugins (typical content-first app)
 

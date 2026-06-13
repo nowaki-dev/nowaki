@@ -1,0 +1,5 @@
+# ベンチ比較アプリの生成物・依存（コミットしない）
+node_modules/
+dist/
+.next/
+.astro/

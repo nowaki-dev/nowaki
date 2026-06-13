@@ -1,0 +1,10 @@
+{
+  "name": "nowaki-counter",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@nowaki-dev/runtime": "workspace:*",
+    "preact": "^10.25.4",
+    "preact-render-to-string": "^6.5.13"
+  }
+}

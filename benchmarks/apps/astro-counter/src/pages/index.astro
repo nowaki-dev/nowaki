@@ -1,0 +1,17 @@
+---
+import Counter from "../components/Counter.tsx";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Counter — Astro</title>
+  </head>
+  <body>
+    <main style="font-family:sans-serif;max-width:40rem;margin:4rem auto">
+      <h1>Hello from Astro</h1>
+      <p>Server-rendered page with one interactive island.</p>
+      <Counter start={0} client:load />
+    </main>
+  </body>
+</html>

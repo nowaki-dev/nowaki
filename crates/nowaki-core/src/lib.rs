@@ -4,6 +4,7 @@ pub mod chunk;
 pub mod css;
 pub mod env;
 pub mod resolve;
+pub mod server_fn;
 pub mod transform;
 
 use std::path::{Path, PathBuf};

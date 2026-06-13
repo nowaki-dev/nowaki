@@ -230,6 +230,17 @@ fn ext_imports_push(list: &mut Vec<String>, seen: &mut HashSet<String>, line: St
 fn extract_meta(core: &NowakiCore, abs: &Path, idx: usize) -> Result<ModuleMeta> {
     let allocator = Allocator::default();
     let source = core.read_source(abs)?;
+    // サーバーモジュール（`"use server"`）はクライアントの連結境界。依存を辿らず（サーバー専用
+    // 依存をクライアントへ引き込まない）、連結対象にもしない（emit がプロキシを別チャンク化する）。
+    if crate::server_fn::has_use_server(&source) {
+        return Ok(ModuleMeta {
+            deps: Vec::new(),
+            exports: Vec::new(),
+            imports: Vec::new(),
+            idx,
+            fallback: true,
+        });
+    }
     let source_type = SourceType::from_path(abs).unwrap_or_else(|_| SourceType::tsx());
     let mut program = Parser::new(&allocator, &source, source_type)
         .parse()
