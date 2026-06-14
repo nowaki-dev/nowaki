@@ -62,6 +62,19 @@ export default function Home({ data }) {
   );
 }`}</code></pre>
 
+      <h2>Updating</h2>
+      <p>
+        Bump the CLI and runtime together with one command — it detects your package manager and
+        rewrites the <code>package.json</code> ranges:
+      </p>
+      <pre><code>{`npx nowaki upgrade              # nowaki + @nowaki-dev/runtime → latest
+npx nowaki upgrade --to 0.11.0  # or pin a version`}</code></pre>
+      <p>
+        A plain <code>npm update</code> won't cross a <code>0.x</code> minor (caret locks the minor
+        before 1.0), so reach for <code>nowaki upgrade</code> — or install <code>@latest</code> by
+        hand. Pre-1.0, skim the release notes first; a minor can carry breaking changes.
+      </p>
+
       <div class="pager">
         <a href="/docs">← Overview</a>
         <a href="/docs/routing">Routing &amp; data →</a>

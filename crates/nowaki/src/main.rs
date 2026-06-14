@@ -6,6 +6,7 @@ mod prerender;
 mod sidecar;
 mod start;
 mod ui;
+mod upgrade;
 
 use std::path::PathBuf;
 
@@ -67,6 +68,15 @@ enum Command {
         /// 出力ディレクトリ (dir からの相対 or 絶対)
         #[arg(short, long, default_value = "dist/static")]
         out: PathBuf,
+    },
+    /// nowaki(CLI) と @nowaki-dev/runtime を最新へ更新する
+    Upgrade {
+        /// アプリのルートディレクトリ
+        #[arg(default_value = ".")]
+        dir: PathBuf,
+        /// 上げ先バージョン（既定: latest）。例: --to 0.11.0
+        #[arg(long)]
+        to: Option<String>,
     },
 }
 
@@ -141,6 +151,10 @@ fn main() -> anyhow::Result<()> {
                 .enable_all()
                 .build()?
                 .block_on(prerender::run(root, out))
+        }
+        Command::Upgrade { dir, to } => {
+            let root = dir.canonicalize()?;
+            upgrade::run(root, to)
         }
     }
 }

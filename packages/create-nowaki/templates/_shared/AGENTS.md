@@ -12,6 +12,7 @@ npm run dev        # nowaki dev   — dev server with hot reload (http://localho
 npm run build      # nowaki build — production build (dist/client + dist/server)
 npm run start      # nowaki start — serve the production build
 npm run prerender  # nowaki prerender — static export
+npx nowaki upgrade # update nowaki (CLI) + @nowaki-dev/runtime to latest
 ```
 
 ## Project layout

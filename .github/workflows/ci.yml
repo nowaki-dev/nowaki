@@ -61,6 +61,15 @@ jobs:
         run: node scripts/router-test.mjs
       - name: Client router-cache unit test (matchBoundary + Router Cache TTL/LRU)
         run: node scripts/router-cache-test.mjs
+      - name: nowaki upgrade — command surface + non-app guard (no network)
+        run: |
+          set -e
+          ./target/debug/nowaki --help | grep -q upgrade
+          ./target/debug/nowaki upgrade --help | grep -q -- '--to'
+          # a non-Nowaki package.json is rejected without touching the network
+          TMP=$(mktemp -d); echo '{"name":"x","dependencies":{}}' > "$TMP/package.json"
+          ! ./target/debug/nowaki upgrade "$TMP" 2>/dev/null
+          rm -rf "$TMP"
       - name: Start dev server and verify SSR, islands, API, and v0.3 routing
         run: |
           set -e
