@@ -102,6 +102,15 @@ nowaki.config.mjs   plugins (optional)
    `error.tsx`, mark the message element `data-nowaki-error` and the retry button
    `data-nowaki-reset`. Visited pages are kept in a ~30s Router Cache, so
    back/forward is instant. These are server components, not islands.
+10. **Typed navigation** — `dev`/`build` generate `.nowaki/types.d.ts` from your
+    routes (run `nowaki typegen` to refresh manually). Build links type-safely
+    from `@nowaki-dev/runtime/navigation`:
+    ```tsx
+    import { route, Link } from "@nowaki-dev/runtime/navigation";
+    <Link href="/about">About</Link>                       // static path, checked
+    <a href={route("/blog/[slug]", { slug })}>Post</a>      // dynamic, params typed
+    ```
+    Unknown paths, missing params, and wrong param keys are compile errors.
 
 ## Don't
 

@@ -108,6 +108,26 @@ export const loader = async ({ params }) => ({ post: await db.post(params.slug) 
         request-specific data.
       </p>
 
+      <h2>Typed routes</h2>
+      <p>
+        <code>nowaki dev</code> and <code>nowaki build</code> generate
+        <code>.nowaki/types.d.ts</code> from your <code>routes/</code> (or run <code>nowaki
+        typegen</code>). It makes navigation type-safe: <code>route()</code> builds a dynamic href
+        from typed params, and <code>&lt;Link&gt;</code> only accepts known paths.
+      </p>
+      <pre><code>{`import { route, Link } from "@nowaki-dev/runtime/navigation";
+
+<Link href="/about">About</Link>                    // ok — known static route
+<a href={route("/blog/[slug]", { slug })}>Post</a>   // ok — params typed & encoded
+
+route("/blog/[slug]");          // ✗ missing params
+route("/nope");                 // ✗ unknown route
+<Link href="/typo" />           // ✗ not a route`}</code></pre>
+      <p>
+        Catch-all params are arrays: <code>route("/files/[...path]", {`{ path: ["a", "b"] }`})</code>
+        becomes <code>/files/a/b</code>. The generated file is gitignored; commit nothing.
+      </p>
+
       <h2>Loading &amp; error UI, and the Router Cache</h2>
       <p>
         Pages with an island get a client router: internal links navigate by swapping the body and

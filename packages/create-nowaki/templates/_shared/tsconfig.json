@@ -23,6 +23,7 @@
   },
   "include": [
     "nowaki-env.d.ts",
+    ".nowaki/types.d.ts",
     "nowaki.config.*",
     "routes",
     "islands",

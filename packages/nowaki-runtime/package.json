@@ -24,12 +24,18 @@
     "client",
     "server",
     "index.js",
-    "index.d.ts"
+    "index.d.ts",
+    "navigation.js",
+    "navigation.d.ts"
   ],
   "exports": {
     ".": {
       "types": "./index.d.ts",
       "default": "./index.js"
+    },
+    "./navigation": {
+      "types": "./navigation.d.ts",
+      "default": "./navigation.js"
     },
     "./client/*": "./client/*",
     "./server/*": "./server/*"

@@ -30,6 +30,8 @@ pub struct DevState {
 pub async fn run(root: PathBuf, port: u16, expose: bool, open: bool) -> Result<()> {
     let started = Instant::now();
 
+    crate::typegen::write(&root).ok(); // 型付きルート（.nowaki/types.d.ts）を生成
+
     let sidecar = sidecar::spawn(&root, port).await?;
 
     // nowaki.config があればプラグインホストを起動し、変換フックを core に注入する。
@@ -112,6 +114,7 @@ fn start_watcher(root: &Path, state: Arc<DevState>) -> Result<notify::Recommende
                     && !s.contains("/.git/")
                     && !s.contains("/dist/")
                     && !s.contains("/target/")
+                    && !s.contains("/.nowaki/")
             })
             .collect();
         if relevant.is_empty() {
@@ -123,6 +126,13 @@ fn start_watcher(root: &Path, state: Arc<DevState>) -> Result<notify::Recommende
                 return;
             }
             *last = Instant::now();
+        }
+        // routes/ が変わったら型付きルートを再生成（追加・削除・リネームを型へ反映）。
+        if relevant
+            .iter()
+            .any(|p| p.to_string_lossy().contains("/routes/"))
+        {
+            crate::typegen::write(&state.core.root).ok();
         }
         state.ssr_version.fetch_add(1, Ordering::SeqCst);
         // 変更が islands/ のみなら島をホットスワップ、それ以外はフルリロード

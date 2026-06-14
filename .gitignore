@@ -3,6 +3,9 @@ node_modules/
 dist/
 .DS_Store
 
+# generated typed-routes (nowaki typegen)
+.nowaki/
+
 # prerendered landing output (regenerate with site/scripts/prerender.sh)
 site/public/
 

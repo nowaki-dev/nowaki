@@ -5,6 +5,7 @@ mod plugins;
 mod prerender;
 mod sidecar;
 mod start;
+mod typegen;
 mod ui;
 mod upgrade;
 
@@ -78,6 +79,12 @@ enum Command {
         #[arg(long)]
         to: Option<String>,
     },
+    /// 型付きルート（.nowaki/types.d.ts）を生成する
+    Typegen {
+        /// アプリのルートディレクトリ
+        #[arg(default_value = ".")]
+        dir: PathBuf,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -97,6 +104,8 @@ fn main() -> anyhow::Result<()> {
         }
         Command::Build { dir, adapter } => {
             let root = dir.canonicalize()?;
+            // 型付きルート（.nowaki/types.d.ts）を更新。
+            typegen::write(&root)?;
             // static アダプタは prerender に委譲（build → 一時起動 → 各ルートを静的化）。
             if adapter == Adapter::Static {
                 let out = root.join("dist/static");
@@ -155,6 +164,10 @@ fn main() -> anyhow::Result<()> {
         Command::Upgrade { dir, to } => {
             let root = dir.canonicalize()?;
             upgrade::run(root, to)
+        }
+        Command::Typegen { dir } => {
+            let root = dir.canonicalize()?;
+            typegen::run(root)
         }
     }
 }

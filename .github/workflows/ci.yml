@@ -70,6 +70,16 @@ jobs:
           TMP=$(mktemp -d); echo '{"name":"x","dependencies":{}}' > "$TMP/package.json"
           ! ./target/debug/nowaki upgrade "$TMP" 2>/dev/null
           rm -rf "$TMP"
+      - name: Typed routes — typegen writes .nowaki/types.d.ts
+        run: |
+          set -e
+          ./target/debug/nowaki typegen examples/hello | grep -q 'typegen'
+          test -f examples/hello/.nowaki/types.d.ts
+          grep -q '"/blog/\[slug\]": { slug: string }' examples/hello/.nowaki/types.d.ts
+          grep -q '"/files/\[\.\.\.path\]": { path: string\[\] }' examples/hello/.nowaki/types.d.ts
+          # API routes and convention files are NOT navigable → excluded
+          ! grep -q '"/api/' examples/hello/.nowaki/types.d.ts
+          ! grep -q '_404\|_layout\|loading\|error' examples/hello/.nowaki/types.d.ts
       - name: Start dev server and verify SSR, islands, API, and v0.3 routing
         run: |
           set -e
@@ -172,6 +182,12 @@ jobs:
           # lazy hydration (Astro-style client:* directives): the island wrapper sets a
           # `client` attribute and the directive is NOT serialized into the island props.
           # client:only renders no SSR content (hydrates client-side only).
+          # typed navigation: <Link href> renders an <a href>, route() builds dynamic
+          # hrefs (encoded params, catch-all joined with /).
+          curl -sf $B/nav | grep -q '<a href="/about" data-testid="link-about">'
+          curl -sf $B/nav | grep -q 'href="/blog/hello" data-testid="link-blog"'
+          curl -sf $B/nav | grep -q 'href="/files/docs/intro" data-testid="link-files"'
+
           curl -sf $B/lazy | grep -q 'name="Counter"[^>]*client="idle"'
           # the directive is stripped from the serialized props (props has only start)
           curl -sf $B/lazy | grep -q 'props="{&quot;start&quot;:100}"[^>]*client="visible"'
