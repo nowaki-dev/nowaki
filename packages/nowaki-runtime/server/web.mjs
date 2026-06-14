@@ -4,9 +4,9 @@
 //
 // 共有ロジックは handler.mjs（runtime 非依存）と document.mjs（純粋文字列）に集約済み。
 
-import { h, options } from "preact";
+import { options } from "preact";
 import { handleRequest } from "./handler.mjs";
-import { stableStringify } from "./serialize.mjs";
+import { wrapIsland } from "./island-directive.mjs";
 import { prodDocument, prodShell } from "./document.mjs";
 
 // handler.mjs の結果 {status,headers,body,stream} を Web Response へ。
@@ -34,19 +34,7 @@ function installIslandHook(registry) {
     ) {
       const island = registry.get(vnode.type);
       const Original = vnode.type;
-      vnode.type = (props) => {
-        const { __nowakiInner, ...rest } = props;
-        return h(
-          "nowaki-island",
-          {
-            name: island.name,
-            src: island.src,
-            props: stableStringify(rest),
-            style: "display:contents",
-          },
-          h(Original, { ...rest, __nowakiInner: true }),
-        );
-      };
+      vnode.type = (props) => wrapIsland(island, props, Original);
     }
     if (prev) prev(vnode);
   };

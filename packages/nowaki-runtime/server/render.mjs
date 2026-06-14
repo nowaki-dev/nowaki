@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { h, options } from "preact";
 
-import { stableStringify } from "./serialize.mjs";
+import { wrapIsland } from "./island-directive.mjs";
 import { liveInitialState } from "./live.mjs";
 import { pageMeta } from "./document.mjs";
 
@@ -76,19 +76,7 @@ options.vnode = (vnode) => {
         );
       };
     } else {
-      vnode.type = (props) => {
-        const { __nowakiInner, ...rest } = props;
-        return h(
-          "nowaki-island",
-          {
-            name: island.name,
-            src: island.src,
-            props: stableStringify(rest),
-            style: "display:contents",
-          },
-          h(Original, { ...rest, __nowakiInner: true }),
-        );
-      };
+      vnode.type = (props) => wrapIsland(island, props, Original);
     }
   }
   if (prevVnodeHook) prevVnodeHook(vnode);

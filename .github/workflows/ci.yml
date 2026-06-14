@@ -169,6 +169,16 @@ jobs:
           curl -sf $B/virtual | grep -q 'VIRTUAL_OK · nowaki-plugin'
           curl -sf $B/virtual | grep -q 'nowaki-island name="VirtualBadge"'
 
+          # lazy hydration (Astro-style client:* directives): the island wrapper sets a
+          # `client` attribute and the directive is NOT serialized into the island props.
+          # client:only renders no SSR content (hydrates client-side only).
+          curl -sf $B/lazy | grep -q 'name="Counter"[^>]*client="idle"'
+          # the directive is stripped from the serialized props (props has only start)
+          curl -sf $B/lazy | grep -q 'props="{&quot;start&quot;:100}"[^>]*client="visible"'
+          curl -sf $B/lazy | grep -q 'name="ClientOnly"[^>]*client="only"></nowaki-island>'
+          # client:load is the default → first Counter has no client attribute
+          curl -sf $B/lazy | grep -q 'name="Counter" src="[^"]*" props="{&quot;start&quot;:0}" style="display:contents">'
+
           # loading/error boundaries: the client router fetches /__nowaki/boundaries
           # for the SSR'd loading + error UIs (nwk-pulse = loading skeleton,
           # data-nowaki-reset = error retry). They are conventions, not routes, so

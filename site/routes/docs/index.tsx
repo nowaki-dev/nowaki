@@ -46,6 +46,7 @@ export default function Overview() {
       <ul>
         <li><strong>Routing &amp; data</strong> — file-based routes, nested layouts, middleware, server loaders, form actions, API routes, streaming SSR.</li>
         <li><strong>Server functions</strong> — <code>"use server"</code> modules become typed RPC endpoints; the client gets a tiny fetch proxy.</li>
+        <li><strong>Lazy hydration</strong> — Astro-style <code>client:load</code> / <code>client:idle</code> / <code>client:visible</code> / <code>client:media</code> / <code>client:only</code> directives control <em>when</em> an island hydrates.</li>
         <li><strong>Jetstream islands</strong> — server-reactive islands that update over a WebSocket with <em>zero</em> component JS on the client.</li>
         <li><strong>Plugins</strong> — <code>transform</code> hooks and virtual modules (<code>resolveId</code> / <code>load</code>); a <code>.tsrx</code> bridge.</li>
         <li><strong>Deploy anywhere</strong> — Node, Bun, Deno, static prerender, or Cloudflare Workers via build adapters.</li>

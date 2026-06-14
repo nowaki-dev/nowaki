@@ -12,7 +12,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { h, options } from "preact";
 import { loadEnv } from "./env.mjs";
-import { stableStringify } from "./serialize.mjs";
+import { wrapIsland } from "./island-directive.mjs";
 import { scanRoutes } from "./router.mjs";
 import { handleRequest, sendResult } from "./handler.mjs";
 import { prodDocument, prodShell } from "./document.mjs";
@@ -104,19 +104,7 @@ export async function createApp({ clientDir, serverDir, loadDotenv = true } = {}
         };
       } else if (registry.has(vnode.type)) {
         const island = registry.get(vnode.type);
-        vnode.type = (props) => {
-          const { __nowakiInner, ...rest } = props;
-          return h(
-            "nowaki-island",
-            {
-              name: island.name,
-              src: island.src,
-              props: stableStringify(rest),
-              style: "display:contents",
-            },
-            h(Original, { ...rest, __nowakiInner: true }),
-          );
-        };
+        vnode.type = (props) => wrapIsland(island, props, Original);
       }
     }
     if (prevVnode) prevVnode(vnode);

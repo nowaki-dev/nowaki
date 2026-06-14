@@ -71,6 +71,17 @@ nowaki.config.mjs   plugins (optional)
      return <button onClick={() => setN(n + 1)}>count: {n}</button>;
    }
    ```
+   **Lazy hydration** (Astro-style `client:*` directives) controls *when* an
+   island hydrates — add a directive where you use it:
+   ```tsx
+   <Counter client:load />              // default — hydrate on load
+   <Counter client:idle />              // hydrate on requestIdleCallback
+   <Counter client:visible />           // hydrate when scrolled into view
+   <Chart client:media="(min-width: 768px)" />  // hydrate when the query matches
+   <Map client:only />                  // skip SSR, render only on the client
+   ```
+   Prefer `client:visible` / `client:idle` for below-the-fold or non-critical
+   islands to cut work on first load. The directives are typed (no prop leaks).
 7. **Server functions** — a module with a top-of-file `"use server"` directive
    becomes RPC; the client gets a tiny fetch proxy, the implementation stays on
    the server. Validate arguments; read auth via `getContext()`:
