@@ -73,9 +73,11 @@ jobs:
           B=http://127.0.0.1:3000
           status() { echo "$(curl -s -o /dev/null -w '%{http_code}' "$@")"; }
 
-          # SSR + islands + transform
+          # SSR + islands + transform. The eager runtime is islands.js; the SPA router
+          # is lazy-loaded via the data-router attribute (kept out of first-load JS).
           curl -sf $B/ | grep -q "nowaki-island"
-          curl -sf $B/ | grep -q 'client/router.js'
+          curl -sf $B/ | grep -q 'id="nowaki-runtime"'
+          curl -sf $B/ | grep -q 'data-router=.*client/router.js'
           curl -sf "$B/islands/Counter.tsx" | grep -q "jsx-runtime"
 
           # layouts (root + nested) and dynamic param
@@ -194,6 +196,10 @@ jobs:
           for i in $(seq 1 20); do curl -sf http://127.0.0.1:3300/ >/dev/null && break; sleep 1; done
           curl -sf http://127.0.0.1:3300/ | grep -q "modulepreload"
           curl -sf http://127.0.0.1:3300/ | grep -q '<code>a→b</code>'
+          # lazy SPA router: runtime script carries data-router, and the router chunk is
+          # NOT eagerly preloaded (it loads on idle, keeping first-load JS small).
+          curl -sf http://127.0.0.1:3300/ | grep -q 'id="nowaki-runtime"[^>]*data-router='
+          ! curl -s http://127.0.0.1:3300/ | grep -qE 'modulepreload[^>]*/router\.[0-9a-f]+\.js'
           curl -sf http://127.0.0.1:3300/live | grep -q 'nowaki-live name="LiveCounter"'
           curl -sf http://127.0.0.1:3300/live | grep -q 'live\.'  # live.js script
           # v0.8 server functions in production: allowlist written, no impl leaked to

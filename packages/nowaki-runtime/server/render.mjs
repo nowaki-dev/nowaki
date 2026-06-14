@@ -123,9 +123,10 @@ export function renderDocument({ mod, body, meta }) {
 }
 
 function devScripts() {
-  // router.js が islands.js を取り込む（ハイドレーション + SPA 遷移）。dev は常に読み込む。
+  // eager ランタイム = islands.js（ハイドレーションのみ）。SPA ルーターは data-router で渡し、
+  // islands.js がハイドレート後に idle で遅延 import する（dev も本番と同じ経路）。
   const router =
-    '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/router.js"></script>\n';
+    '<script id="nowaki-runtime" type="module" src="/node_modules/@nowaki-dev/runtime/client/islands.js" data-router="/node_modules/@nowaki-dev/runtime/client/router.js"></script>\n';
   // live.js はサーバーリアクティブ島（<nowaki-live>）用。島が無ければ何もしない。
   const live =
     '<script type="module" src="/node_modules/@nowaki-dev/runtime/client/live.js"></script>\n';

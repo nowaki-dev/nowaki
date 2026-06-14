@@ -25,6 +25,8 @@ use tokio::process::{Child, Command};
 #[derive(serde::Deserialize, Default)]
 struct Manifest {
     runtime: Option<String>,
+    #[serde(default, rename = "routerRuntime")]
+    router_runtime: Option<String>,
     #[serde(default, rename = "liveRuntime")]
     live_runtime: Option<String>,
     #[serde(default)]
@@ -463,8 +465,13 @@ fn assemble(manifest: &Manifest, meta: &PageMeta) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     let runtime_script = if has_islands {
+        // data-router に遅延ルーターチャンクの URL を載せる（islands.js が idle で import）。
+        let data_router = match &manifest.router_runtime {
+            Some(r) => format!(" data-router=\"/_nowaki/{r}\""),
+            None => String::new(),
+        };
         format!(
-            "<script type=\"module\" src=\"/_nowaki/{}\"></script>",
+            "<script id=\"nowaki-runtime\" type=\"module\" src=\"/_nowaki/{}\"{data_router}></script>",
             manifest.runtime.as_ref().unwrap()
         )
     } else {

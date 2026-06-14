@@ -111,8 +111,10 @@ export const loader = async ({ params }) => ({ post: await db.post(params.slug) 
       <h2>Loading &amp; error UI, and the Router Cache</h2>
       <p>
         Pages with an island get a client router: internal links navigate by swapping the body and
-        re-hydrating, so visited pages stay interactive. Three conventions shape that experience, and
-        they mirror Next.js' <code>loading.tsx</code> / <code>error.tsx</code>.
+        re-hydrating, so visited pages stay interactive. The router loads <em>after</em> first paint
+        (on idle), so it never weighs down initial load — first paint ships only the hydration
+        runtime, and the navigation machinery streams in behind it. Three conventions shape that
+        experience, and they mirror Next.js' <code>loading.tsx</code> / <code>error.tsx</code>.
       </p>
       <table>
         <tr><th>File</th><th>What it does</th></tr>

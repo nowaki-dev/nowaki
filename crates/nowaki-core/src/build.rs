@@ -41,13 +41,24 @@ pub fn build_client(
 
     let mut ctx = EmitCtx::default();
 
-    // エントリ1: クライアントランタイム（router.js → islands.js を取り込む。
-    // ハイドレーション + 島間SPA遷移。島のあるページだけがこれを読み込む）。
+    // エントリ1: eager クライアントランタイム（islands.js = ハイドレーションのみ）。
+    // 島のあるページだけがこれを読み込む。first-load を最小に保つため SPA ルーターは含めない。
     let runtime = core
         .root
-        .join("node_modules/@nowaki-dev/runtime/client/router.js");
+        .join("node_modules/@nowaki-dev/runtime/client/islands.js");
     let runtime_out = if runtime.exists() {
         Some(emit(core, &runtime, &client_dir, &mut ctx)?)
+    } else {
+        None
+    };
+
+    // 別チャンク: SPA ルーター（Router Cache / loading / error / クリック横取り）。
+    // islands.js がハイドレート後に idle で遅延 import する（first-load には乗らない）。
+    let router = core
+        .root
+        .join("node_modules/@nowaki-dev/runtime/client/router.js");
+    let router_runtime_out = if runtime_out.is_some() && router.exists() {
+        Some(emit(core, &router, &client_dir, &mut ctx)?)
     } else {
         None
     };
@@ -123,6 +134,7 @@ pub fn build_client(
         client_dir.join("manifest.json"),
         render_manifest(
             runtime_out.as_deref(),
+            router_runtime_out.as_deref(),
             &islands,
             &live_islands,
             live_runtime_out.as_deref(),
@@ -721,12 +733,18 @@ fn is_live_island(core: &NowakiCore, abs: &Path) -> bool {
 
 fn render_manifest(
     runtime: Option<&str>,
+    router_runtime: Option<&str>,
     islands: &[(String, String)],
     live_islands: &[String],
     live_runtime: Option<&str>,
     deps: &HashMap<String, Vec<String>>,
 ) -> String {
     let runtime_field = match runtime {
+        Some(r) => format!("\"{r}\""),
+        None => "null".to_string(),
+    };
+    // routerRuntime は遅延チャンク。preload には載せない（first-load を最小に保つ）。
+    let router_runtime_field = match router_runtime {
         Some(r) => format!("\"{r}\""),
         None => "null".to_string(),
     };
@@ -744,10 +762,17 @@ fn render_manifest(
         .map(|(name, file)| format!("    \"{name}\": \"{file}\""))
         .collect();
 
-    // エントリチャンク（runtime + 各island）の推移的依存を preload に書く。
+    // エントリチャンク（runtime + 各island + 遅延 router）の推移的依存を preload に書く。
+    // router の依存も記録するが、HTML 側では router を preload しない（遅延ロードのため）。
+    // ベンチはこの依存リストで「遅延チャンク」を first-load から除外する。
     let mut entries: Vec<&str> = Vec::new();
     let mut seen = HashSet::new();
     if let Some(r) = runtime {
+        if seen.insert(r) {
+            entries.push(r);
+        }
+    }
+    if let Some(r) = router_runtime {
         if seen.insert(r) {
             entries.push(r);
         }
@@ -767,7 +792,7 @@ fn render_manifest(
         .collect();
 
     format!(
-        "{{\n  \"runtime\": {runtime_field},\n  \"liveRuntime\": {live_runtime_field},\n  \"liveIslands\": [{live_islands_field}],\n  \"islands\": {{\n{}\n  }},\n  \"preload\": {{\n{}\n  }}\n}}\n",
+        "{{\n  \"runtime\": {runtime_field},\n  \"routerRuntime\": {router_runtime_field},\n  \"liveRuntime\": {live_runtime_field},\n  \"liveIslands\": [{live_islands_field}],\n  \"islands\": {{\n{}\n  }},\n  \"preload\": {{\n{}\n  }}\n}}\n",
         island_fields.join(",\n"),
         preload_fields.join(",\n")
     )

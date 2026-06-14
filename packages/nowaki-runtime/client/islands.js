@@ -1,7 +1,8 @@
-// Islandsハイドレーションランタイム。
+// Islandsハイドレーションランタイム（= クライアントの eager エントリ）。
 // SSRが埋め込んだ <nowaki-island src props> を見つけ、島モジュールだけを
 // dynamic importしてハイドレートする。ページ本体のJSは存在しない。
-// クライアントルーター(router.js)が SPA 遷移後にも hydrateIslands を呼ぶ。
+// SPA ルーター(router.js: Router Cache / loading / error / クリック横取り)は
+// 初回描画では不要なので、ハイドレート後に idle で遅延ロードする（first-load を最小に保つ）。
 
 import { h, hydrate } from "preact";
 
@@ -52,4 +53,20 @@ document.addEventListener("submit", async (ev) => {
   form.dispatchEvent(new CustomEvent("nowaki:action", { bubbles: true, detail: { id, ok, result, error } }));
 });
 
+// SPA ルーターは window 経由でハイドレートを呼ぶ（islands.js を再バンドルさせないための分離）。
+if (typeof window !== "undefined") window.__nowakiHydrateIslands = hydrateIslands;
+
 hydrateIslands();
+
+// SPA ルーターを遅延ロード（first-load JS を小さく保つ）。ランタイム <script> の
+// data-router 属性（サーバーが注入）にチャンク URL があれば、idle で import する。
+// ロード前のクリックは通常のフルナビになる（グレースフルデグラデーション）。
+if (typeof document !== "undefined") {
+  const runtimeEl = document.getElementById("nowaki-runtime");
+  const routerSrc = runtimeEl && runtimeEl.getAttribute("data-router");
+  if (routerSrc) {
+    const load = () => import(routerSrc).catch(() => {});
+    if ("requestIdleCallback" in window) requestIdleCallback(load, { timeout: 800 });
+    else setTimeout(load, 1);
+  }
+}

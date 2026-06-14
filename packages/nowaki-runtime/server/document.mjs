@@ -41,7 +41,7 @@ export function prodDocument(manifest, { mod, body, meta }) {
     .map((f) => `<link rel="modulepreload" href="/_nowaki/${f}" />`)
     .join("\n");
   const runtime = hasIslands
-    ? `<script type="module" src="/_nowaki/${manifest.runtime}"></script>`
+    ? `<script id="nowaki-runtime" type="module" src="/_nowaki/${manifest.runtime}"${dataRouter(manifest)}></script>`
     : "";
   // サーバーリアクティブ島があれば live.js（WS + morph）を読み込む。
   const live =
@@ -75,7 +75,7 @@ export function prodShell(manifest, mod, meta) {
     ? `<link rel="modulepreload" href="/_nowaki/${runtimeChunk}" />\n`
     : "";
   const runtimeScript = runtimeChunk
-    ? `<script type="module" src="/_nowaki/${runtimeChunk}"></script>`
+    ? `<script id="nowaki-runtime" type="module" src="/_nowaki/${runtimeChunk}"${dataRouter(manifest)}></script>`
     : "";
   const head = `<!DOCTYPE html>
 <html lang="${escapeHtml(m.lang)}">
@@ -92,6 +92,11 @@ ${runtimeScript}
 </body>
 </html>`;
   return { head, tail };
+}
+
+// 遅延 SPA ルーターチャンクの URL を data-router 属性として返す（islands.js が idle で import）。
+function dataRouter(manifest) {
+  return manifest.routerRuntime ? ` data-router="/_nowaki/${manifest.routerRuntime}"` : "";
 }
 
 export function escapeHtml(s) {

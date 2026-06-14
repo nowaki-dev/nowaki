@@ -7,8 +7,11 @@
 // - loading.tsx: 遷移が 150ms を超えたら最寄りの loading 境界（無ければ既定のプログレスバー）を表示。
 // - error.tsx: 遷移が失敗したら最寄りの error 境界（無ければ既定UI）を表示し、reset で再試行。
 
-import { hydrateIslands } from "./islands.js";
 import { matchBoundary, createPageCache } from "./router-core.js";
+
+// ハイドレートは eager ランタイム（islands.js）が window に公開する。
+// ここから islands.js を import しないことで、ルーターを独立した遅延チャンクに保つ。
+const hydrateIslands = (root) => window.__nowakiHydrateIslands?.(root);
 
 const pageCache = createPageCache({ ttlMs: readCacheTtl(), max: 32 });
 const scrollPos = new Map(); // history key -> scrollY
