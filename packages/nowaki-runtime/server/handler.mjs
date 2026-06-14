@@ -11,6 +11,9 @@ import { matchRoute } from "./router.mjs";
 import { makeContext } from "./context.mjs";
 import { dispatchServerFn, SERVER_FN_PATH } from "./functions.mjs";
 
+// クライアントルーターが loading/error の境界 HTML を一度だけ取りに来る内部パス。
+export const BOUNDARIES_PATH = "/__nowaki/boundaries";
+
 // handleRequest の結果を Node のレスポンスへ書き出す（stream 対応）。
 export async function sendResult(res, result) {
   res.writeHead(result.status ?? 200, result.headers ?? {});
@@ -39,6 +42,11 @@ export async function handleRequest(env, info) {
   // サーバー関数 RPC（`"use server"`）。ルーティングより前に処理する。
   if (env.serverFunctions && url.pathname === SERVER_FN_PATH) {
     return finalize(ctx, await dispatchServerFn(ctx, info, env.serverFunctions));
+  }
+
+  // クライアントルーター用: loading/error 境界の SSR HTML を JSON で返す。
+  if (method === "GET" && url.pathname === BOUNDARIES_PATH) {
+    return finalize(ctx, await renderBoundaries(env, table, version));
   }
 
   try {
@@ -186,6 +194,34 @@ function isrSeconds(mod) {
 // ISR ページの Cache-Control。共有キャッシュ(CDN)は s-maxage 後に stale を出しつつ裏で再検証する。
 function swr(seconds) {
   return `public, s-maxage=${seconds}, stale-while-revalidate`;
+}
+
+// loading/error 境界を SSR して { loading:[{prefix,html}], error:[{prefix,html}] } を返す。
+// クライアントルーターが起動時に一度だけ取得し、遷移中のUI（loading）と失敗時UI（error）に使う。
+// error 境界はメッセージを data-nowaki-error スロットに、reset を data-nowaki-reset で受ける。
+async function renderBoundaries(env, table, version) {
+  await env.ensureIslands(version);
+  const renderOne = async (entry, props) => {
+    try {
+      const mod = await env.importModule(entry.file, version);
+      if (typeof mod.default !== "function") return null;
+      const html = await renderToStringAsync(h(mod.default, props));
+      return { prefix: entry.prefix, html };
+    } catch {
+      return null; // 境界自身が落ちても全体は壊さない
+    }
+  };
+  const loading = (
+    await Promise.all((table.loadingBoundaries ?? []).map((e) => renderOne(e, {})))
+  ).filter(Boolean);
+  const error = (
+    await Promise.all(
+      (table.errorBoundaries ?? []).map((e) =>
+        renderOne(e, { error: { message: "" }, reset: () => {} }),
+      ),
+    )
+  ).filter(Boolean);
+  return { status: 200, headers: JSON_CT, body: JSON.stringify({ loading, error }) };
 }
 
 // route のメタを解決する。`mod.meta` は関数（async 可）で {title,head,lang} を返す。

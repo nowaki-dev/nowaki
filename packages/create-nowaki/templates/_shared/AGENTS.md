@@ -84,6 +84,12 @@ nowaki.config.mjs   plugins (optional)
 8. **Jetstream islands** (server-reactive, zero client JS) — give an island
    `export const live = { state, on }`; buttons use `data-live="handler"` instead
    of `onClick`. State lives on the server; the server pushes HTML patches.
+9. **Loading / error UI** (client navigation) — `routes/loading.tsx` renders
+   while a navigation is in flight; `routes/error.tsx` (props `{ error, reset }`,
+   type `ErrorPageProps`) renders if it fails. Both nest by directory. In
+   `error.tsx`, mark the message element `data-nowaki-error` and the retry button
+   `data-nowaki-reset`. Visited pages are kept in a ~30s Router Cache, so
+   back/forward is instant. These are server components, not islands.
 
 ## Don't
 

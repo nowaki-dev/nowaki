@@ -120,6 +120,22 @@ export interface RouteProps<D = unknown> {
 export type PageProps<L extends Loader<any> = Loader<unknown>> = RouteProps<Awaited<ReturnType<L>>>;
 
 /**
+ * `routes/loading.tsx` の default export。クライアント遷移が 150ms を超えると、
+ * 最寄りの loading 境界（ネスト可）が遷移先 HTML が届くまで表示される。島は不要。
+ */
+export type LoadingComponent = () => unknown;
+
+/**
+ * `routes/error.tsx` の default export が受け取る props。クライアント遷移が失敗したとき、
+ * 最寄りの error 境界（ネスト可）が表示される。メッセージは `data-nowaki-error` を付けた
+ * 要素へ、再試行は `data-nowaki-reset` を付けた要素へ、クライアントルーターが配線する。
+ */
+export interface ErrorPageProps {
+  error: { message: string };
+  reset: () => void;
+}
+
+/**
  * Jetstream（サーバーリアクティブ島）の宣言。島が `export const live` で持つと、
  * クライアントへコンポーネント JS を送らずに、状態はサーバーが保持し HTML パッチで更新する。
  */

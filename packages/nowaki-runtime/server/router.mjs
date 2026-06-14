@@ -8,6 +8,8 @@
 //   _middleware.ts  そのディレクトリ配下のリクエスト前処理（ネスト可）
 //   _404.tsx        未一致時のページ
 //   _500.tsx /_error.tsx  描画失敗時のページ
+//   loading.tsx     クライアント遷移中に出すローディングUI（ネスト可）
+//   error.tsx       クライアント遷移失敗時のフォールバックUI（ネスト可）
 
 import { readdir } from "node:fs/promises";
 import path from "node:path";
@@ -21,6 +23,8 @@ export async function scanRoutes(appRoot) {
   const routes = [];
   const layouts = [];
   const middleware = [];
+  const loadingBoundaries = [];
+  const errorBoundaries = [];
   let notFound = null;
   let errorRoute = null;
 
@@ -35,6 +39,14 @@ export async function scanRoutes(appRoot) {
     }
     if (base === "_middleware") {
       middleware.push({ prefix: dirPrefix, file: abs });
+      continue;
+    }
+    if (base === "loading") {
+      loadingBoundaries.push({ prefix: dirPrefix, file: abs });
+      continue;
+    }
+    if (base === "error") {
+      errorBoundaries.push({ prefix: dirPrefix, file: abs });
       continue;
     }
     if (base === "_404") {
@@ -76,7 +88,7 @@ export async function scanRoutes(appRoot) {
   layouts.sort((a, b) => a.prefix.length - b.prefix.length);
   middleware.sort((a, b) => a.prefix.length - b.prefix.length);
 
-  return { routes, layouts, middleware, notFound, errorRoute };
+  return { routes, layouts, middleware, loadingBoundaries, errorBoundaries, notFound, errorRoute };
 }
 
 export function matchRoute(routesOrTable, pathname) {

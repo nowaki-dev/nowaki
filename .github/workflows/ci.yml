@@ -59,6 +59,8 @@ jobs:
       - run: cargo build -p nowaki
       - name: Router snapshot/unit test (scanRoutes + matchRoute)
         run: node scripts/router-test.mjs
+      - name: Client router-cache unit test (matchBoundary + Router Cache TTL/LRU)
+        run: node scripts/router-cache-test.mjs
       - name: Start dev server and verify SSR, islands, API, and v0.3 routing
         run: |
           set -e
@@ -156,6 +158,16 @@ jobs:
           curl -sf $B/virtual | grep -q 'VIRTUAL_OK · nowaki-plugin'
           curl -sf $B/virtual | grep -q 'nowaki-island name="VirtualBadge"'
 
+          # loading/error boundaries: the client router fetches /__nowaki/boundaries
+          # for the SSR'd loading + error UIs (nwk-pulse = loading skeleton,
+          # data-nowaki-reset = error retry). They are conventions, not routes, so
+          # /loading and /error are 404. (DOM behavior is covered by router-browser-test.)
+          curl -sf $B/__nowaki/boundaries | grep -q 'nwk-pulse'
+          curl -sf $B/__nowaki/boundaries | grep -q 'data-nowaki-reset'
+          test "$(status $B/loading)" = "404"
+          test "$(status $B/error)" = "404"
+          curl -sf "$B/slow?ms=0" | grep -q 'data-testid="slow"'
+
           kill $SERVER_PID
 
       - name: Production build + scope hoisting + preload + serve
@@ -209,6 +221,8 @@ jobs:
           test "$(chit)" = "HIT"; test "$(rnum)" -gt "$R1"   # regenerated
           # a cookie-setting response is per-user and must never be ISR-cached
           test -z "$(curl -s -D - -o /dev/null "$ISR" | grep -i '^set-cookie:')"
+          # loading/error boundaries are served through the Rust front too
+          curl -sf http://127.0.0.1:3300/__nowaki/boundaries | grep -q 'data-nowaki-reset'
           # v0.9 Jetstream presence + connection scaling: WS join->presence,
           # event->patch round-trip, presence rises/falls across two connections.
           node scripts/livetest.mjs http://127.0.0.1:3300

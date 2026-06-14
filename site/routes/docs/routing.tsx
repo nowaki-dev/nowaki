@@ -108,6 +108,38 @@ export const loader = async ({ params }) => ({ post: await db.post(params.slug) 
         request-specific data.
       </p>
 
+      <h2>Loading &amp; error UI, and the Router Cache</h2>
+      <p>
+        Pages with an island get a client router: internal links navigate by swapping the body and
+        re-hydrating, so visited pages stay interactive. Three conventions shape that experience, and
+        they mirror Next.js' <code>loading.tsx</code> / <code>error.tsx</code>.
+      </p>
+      <table>
+        <tr><th>File</th><th>What it does</th></tr>
+        <tr><td><code>routes/loading.tsx</code></td><td>Shown while a navigation is in flight (after ~150ms, so fast navigations don't flicker). Nests by directory.</td></tr>
+        <tr><td><code>routes/error.tsx</code></td><td>Shown when a navigation fails. Gets <code>{`{ error, reset }`}</code>; the router fills any <code>data-nowaki-error</code> element with the message and wires <code>data-nowaki-reset</code> to retry.</td></tr>
+      </table>
+      <pre><code>{`// routes/error.tsx
+import type { ErrorPageProps } from "@nowaki-dev/runtime";
+
+export default function Error({ error, reset }: ErrorPageProps) {
+  return (
+    <div>
+      <h1>Something went wrong</h1>
+      <p data-nowaki-error>{error.message}</p>
+      <button data-nowaki-reset onClick={reset}>Try again</button>
+    </div>
+  );
+}`}</code></pre>
+      <p>
+        The router also keeps a <strong>Router Cache</strong>: visited pages are held for ~30s (LRU),
+        so back/forward and revisits are instant with no refetch. Tune it per app with
+        <code>{`<meta name="nowaki-router-cache" content="60">`}</code> (seconds, <code>0</code> disables),
+        and opt a single link out with <code>data-no-router</code>. If there's no <code>loading.tsx</code>,
+        a slim top progress bar is shown instead; if there's no <code>error.tsx</code>, a minimal retry
+        screen appears.
+      </p>
+
       <div class="pager">
         <a href="/docs/quickstart">← Quickstart</a>
         <a href="/docs/server-functions">Server functions →</a>
