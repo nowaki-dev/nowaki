@@ -52,7 +52,9 @@ nowaki.config.mjs   plugins (optional)
    export default function Post({ data }: PageProps<typeof loader>) { return <article><h1>{data.post.title}</h1></article>; }
    ```
    A catch-all segment `routes/files/[...path].tsx` matches `/files/a/b/c`;
-   `params.path` is the array `["a","b","c"]`.
+   `params.path` is the array `["a","b","c"]`. Add `export const revalidate = 60`
+   (seconds) to a route for ISR: the HTML is cached and regenerated in the
+   background when stale (don't put per-user data on an ISR page).
 5. **API routes** are `routes/api/*.ts` with per-method exports; return a value
    (JSON-encoded) or a `Response`:
    ```ts

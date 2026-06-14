@@ -89,6 +89,25 @@ export const POST = async (ctx) => ctx.json({ received: await ctx.bodyJson() });
         first and the body streams in, lowering time-to-first-byte for slow pages.
       </p>
 
+      <h2>Incremental static regeneration (ISR)</h2>
+      <p>
+        Export <code>revalidate</code> (seconds) and the rendered HTML is cached and served instantly,
+        then regenerated in the background once it goes stale. The first request after the window gets
+        the cached (stale) HTML while a fresh render runs, so no one waits on a slow loader.
+      </p>
+      <pre><code>{`// routes/blog/[slug].tsx
+export const revalidate = 60;   // cache for 60s, then revalidate
+
+export const loader = async ({ params }) => ({ post: await db.post(params.slug) });`}</code></pre>
+      <p>
+        Under <code>nowaki start</code>, the Rust front keeps the cache in memory (single-flight
+        revalidation, an <code>x-nowaki-cache: HIT&#8202;|&#8202;STALE&#8202;|&#8202;MISS</code> header
+        per response). Nowaki also sends <code>Cache-Control: s-maxage, stale-while-revalidate</code>,
+        so the same page gets ISR for free on a CDN or edge adapter (Cloudflare, Vercel). Responses
+        that set a cookie are treated as per-user and never cached, so keep ISR pages free of
+        request-specific data.
+      </p>
+
       <div class="pager">
         <a href="/docs/quickstart">← Quickstart</a>
         <a href="/docs/server-functions">Server functions →</a>

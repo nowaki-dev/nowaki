@@ -151,21 +151,41 @@ async function renderRoute(env, table, match, mod, ctx, version) {
     node = h(Layout, { data: ldata, params: ctx.params, url: ctx.url, children: node });
   }
 
+  // ISR（stale-while-revalidate）。ルートが `export const revalidate = <秒>` でオプトイン。
+  // 共有 Cache-Control を出すので CDN/エッジ（Cloudflare/Vercel）はそのまま ISR になる。
+  // `nowaki start` の Rust フロントは x-nowaki-revalidate を見てメモリキャッシュする。
+  const revalidate = isrSeconds(mod);
+
   // ストリーミング SSR（ルートが `export const streaming = true` でオプトイン）。
   // シェル(head) を即送出 → 本文をストリーム → tail(runtime script)。TTFB を縮める。
   // env.renderShell を持つ環境のみ。preload はシェル送出時に島が未確定なので最小化する。
   if (mod.streaming === true && typeof env.renderShell === "function") {
     const { head, tail } = env.renderShell({ mod, meta });
     const bodyStream = await renderToReadableStream(node);
+    const headers = revalidate ? { ...HTML, "cache-control": swr(revalidate) } : HTML;
     return {
       status: 200,
-      headers: HTML,
+      headers,
       stream: streamedDocument(head, bodyStream, tail),
     };
   }
 
   const body = await renderToStringAsync(node);
-  return { status: 200, headers: HTML, body: env.renderDocument({ mod, body, meta }) };
+  const headers = revalidate
+    ? { ...HTML, "cache-control": swr(revalidate), "x-nowaki-revalidate": String(revalidate) }
+    : HTML;
+  return { status: 200, headers, body: env.renderDocument({ mod, body, meta }) };
+}
+
+// `export const revalidate` を正の秒数に正規化（無効なら null = ISR 無効）。
+function isrSeconds(mod) {
+  const r = Number(mod?.revalidate);
+  return Number.isFinite(r) && r > 0 ? Math.floor(r) : null;
+}
+
+// ISR ページの Cache-Control。共有キャッシュ(CDN)は s-maxage 後に stale を出しつつ裏で再検証する。
+function swr(seconds) {
+  return `public, s-maxage=${seconds}, stale-while-revalidate`;
 }
 
 // route のメタを解決する。`mod.meta` は関数（async 可）で {title,head,lang} を返す。

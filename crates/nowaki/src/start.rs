@@ -8,7 +8,8 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::Stdio;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context, Result};
 use axum::body::Body;
@@ -46,7 +47,40 @@ struct ProdState {
     http: reqwest::Client,
     manifest: Manifest,
     live_hub: Arc<crate::live::LiveHub>,
+    isr: IsrCache,
     _child: Child, // kill_on_drop で終了時にサイドカーを落とす
+}
+
+/// ISR（incremental static regeneration）のメモリキャッシュ。
+/// ルートが `export const revalidate = <秒>` を持つと、組み立て済み HTML を
+/// path+query 単位で保持する。鮮度切れは「古い HTML を即返しつつ裏で再生成」する。
+struct IsrCache {
+    entries: Mutex<HashMap<String, Arc<CacheEntry>>>,
+    inflight: Mutex<HashSet<String>>, // 再検証の単一フライト
+    max: usize,                       // エントリ数の上限（超過時は最古を追い出す）
+}
+
+struct CacheEntry {
+    status: u16,
+    html: String,
+    headers: Vec<(String, String)>, // 復元する応答ヘッダ（cookie/長さ系は除外済み）
+    stored_at: Instant,
+    revalidate: Duration,
+}
+
+impl IsrCache {
+    fn new() -> Self {
+        let max = std::env::var("NOWAKI_ISR_MAX")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .filter(|n| *n > 0)
+            .unwrap_or(1024);
+        IsrCache {
+            entries: Mutex::new(HashMap::new()),
+            inflight: Mutex::new(HashSet::new()),
+            max,
+        }
+    }
 }
 
 pub async fn run(root: PathBuf, port: u16, expose: bool) -> Result<()> {
@@ -111,6 +145,7 @@ pub async fn run(root: PathBuf, port: u16, expose: bool) -> Result<()> {
             .build()?,
         manifest,
         live_hub: crate::live::LiveHub::new(),
+        isr: IsrCache::new(),
         _child: child,
     });
 
@@ -148,7 +183,134 @@ async fn handle(State(state): State<Arc<ProdState>>, req: Request) -> Response {
     if req.method() == Method::GET && path.starts_with("/_nowaki/") {
         return serve_static(&state, &path).await;
     }
-    proxy(state, req).await
+    // GET ページは ISR キャッシュ（stale-while-revalidate）を経由する。
+    if req.method() == Method::GET {
+        let key = req
+            .uri()
+            .path_and_query()
+            .map(|pq| pq.as_str().to_string())
+            .unwrap_or_else(|| "/".to_string());
+        if let Some(resp) = isr_lookup(&state, &key) {
+            return resp;
+        }
+        return proxy(state, req, Some(key)).await;
+    }
+    proxy(state, req, None).await
+}
+
+/// ISR キャッシュ参照。鮮度内なら HIT、鮮度切れなら STALE を即返しつつ裏で再検証する。
+fn isr_lookup(state: &Arc<ProdState>, key: &str) -> Option<Response> {
+    let entry = state.isr.entries.lock().unwrap().get(key).cloned()?;
+    let stale = entry.stored_at.elapsed() >= entry.revalidate;
+    if stale {
+        spawn_revalidate(state.clone(), key.to_string());
+    }
+    Some(cached_response(&entry, if stale { "STALE" } else { "HIT" }))
+}
+
+/// キャッシュ済みエントリから応答を組み立てる（x-nowaki-cache でヒット種別を示す）。
+fn cached_response(entry: &CacheEntry, cache_status: &str) -> Response {
+    let mut builder = Response::builder()
+        .status(entry.status)
+        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+        .header("x-nowaki-cache", cache_status);
+    for (n, v) in &entry.headers {
+        builder = builder.header(n.as_str(), v.as_str());
+    }
+    builder
+        .body(Body::from(entry.html.clone()))
+        .unwrap_or_else(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response())
+}
+
+/// 鮮度切れエントリを裏で再生成する（単一フライト: 同じキーは1本だけ走らせる）。
+fn spawn_revalidate(state: Arc<ProdState>, key: String) {
+    {
+        let mut inflight = state.isr.inflight.lock().unwrap();
+        if !inflight.insert(key.clone()) {
+            return; // すでに再検証中
+        }
+    }
+    tokio::spawn(async move {
+        let _ = revalidate_entry(&state, &key).await;
+        state.isr.inflight.lock().unwrap().remove(&key);
+    });
+}
+
+/// サイドカーへクリーンな GET を投げて（ユーザーの cookie/header は載せない）キャッシュを更新する。
+async fn revalidate_entry(state: &Arc<ProdState>, key: &str) -> Option<()> {
+    let url = format!("http://127.0.0.1:{}{}", state.sidecar_port, key);
+    let resp = state.http.get(&url).send().await.ok()?;
+    let entry = page_to_entry(state, resp).await?;
+    isr_store(state, key, entry);
+    Some(())
+}
+
+/// サイドカー応答が ISR キャッシュ可能なページなら CacheEntry にする。
+/// 条件: 200 / x-nowaki-page / x-nowaki-revalidate>0 / Set-Cookie 無し（per-user は除外）。
+async fn page_to_entry(state: &ProdState, resp: reqwest::Response) -> Option<CacheEntry> {
+    if resp.status() != StatusCode::OK {
+        return None;
+    }
+    let h = resp.headers();
+    if !h.contains_key("x-nowaki-page") || h.contains_key(header::SET_COOKIE) {
+        return None;
+    }
+    let secs = isr_secs_of(h)?;
+    let kept = kept_headers(h);
+    let status = resp.status().as_u16();
+    let bytes = resp.bytes().await.ok()?;
+    let meta: PageMeta = serde_json::from_slice(&bytes).ok()?;
+    let html = assemble(&state.manifest, &meta);
+    Some(CacheEntry {
+        status,
+        html,
+        headers: kept,
+        stored_at: Instant::now(),
+        revalidate: Duration::from_secs(secs),
+    })
+}
+
+/// x-nowaki-revalidate ヘッダを正の秒数として読む。
+fn isr_secs_of(h: &reqwest::header::HeaderMap) -> Option<u64> {
+    h.get("x-nowaki-revalidate")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<u64>().ok())
+        .filter(|n| *n > 0)
+}
+
+/// キャッシュへ復元する応答ヘッダを集める（x-nowaki-* / content-type / 長さ系 / Set-Cookie は除外）。
+fn kept_headers(h: &reqwest::header::HeaderMap) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for (name, value) in h.iter() {
+        let n = name.as_str();
+        if n.starts_with("x-nowaki-")
+            || name == header::CONTENT_TYPE
+            || name == header::CONTENT_LENGTH
+            || name == header::TRANSFER_ENCODING
+            || name == header::SET_COOKIE
+        {
+            continue;
+        }
+        if let Ok(v) = value.to_str() {
+            out.push((n.to_string(), v.to_string()));
+        }
+    }
+    out
+}
+
+/// エントリを保存。上限超過時は最古を1件追い出す（簡易 LRU）。
+fn isr_store(state: &ProdState, key: &str, entry: CacheEntry) {
+    let mut map = state.isr.entries.lock().unwrap();
+    if map.len() >= state.isr.max && !map.contains_key(key) {
+        if let Some(oldest) = map
+            .iter()
+            .min_by_key(|(_, e)| e.stored_at)
+            .map(|(k, _)| k.clone())
+        {
+            map.remove(&oldest);
+        }
+    }
+    map.insert(key.to_string(), Arc::new(entry));
 }
 
 async fn serve_static(state: &ProdState, path: &str) -> Response {
@@ -167,7 +329,7 @@ async fn serve_static(state: &ProdState, path: &str) -> Response {
     }
 }
 
-async fn proxy(state: Arc<ProdState>, req: Request) -> Response {
+async fn proxy(state: Arc<ProdState>, req: Request, cache_key: Option<String>) -> Response {
     let path_q = req
         .uri()
         .path_and_query()
@@ -210,9 +372,17 @@ async fn proxy(state: Arc<ProdState>, req: Request) -> Response {
             Ok(meta) => assemble(&state.manifest, &meta),
             Err(_) => String::from_utf8_lossy(&bytes).to_string(),
         };
+        // ISR: GET の cacheable ページならメモリへ保存し、この応答は MISS とする。
+        let isr_secs = match (&cache_key, status) {
+            (Some(_), StatusCode::OK) => isr_secs_of(&resp_headers),
+            _ => None,
+        };
         let mut builder = Response::builder()
             .status(status.as_u16())
             .header(header::CONTENT_TYPE, "text/html; charset=utf-8");
+        if isr_secs.is_some() {
+            builder = builder.header("x-nowaki-cache", "MISS");
+        }
         // cookie 等の応答ヘッダは保つ（x-nowaki-* と長さ系は除く）。
         for (name, value) in resp_headers.iter() {
             let n = name.as_str();
@@ -224,6 +394,22 @@ async fn proxy(state: Arc<ProdState>, req: Request) -> Response {
                 continue;
             }
             builder = builder.header(name, value);
+        }
+        // Set-Cookie が無いときだけ保存（per-user 応答は共有キャッシュに入れない）。
+        if let (Some(secs), Some(key)) = (isr_secs, cache_key.as_ref()) {
+            if !resp_headers.contains_key(header::SET_COOKIE) {
+                isr_store(
+                    &state,
+                    key,
+                    CacheEntry {
+                        status: status.as_u16(),
+                        html: html.clone(),
+                        headers: kept_headers(&resp_headers),
+                        stored_at: Instant::now(),
+                        revalidate: Duration::from_secs(secs),
+                    },
+                );
+            }
         }
         builder
             .body(Body::from(html))

@@ -192,6 +192,23 @@ jobs:
           curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' http://127.0.0.1:3300/__nowaki/fn | grep -q 'learn nowaki'
           # v0.9 virtual modules: SSR inlines the plugin-generated module (data:)
           curl -sf http://127.0.0.1:3300/virtual | grep -q 'VIRTUAL_OK · nowaki-plugin'
+          # ISR (export const revalidate=2): the Rust front caches assembled HTML and
+          # regenerates it in the background once stale. Cold hit MISSes & populates;
+          # the next is a HIT with the same render number; after the 2s window a STALE
+          # response is served (old HTML) while a fresh render runs in the background;
+          # the following hit is fresh (render number incremented).
+          ISR=http://127.0.0.1:3300/isr
+          chit() { curl -s -D - -o /tmp/isr.html "$ISR" | grep -i '^x-nowaki-cache:' | tr -d '\r' | awk '{print $2}'; }
+          rnum() { grep -o 'isr-renders">[0-9]*' /tmp/isr.html | grep -o '[0-9]*'; }
+          test "$(chit)" = "MISS"; R1=$(rnum)
+          curl -s -D - -o /dev/null "$ISR" | grep -qi 'cache-control: public, s-maxage=2, stale-while-revalidate'
+          test "$(chit)" = "HIT"; test "$(rnum)" = "$R1"
+          sleep 3
+          test "$(chit)" = "STALE"; test "$(rnum)" = "$R1"   # stale HTML served immediately
+          sleep 1                                            # let background revalidation finish
+          test "$(chit)" = "HIT"; test "$(rnum)" -gt "$R1"   # regenerated
+          # a cookie-setting response is per-user and must never be ISR-cached
+          test -z "$(curl -s -D - -o /dev/null "$ISR" | grep -i '^set-cookie:')"
           # v0.9 Jetstream presence + connection scaling: WS join->presence,
           # event->patch round-trip, presence rises/falls across two connections.
           node scripts/livetest.mjs http://127.0.0.1:3300
@@ -212,6 +229,9 @@ jobs:
           # streaming SSR route (export const streaming = true) renders a complete document
           curl -sf http://127.0.0.1:3310/stream | grep -q "Streaming SSR"
           curl -sf http://127.0.0.1:3310/stream | grep -q "nowaki-island"
+          # ISR signal is universal: the node adapter emits the same Cache-Control,
+          # so the page gets stale-while-revalidate on any CDN/edge without the Rust front.
+          curl -s -D - -o /dev/null http://127.0.0.1:3310/isr | grep -qi 'cache-control: public, s-maxage=2, stale-while-revalidate'
           kill $NODE_PID
           # static adapter: prerender to dist/static
           ./target/debug/nowaki build examples/hello --adapter static
