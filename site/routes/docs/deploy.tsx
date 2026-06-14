@@ -16,6 +16,7 @@ export default function Deploy() {
         <tr><td><code>static</code></td><td>Prerendered HTML in <code>dist/static/</code> for any CDN.</td></tr>
         <tr><td><code>bun</code> / <code>deno</code></td><td>The same <code>node:http</code>-compatible entry, portable to Bun/Deno.</td></tr>
         <tr><td><code>cloudflare</code></td><td>An edge <code>fetch</code>-handler worker in <code>dist/worker/</code> + a <code>wrangler.jsonc</code> (static assets via the ASSETS binding).</td></tr>
+        <tr><td><code>vercel</code></td><td>A Build Output API v3 layout in <code>.vercel/output/</code> — static assets + a self-contained Node serverless function. Deploy with <code>vercel deploy --prebuilt</code>.</td></tr>
       </table>
 
       <h2>Node</h2>
@@ -35,6 +36,17 @@ cd dist/worker && npx wrangler deploy`}</code></pre>
         The worker bundles every server module statically (no runtime file imports), serves static
         assets from the ASSETS binding, and runs SSR, API routes, streaming, and server functions at
         the edge with <code>nodejs_compat</code>.
+      </p>
+
+      <h2>Vercel</h2>
+      <pre><code>{`nowaki build --adapter vercel
+vercel deploy --prebuilt    # uploads .vercel/output as-is`}</code></pre>
+      <p>
+        The adapter writes the Build Output API v3 layout: static assets under
+        <code>.vercel/output/static</code> and a self-contained Node serverless function
+        (<code>functions/index.func</code>) that runs SSR, API routes, and server functions. The
+        function bundles its own dependencies, so there's no install step. Jetstream's WebSocket
+        isn't available on serverless, so live islands degrade to their initial SSR.
       </p>
 
       <h2>The Rust front (nowaki start)</h2>

@@ -25,6 +25,8 @@ pub enum Adapter {
     Deno,
     /// Cloudflare Workers（Edge, fetch ハンドラ + 静的アセット binding）
     Cloudflare,
+    /// Vercel（Build Output API v3, Node serverless function + 静的アセット）
+    Vercel,
 }
 
 impl Adapter {
@@ -35,6 +37,7 @@ impl Adapter {
             Adapter::Bun => "bun",
             Adapter::Deno => "deno",
             Adapter::Cloudflare => "cloudflare",
+            Adapter::Vercel => "vercel",
         }
     }
 
@@ -131,6 +134,32 @@ pub fn emit_cloudflare(root: &Path, dist: &Path) -> Result<()> {
     }
     println!(
         "[nowaki] cloudflare adapter: dist/worker を出力。検証: `cd dist/worker && npx wrangler dev` / 配備: `cd dist/worker && npx wrangler deploy`"
+    );
+    Ok(())
+}
+
+/// Vercel（Build Output API v3）の配備物を `.vercel/output/` に生成する。
+/// 実体は runtime の Node 生成器 `server/vercel-build.mjs`（static + Node serverless function）。
+pub fn emit_vercel(root: &Path, dist: &Path) -> Result<()> {
+    let script = root.join("node_modules/@nowaki-dev/runtime/server/vercel-build.mjs");
+    if !script.exists() {
+        anyhow::bail!("@nowaki-dev/runtime が見つかりません: {}", script.display());
+    }
+    let output = root.join(".vercel/output");
+    let status = std::process::Command::new("node")
+        .arg(&script)
+        .arg(dist.join("server"))
+        .arg(dist.join("client"))
+        .arg(&output)
+        .arg(root)
+        .current_dir(root)
+        .status()
+        .context("node vercel-build.mjs の起動に失敗")?;
+    if !status.success() {
+        anyhow::bail!("vercel adapter の生成に失敗しました");
+    }
+    println!(
+        "[nowaki] vercel adapter: .vercel/output を出力。配備: `npx vercel deploy --prebuilt`（または `vercel --prebuilt`）"
     );
     Ok(())
 }

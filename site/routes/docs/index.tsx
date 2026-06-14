@@ -50,7 +50,7 @@ export default function Overview() {
         <li><strong>Jetstream islands</strong> — server-reactive islands that update over a WebSocket with <em>zero</em> component JS on the client.</li>
         <li><strong>Plugins</strong> — <code>transform</code> hooks and virtual modules (<code>resolveId</code> / <code>load</code>); a <code>.tsrx</code> bridge.</li>
         <li><strong>Image optimization</strong> — imported PNGs are losslessly re-compressed at build time, in pure Rust (no extra tools).</li>
-        <li><strong>Deploy anywhere</strong> — Node, Bun, Deno, static prerender, or Cloudflare Workers via build adapters.</li>
+        <li><strong>Deploy anywhere</strong> — Node, Bun, Deno, static prerender, Cloudflare Workers, or Vercel via build adapters.</li>
       </ul>
 
       <div class="note">

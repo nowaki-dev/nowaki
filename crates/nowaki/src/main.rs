@@ -46,7 +46,7 @@ enum Command {
         /// アプリのルートディレクトリ
         #[arg(default_value = ".")]
         dir: PathBuf,
-        /// デプロイ先アダプタ (node|static|bun|deno)
+        /// デプロイ先アダプタ (node|static|bun|deno|cloudflare|vercel)
         #[arg(long, value_enum, default_value_t = Adapter::Node)]
         adapter: Adapter,
     },
@@ -138,6 +138,8 @@ fn main() -> anyhow::Result<()> {
             match adapter {
                 // cloudflare: Edge worker（fetch ハンドラ + 静的アセット binding）を生成。
                 Adapter::Cloudflare => adapter::emit_cloudflare(&root, &dist)?,
+                // vercel: Build Output API v3（Node serverless function + 静的アセット）。
+                Adapter::Vercel => adapter::emit_vercel(&root, &dist)?,
                 // node/bun/deno: 自己完結のサーバーエントリを出力。
                 _ => adapter::emit_server(&root, &dist, adapter)?,
             }

@@ -303,6 +303,23 @@ jobs:
           test -f examples/hello/dist/worker/wrangler.jsonc
           grep -q "createFetchHandler" examples/hello/dist/worker/index.js
           grep -q '"binding": "ASSETS"' examples/hello/dist/worker/wrangler.jsonc
+          # vercel adapter: Build Output API v3 (.vercel/output): config + static + a
+          # self-contained Node serverless function. Run the function (Vercel's launcher
+          # invokes its default (req,res) handler) and confirm SSR + islands + API work.
+          ./target/debug/nowaki build examples/hello --adapter vercel
+          test -f examples/hello/.vercel/output/config.json
+          grep -q '"version": 3' examples/hello/.vercel/output/config.json
+          test -f examples/hello/.vercel/output/functions/index.func/.vc-config.json
+          grep -q '"launcherType": "Nodejs"' examples/hello/.vercel/output/functions/index.func/.vc-config.json
+          test -d examples/hello/.vercel/output/static/_nowaki
+          # the function must NOT carry a nested preact (would double-instance and break hooks)
+          ! test -d examples/hello/.vercel/output/functions/index.func/node_modules/@nowaki-dev/runtime/node_modules
+          ( cd examples/hello/.vercel/output/functions/index.func \
+            && node -e 'import("./index.mjs").then(m=>require("http").createServer(m.default).listen(3320))' & )
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:3320/ >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:3320/ | grep -q "nowaki-island"
+          curl -sf http://127.0.0.1:3320/api/hello | grep -q '"hello":"nowaki"'
+          curl -sf http://127.0.0.1:3320/nav | grep -q 'href="/blog/hello"'
 
   bench-regression:
     name: Client JS size (regression gate)

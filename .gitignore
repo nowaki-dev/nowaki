@@ -6,6 +6,9 @@ dist/
 # generated typed-routes (nowaki typegen)
 .nowaki/
 
+# vercel build output (nowaki build --adapter vercel)
+.vercel/
+
 # prerendered landing output (regenerate with site/scripts/prerender.sh)
 site/public/
 

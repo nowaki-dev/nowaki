@@ -2,6 +2,7 @@ node_modules/
 dist/
 .cache/
 .nowaki/
+.vercel/
 
 # env (keep secrets out of git; only PUBLIC_* reaches the client)
 .env
