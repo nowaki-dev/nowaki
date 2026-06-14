@@ -15,6 +15,8 @@ readme = "../../README.md"
 [dependencies]
 anyhow = "1.0.102"
 dashmap = "6.2.1"
+# 画像アセット最適化（pure-Rust。cross-compile 安全のため C 依存のコーデックは使わない）。
+image = { version = "0.25.5", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 oxc = { version = "0.135.0", features = ["transformer", "codegen", "minifier", "semantic"] }
 oxc_resolver = "11.21.0"
 rayon = "1.11.0"

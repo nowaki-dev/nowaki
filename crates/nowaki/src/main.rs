@@ -132,6 +132,8 @@ fn main() -> anyhow::Result<()> {
                 client_js_kb,
                 started.elapsed().as_millis(),
                 &dist,
+                report.asset_in,
+                report.asset_out,
             );
             match adapter {
                 // cloudflare: Edge worker（fetch ハンドラ + 静的アセット binding）を生成。

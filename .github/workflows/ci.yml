@@ -213,6 +213,11 @@ jobs:
           ./target/debug/nowaki build examples/hello
           test -f examples/hello/dist/client/manifest.json
           grep -q '"preload"' examples/hello/dist/client/manifest.json
+          # asset optimization: the sub-optimal source photo.png (~256 KB, stored zlib)
+          # is losslessly re-compressed to a fraction of its size in dist/client.
+          PHOTO=$(ls examples/hello/dist/client/photo.*.png | head -1)
+          test "$(wc -c < "$PHOTO")" -lt "$(wc -c < examples/hello/photo.png)"
+          test "$(wc -c < "$PHOTO")" -lt 50000   # 256 KB → a few KB
           # scope hoisting: the cyclic lib modules are concatenated into the Cycle
           # island chunk, not emitted as separate files, and the chunk has no
           # internal ./cycle- import (the cycle is resolved within one scope).

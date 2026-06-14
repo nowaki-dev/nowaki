@@ -1,3 +1,4 @@
+pub mod asset;
 pub mod build;
 pub mod cache;
 pub mod chunk;

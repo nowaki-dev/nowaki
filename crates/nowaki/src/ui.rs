@@ -90,6 +90,7 @@ pub fn dir_js_kb(dir: &std::path::Path) -> f64 {
 }
 
 /// `nowaki build` 完了サマリ。
+#[allow(clippy::too_many_arguments)]
 pub fn build_summary(
     client_modules: usize,
     islands: usize,
@@ -97,6 +98,8 @@ pub fn build_summary(
     client_js_kb: f64,
     ms: u128,
     out: &std::path::Path,
+    asset_in: u64,
+    asset_out: u64,
 ) {
     println!();
     println!(
@@ -119,6 +122,20 @@ pub fn build_summary(
         bold("server:"),
         dim(&format!("{server_modules} modules")),
     );
+    // 画像最適化で削れたバイトがあれば表示する。
+    if asset_in > asset_out {
+        let saved = asset_in - asset_out;
+        let pct = saved as f64 / asset_in as f64 * 100.0;
+        println!(
+            "  {}  {}  {}",
+            green("➜"),
+            bold("assets:"),
+            dim(&format!(
+                "optimized images · saved {:.1} KB ({pct:.0}%)",
+                saved as f64 / 1024.0
+            )),
+        );
+    }
     println!(
         "  {}  {}  {}",
         green("➜"),

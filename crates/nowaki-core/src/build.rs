@@ -26,6 +26,9 @@ pub struct BuildReport {
     pub islands: usize,
     pub server_modules: usize,
     pub out_dir: PathBuf,
+    /// 画像最適化の入力/出力バイト総量（節約表示用）。
+    pub asset_in: u64,
+    pub asset_out: u64,
 }
 
 /// エントリ（islandsランタイム + islands/配下）からグラフを辿り、
@@ -148,6 +151,8 @@ pub fn build_client(
             islands: islands.len(),
             server_modules: 0,
             out_dir: client_dir,
+            asset_in: ctx.asset_in,
+            asset_out: ctx.asset_out,
         },
         ctx.assets,
     ))
@@ -414,6 +419,9 @@ struct EmitCtx {
     cyclic: HashSet<PathBuf>,
     /// 出力ファイル名 → 直接依存の出力ファイル名（preload チェーン計算用）
     deps: HashMap<String, Vec<String>>,
+    /// 画像最適化の入力/出力バイト総量（build summary の節約表示用）。
+    asset_in: u64,
+    asset_out: u64,
 }
 
 /// 1モジュールを（依存を先に処理してから）出力し、出力ファイル名を返す。
@@ -426,17 +434,22 @@ fn emit(core: &NowakiCore, abs: &Path, out_dir: &Path, ctx: &mut EmitCtx) -> Res
     // アセット（画像・フォント等）: content-hash 付きで raw コピーし、
     // 配信URLを default export する小さな JS モジュールを出力する（依存なし）。
     if crate::is_asset(abs) {
-        let bytes = fs::read(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
+        let raw = fs::read(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
         let ext = abs.extension().and_then(|e| e.to_str()).unwrap_or("bin");
         let stem = abs.file_stem().and_then(|s| s.to_str()).unwrap_or("asset");
+        // 自動最適化（PNG ロスレス再エンコード + メタデータ除去）。小さくならなければ元のまま。
+        let (bytes, out_ext) =
+            crate::asset::optimize(&raw, ext, &crate::asset::Transform::default());
+        ctx.asset_in += raw.len() as u64;
+        ctx.asset_out += bytes.len() as u64;
         let asset_hash = xxh3_64(&bytes) as u32;
-        let asset_name = format!("{stem}.{asset_hash:08x}.{ext}");
+        let asset_name = format!("{stem}.{asset_hash:08x}.{out_ext}");
         fs::write(out_dir.join(&asset_name), &bytes)?;
         let url = format!("/_nowaki/{asset_name}");
         ctx.assets.insert(abs.to_path_buf(), url.clone());
         let code = format!("export default \"{url}\";\n");
         let mod_hash = xxh3_64(code.as_bytes()) as u32;
-        let mod_name = format!("{stem}.{ext}.{mod_hash:08x}.js");
+        let mod_name = format!("{stem}.{out_ext}.{mod_hash:08x}.js");
         fs::write(out_dir.join(&mod_name), &code)?;
         ctx.deps.insert(mod_name.clone(), Vec::new());
         ctx.emitted.insert(abs.to_path_buf(), mod_name.clone());
