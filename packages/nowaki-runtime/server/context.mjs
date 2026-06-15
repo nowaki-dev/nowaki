@@ -7,34 +7,101 @@ export function makeContext(info) {
   // headers / readBody は呼び出し側が注入できる（Node: req から、Edge: Web Request から）。
   const reqHeaders = info.headers ?? req?.headers ?? {};
   const readBodyFn = info.readBody ?? (() => readBodyNode(req));
-  const cookies = parseCookies(reqHeaders["cookie"] ?? "");
   const resHeaders = new Map();
   const setCookies = [];
 
+  // ISR の Vary 追跡: この描画が「どのリクエストヘッダ / クエリ」に依存したかを記録し、
+  // ctx.__vary() で公開する。start.rs はこれをキャッシュキーへ織り込み、(a) ヘッダ依存ページが
+  // クロスユーザーに漏れる #6 と、(b) 未使用クエリ氾濫でキャッシュが追い出される #7 を防ぐ。
+  const accessedHeaders = new Set();
+  let queryAccessed = false;
+  let reqAccessed = false; // 生 req に触れたら粒度不明なのでキャッシュ無効化（"*"）扱い
+  const noteHeader = (name) => accessedHeaders.add(String(name).toLowerCase());
+
+  // url は「クエリを露出し得る」あらゆる参照で「クエリ依存」を記録する Proxy で包む。
+  // 許可リスト方式（href/toString/… を列挙）は toLocaleString のような継承メソッドを
+  // 取りこぼし、クエリ依存ページがクエリ無視キーで共有されてクロスユーザー漏れになる。
+  // そこで「クエリを露出しないと確定したメンバ(QUERY_FREE)以外は、クエリが存在する限り
+  // 全てクエリ依存とみなす」安全側デフォルトにする（未知メソッド/Symbol も網羅）。
+  // 内部のルート一致(matchRoute)は生の info.url を使い、フレームワークは ctx.url を
+  // .pathname でしか参照しないので、記録されるのはユーザーコードのクエリ露出のみ。
+  const QUERY_FREE = new Set([
+    "pathname",
+    "hostname",
+    "host",
+    "origin",
+    "protocol",
+    "port",
+    "hash",
+    "username",
+    "password",
+  ]);
+  const urlProxy = new Proxy(url, {
+    get(target, prop) {
+      if (prop === "search" || prop === "searchParams") {
+        queryAccessed = true;
+      } else if (target.search && !(typeof prop === "string" && QUERY_FREE.has(prop))) {
+        // クエリ有り + query-free 確定メンバ以外（href/toString/toLocaleString/`${url}`/
+        // toJSON/未知メソッド/Symbol）→ クエリ依存とみなす。
+        queryAccessed = true;
+      }
+      // getter / メソッドは実体(target)を receiver にして呼ぶ（URL の private field を壊さない）。
+      const v = Reflect.get(target, prop, target);
+      return typeof v === "function" ? v.bind(target) : v;
+    },
+  });
+
+  let cookiesCache;
+
   const ctx = {
-    url,
+    url: urlProxy,
     params,
     method,
-    req,
-    headers: reqHeaders, // リクエストヘッダ（小文字キー）
-    cookies, // パース済みリクエスト Cookie
+    // 生 req（Node IncomingMessage）に触れるとヘッダ/クエリ参照を追跡できないので、
+    // 触れた時点で「全依存」とみなし ISR キャッシュを無効化する（per-user 内容の漏れ防止）。
+    get req() {
+      reqAccessed = true;
+      return req;
+    },
+    // 生ヘッダの直接参照は粒度が取れないので「全ヘッダ依存」とみなす（保守的にキャッシュ無効化）。
+    get headers() {
+      noteHeader("*");
+      return reqHeaders;
+    },
+    // Cookie 参照は「cookie ヘッダ依存」として記録（per-user 内容の取り違えを防ぐ）。
+    get cookies() {
+      if (!cookiesCache) cookiesCache = parseCookies(reqHeaders["cookie"] ?? "");
+      noteHeader("cookie");
+      return cookiesCache;
+    },
     resHeaders, // レスポンスヘッダ（書き込み用）
     resStatus: undefined,
     actionData: undefined,
     state: {}, // ミドルウェアが loader/ページへ渡す任意データ
 
+    // この描画の Vary 情報（handler.mjs が ISR 応答ヘッダへ載せる）。
+    // 生 req に触れていたら "*"（全依存）を立てて Rust 側で no_cache にさせる。
+    __vary() {
+      const headers = reqAccessed ? ["*"] : [...accessedHeaders];
+      return { query: queryAccessed, headers };
+    },
+
     // リクエスト側
     get(name) {
+      noteHeader(name);
       return reqHeaders[String(name).toLowerCase()];
     },
     async formData() {
+      reqAccessed = true; // 本文/Content-Type 依存 → ISR 共有キャッシュ不可（per-user 取り違え防止）
       const buf = await readBodyFn();
       return parseFormBody(buf, reqHeaders["content-type"] ?? "");
     },
     async bodyText() {
+      reqAccessed = true;
       return decodeBody(await readBodyFn());
     },
     async bodyJson() {
+      reqAccessed = true;
       const s = decodeBody(await readBodyFn());
       return s ? JSON.parse(s) : null;
     },

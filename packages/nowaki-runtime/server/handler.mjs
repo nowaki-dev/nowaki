@@ -179,9 +179,19 @@ async function renderRoute(env, table, match, mod, ctx, version) {
   }
 
   const body = await renderToStringAsync(node);
-  const headers = revalidate
-    ? { ...HTML, "cache-control": swr(revalidate), "x-nowaki-revalidate": String(revalidate) }
-    : HTML;
+  let headers = HTML;
+  if (revalidate) {
+    // ISR: 描画が依存したリクエストヘッダ / クエリを Vary として伝える。Rust フロント
+    // (start.rs) がこれをキャッシュキーに織り込み、クロスユーザー漏れ・クエリ氾濫を防ぐ。
+    const vary = ctx.__vary();
+    headers = {
+      ...HTML,
+      "cache-control": swr(revalidate),
+      "x-nowaki-revalidate": String(revalidate),
+      "x-nowaki-vary": vary.headers.join(","),
+      "x-nowaki-vary-query": vary.query ? "1" : "0",
+    };
+  }
   return { status: 200, headers, body: env.renderDocument({ mod, body, meta }) };
 }
 

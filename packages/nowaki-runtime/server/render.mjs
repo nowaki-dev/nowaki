@@ -10,6 +10,7 @@ import { h, options } from "preact";
 
 import { wrapIsland } from "./island-directive.mjs";
 import { liveInitialState } from "./live.mjs";
+import { liveProps } from "./live-sign.mjs";
 import { pageMeta } from "./document.mjs";
 
 const ISLAND_EXT = /\.(tsx|jsx|ts|js|tsrx)$/;
@@ -64,14 +65,10 @@ options.vnode = (vnode) => {
         const { state: propState, ...rest } = props;
         const state = propState ?? liveInitialState(island.mod, rest);
         const nid = `L${liveCounter++}`;
+        // liveProps が初期 state を HMAC 署名する（join 時に検証し state 偽造を弾く）。
         return h(
           "nowaki-live",
-          {
-            name: island.name,
-            nid,
-            state: JSON.stringify(state),
-            style: "display:contents",
-          },
+          liveProps(island.name, nid, state),
           h(Original, { state, __nowakiLiveInner: true }),
         );
       };

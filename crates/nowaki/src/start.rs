@@ -58,8 +58,18 @@ struct ProdState {
 /// path+query 単位で保持する。鮮度切れは「古い HTML を即返しつつ裏で再生成」する。
 struct IsrCache {
     entries: Mutex<HashMap<String, Arc<CacheEntry>>>,
-    inflight: Mutex<HashSet<String>>, // 再検証の単一フライト
-    max: usize,                       // エントリ数の上限（超過時は最古を追い出す）
+    inflight: Mutex<HashSet<String>>,        // 再検証の単一フライト
+    specs: Mutex<HashMap<String, VarySpec>>, // pathname → 学習した Vary 仕様
+    max: usize,                              // エントリ数の上限（超過時は最古を追い出す）
+}
+
+/// あるルート(pathname)の描画が依存する入力（Vary）。サイドカーの x-nowaki-vary から学習し、
+/// キャッシュキーへ織り込む。クエリ・ヘッダの依存有無で #6（漏れ）/#7（氾濫）を防ぐ。
+#[derive(Default, Clone)]
+struct VarySpec {
+    query: bool,                                 // クエリ文字列に依存するか
+    headers: std::collections::BTreeSet<String>, // 依存するリクエストヘッダ名（小文字, 安定順）
+    no_cache: bool,                              // 全ヘッダ依存("*") → キャッシュ不可
 }
 
 struct CacheEntry {
@@ -68,6 +78,9 @@ struct CacheEntry {
     headers: Vec<(String, String)>, // 復元する応答ヘッダ（cookie/長さ系は除外済み）
     stored_at: Instant,
     revalidate: Duration,
+    // 裏での再検証で同一 variant を再生成するためのリクエスト文脈。
+    refetch_path: String,                   // サイドカーへ投げる path(+query)
+    refetch_headers: Vec<(String, String)>, // 織り込んだ Vary ヘッダの実値
 }
 
 impl IsrCache {
@@ -80,6 +93,7 @@ impl IsrCache {
         IsrCache {
             entries: Mutex::new(HashMap::new()),
             inflight: Mutex::new(HashSet::new()),
+            specs: Mutex::new(HashMap::new()),
             max,
         }
     }
@@ -172,11 +186,34 @@ pub async fn run(root: PathBuf, port: u16, expose: bool) -> Result<()> {
 }
 
 /// サーバーリアクティブ島の WS。セッションは crate::live、描画は Node prod-sidecar へ橋渡し。
-async fn live_ws(ws: WebSocketUpgrade, State(state): State<Arc<ProdState>>) -> Response {
+async fn live_ws(
+    ws: WebSocketUpgrade,
+    headers: axum::http::HeaderMap,
+    State(state): State<Arc<ProdState>>,
+) -> Response {
+    // CSWSH 対策: 同一オリジン（または Origin 無しのネイティブクライアント）のみ受け付ける。
+    if !prod_ws_origin_ok(&headers) {
+        return (StatusCode::FORBIDDEN, "forbidden origin").into_response();
+    }
     let http = state.http.clone();
     let port = state.sidecar_port;
     let hub = state.live_hub.clone();
     ws.on_upgrade(move |socket| crate::live::handle(socket, hub, http, port, "prod".to_string()))
+}
+
+/// prod の WS upgrade で Origin を検証する（クロスサイト WebSocket ハイジャック対策）。
+/// 本番は公開前提なので「Origin が Host と同一」のみ許可する（Origin 無し = 非ブラウザは許可）。
+fn prod_ws_origin_ok(headers: &axum::http::HeaderMap) -> bool {
+    let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) else {
+        return true;
+    };
+    let Some(origin_host) = origin.split("://").nth(1).map(|h| h.trim_end_matches('/')) else {
+        return false;
+    };
+    match headers.get(header::HOST).and_then(|v| v.to_str().ok()) {
+        Some(host) => origin_host == host,
+        None => false,
+    }
 }
 
 async fn handle(State(state): State<Arc<ProdState>>, req: Request) -> Response {
@@ -186,18 +223,56 @@ async fn handle(State(state): State<Arc<ProdState>>, req: Request) -> Response {
         return serve_static(&state, &path).await;
     }
     // GET ページは ISR キャッシュ（stale-while-revalidate）を経由する。
+    // キャッシュキーは pathname + 学習済み Vary（依存クエリ/ヘッダ値）。これにより
+    // ヘッダ依存ページのクロスユーザー漏れ(#6)と未使用クエリ氾濫(#7)を防ぐ。
     if req.method() == Method::GET {
-        let key = req
-            .uri()
-            .path_and_query()
-            .map(|pq| pq.as_str().to_string())
-            .unwrap_or_else(|| "/".to_string());
-        if let Some(resp) = isr_lookup(&state, &key) {
-            return resp;
+        let pathname = req.uri().path().to_string();
+        let query = req.uri().query().map(|q| q.to_string());
+        let spec = state
+            .isr
+            .specs
+            .lock()
+            .unwrap()
+            .get(&pathname)
+            .cloned()
+            .unwrap_or_default();
+        if !spec.no_cache {
+            let key = isr_key(&pathname, query.as_deref(), req.headers(), &spec);
+            if let Some(resp) = isr_lookup(&state, &key) {
+                return resp;
+            }
         }
-        return proxy(state, req, Some(key)).await;
+        return proxy(state, req, true).await;
     }
-    proxy(state, req, None).await
+    proxy(state, req, false).await
+}
+
+/// pathname と学習済み Vary 仕様からキャッシュキーを作る。query 依存ならクエリを、
+/// ヘッダ依存ならその実値を（BTreeSet による安定順で）織り込む。
+fn isr_key(
+    pathname: &str,
+    query: Option<&str>,
+    headers: &axum::http::HeaderMap,
+    spec: &VarySpec,
+) -> String {
+    let mut k = String::from(pathname);
+    if spec.query {
+        if let Some(q) = query {
+            k.push('?');
+            k.push_str(q);
+        }
+    }
+    for name in &spec.headers {
+        let val = headers
+            .get(name.as_str())
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        k.push('\u{1f}'); // Unit Separator: ヘッダ境界（値に出ない制御文字）
+        k.push_str(name);
+        k.push('=');
+        k.push_str(val);
+    }
+    k
 }
 
 /// ISR キャッシュ参照。鮮度内なら HIT、鮮度切れなら STALE を即返しつつ裏で再検証する。
@@ -238,18 +313,32 @@ fn spawn_revalidate(state: Arc<ProdState>, key: String) {
     });
 }
 
-/// サイドカーへクリーンな GET を投げて（ユーザーの cookie/header は載せない）キャッシュを更新する。
+/// 鮮度切れエントリを、保存時の variant（path+query と Vary ヘッダ値）を replay して更新する。
+/// ヘッダ依存ページでも同じ variant を再生成できるよう、クリーン GET ではなく文脈を再現する。
 async fn revalidate_entry(state: &Arc<ProdState>, key: &str) -> Option<()> {
-    let url = format!("http://127.0.0.1:{}{}", state.sidecar_port, key);
-    let resp = state.http.get(&url).send().await.ok()?;
-    let entry = page_to_entry(state, resp).await?;
+    let (refetch_path, refetch_headers) = {
+        let e = state.isr.entries.lock().unwrap().get(key).cloned()?;
+        (e.refetch_path.clone(), e.refetch_headers.clone())
+    };
+    let url = format!("http://127.0.0.1:{}{}", state.sidecar_port, refetch_path);
+    let mut req = state.http.get(&url);
+    for (n, v) in &refetch_headers {
+        req = req.header(n, v);
+    }
+    let resp = req.send().await.ok()?;
+    let entry = page_to_entry(state, resp, refetch_path, refetch_headers).await?;
     isr_store(state, key, entry);
     Some(())
 }
 
 /// サイドカー応答が ISR キャッシュ可能なページなら CacheEntry にする。
 /// 条件: 200 / x-nowaki-page / x-nowaki-revalidate>0 / Set-Cookie 無し（per-user は除外）。
-async fn page_to_entry(state: &ProdState, resp: reqwest::Response) -> Option<CacheEntry> {
+async fn page_to_entry(
+    state: &ProdState,
+    resp: reqwest::Response,
+    refetch_path: String,
+    refetch_headers: Vec<(String, String)>,
+) -> Option<CacheEntry> {
     if resp.status() != StatusCode::OK {
         return None;
     }
@@ -269,6 +358,8 @@ async fn page_to_entry(state: &ProdState, resp: reqwest::Response) -> Option<Cac
         headers: kept,
         stored_at: Instant::now(),
         revalidate: Duration::from_secs(secs),
+        refetch_path,
+        refetch_headers,
     })
 }
 
@@ -300,16 +391,102 @@ fn kept_headers(h: &reqwest::header::HeaderMap) -> Vec<(String, String)> {
     out
 }
 
-/// エントリを保存。上限超過時は最古を1件追い出す（簡易 LRU）。
+/// ISR ページを学習した Vary 仕様に基づき保存する。サイドカーの x-nowaki-vary /
+/// x-nowaki-vary-query を読み、pathname ごとの spec を更新してからキーを織り込む。
+/// `"*"`（全ヘッダ依存）は安全側でキャッシュ不可にする。
+#[allow(clippy::too_many_arguments)]
+fn maybe_store(
+    state: &Arc<ProdState>,
+    pathname: &str,
+    query: Option<&str>,
+    req_headers: &axum::http::HeaderMap,
+    resp_headers: &reqwest::header::HeaderMap,
+    secs: u64,
+    status: u16,
+    html: &str,
+) {
+    let vary_raw = resp_headers
+        .get("x-nowaki-vary")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let vary_query = resp_headers
+        .get("x-nowaki-vary-query")
+        .and_then(|v| v.to_str().ok())
+        == Some("1");
+    let names: Vec<String> = vary_raw
+        .split(',')
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let spec = {
+        let mut specs = state.isr.specs.lock().unwrap();
+        let spec = specs.entry(pathname.to_string()).or_default();
+        if names.iter().any(|n| n == "*") {
+            spec.no_cache = true; // 全ヘッダ依存はキャッシュしない
+            return;
+        }
+        spec.query |= vary_query;
+        for n in names {
+            spec.headers.insert(n);
+        }
+        spec.clone()
+    };
+
+    let key = isr_key(pathname, query, req_headers, &spec);
+    // 再検証で同じ variant を replay するため path(+query) と Vary ヘッダ実値を保存。
+    let refetch_path = if spec.query {
+        match query {
+            Some(q) => format!("{pathname}?{q}"),
+            None => pathname.to_string(),
+        }
+    } else {
+        pathname.to_string()
+    };
+    let refetch_headers: Vec<(String, String)> = spec
+        .headers
+        .iter()
+        .filter_map(|n| {
+            req_headers
+                .get(n.as_str())
+                .and_then(|v| v.to_str().ok())
+                .map(|v| (n.clone(), v.to_string()))
+        })
+        .collect();
+
+    isr_store(
+        state,
+        &key,
+        CacheEntry {
+            status,
+            html: html.to_string(),
+            headers: kept_headers(resp_headers),
+            stored_at: Instant::now(),
+            revalidate: Duration::from_secs(secs),
+            refetch_path,
+            refetch_headers,
+        },
+    );
+}
+
+/// エントリを保存。上限超過時は、まず同一 pathname の最古を追い出す（クエリ/ヘッダ氾濫が
+/// 他ルートのエントリを巻き込んで追い出さないように）。無ければ全体の最古を追い出す。
 fn isr_store(state: &ProdState, key: &str, entry: CacheEntry) {
     let mut map = state.isr.entries.lock().unwrap();
     if map.len() >= state.isr.max && !map.contains_key(key) {
-        if let Some(oldest) = map
+        let path = key.split(['?', '\u{1f}']).next().unwrap_or(key);
+        let victim = map
             .iter()
+            .filter(|(k, _)| k.split(['?', '\u{1f}']).next() == Some(path))
             .min_by_key(|(_, e)| e.stored_at)
             .map(|(k, _)| k.clone())
-        {
-            map.remove(&oldest);
+            .or_else(|| {
+                map.iter()
+                    .min_by_key(|(_, e)| e.stored_at)
+                    .map(|(k, _)| k.clone())
+            });
+        if let Some(v) = victim {
+            map.remove(&v);
         }
     }
     map.insert(key.to_string(), Arc::new(entry));
@@ -331,7 +508,9 @@ async fn serve_static(state: &ProdState, path: &str) -> Response {
     }
 }
 
-async fn proxy(state: Arc<ProdState>, req: Request, cache_key: Option<String>) -> Response {
+async fn proxy(state: Arc<ProdState>, req: Request, cacheable: bool) -> Response {
+    let pathname = req.uri().path().to_string();
+    let query = req.uri().query().map(|q| q.to_string());
     let path_q = req
         .uri()
         .path_and_query()
@@ -346,6 +525,10 @@ async fn proxy(state: Arc<ProdState>, req: Request, cache_key: Option<String>) -
     };
 
     let mut builder = state.http.request(method, &url).body(body.to_vec());
+    // 元 Host は剥がすが、同一オリジン検証（サーバー関数の CSRF 対策）用に転送する。
+    if let Some(host) = headers.get(header::HOST) {
+        builder = builder.header("x-forwarded-host", host);
+    }
     for (name, value) in headers.iter() {
         if name != header::HOST {
             builder = builder.header(name, value);
@@ -375,9 +558,10 @@ async fn proxy(state: Arc<ProdState>, req: Request, cache_key: Option<String>) -
             Err(_) => String::from_utf8_lossy(&bytes).to_string(),
         };
         // ISR: GET の cacheable ページならメモリへ保存し、この応答は MISS とする。
-        let isr_secs = match (&cache_key, status) {
-            (Some(_), StatusCode::OK) => isr_secs_of(&resp_headers),
-            _ => None,
+        let isr_secs = if cacheable && status == StatusCode::OK {
+            isr_secs_of(&resp_headers)
+        } else {
+            None
         };
         let mut builder = Response::builder()
             .status(status.as_u16())
@@ -398,18 +582,18 @@ async fn proxy(state: Arc<ProdState>, req: Request, cache_key: Option<String>) -
             builder = builder.header(name, value);
         }
         // Set-Cookie が無いときだけ保存（per-user 応答は共有キャッシュに入れない）。
-        if let (Some(secs), Some(key)) = (isr_secs, cache_key.as_ref()) {
+        // 学習した Vary をキーへ織り込み、pathname ごとの spec を更新する。
+        if let Some(secs) = isr_secs {
             if !resp_headers.contains_key(header::SET_COOKIE) {
-                isr_store(
+                maybe_store(
                     &state,
-                    key,
-                    CacheEntry {
-                        status: status.as_u16(),
-                        html: html.clone(),
-                        headers: kept_headers(&resp_headers),
-                        stored_at: Instant::now(),
-                        revalidate: Duration::from_secs(secs),
-                    },
+                    &pathname,
+                    query.as_deref(),
+                    &headers,
+                    &resp_headers,
+                    secs,
+                    status.as_u16(),
+                    &html,
                 );
             }
         }

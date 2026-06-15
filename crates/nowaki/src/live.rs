@@ -94,8 +94,8 @@ pub async fn handle(
         ))
         .await;
 
-    // nid -> (island name, 現在の state)
-    let mut islands: std::collections::HashMap<String, (String, Value)> =
+    // nid -> (island name, 現在の state, state の署名)
+    let mut islands: std::collections::HashMap<String, (String, Value, String)> =
         std::collections::HashMap::new();
     let mut last_seen = Instant::now();
     let mut ping = tokio::time::interval(PING_INTERVAL);
@@ -142,7 +142,7 @@ pub async fn handle(
 /// Text メッセージ（join/event）を処理する。接続継続なら true、切断すべきなら false。
 async fn handle_text(
     socket: &mut WebSocket,
-    islands: &mut std::collections::HashMap<String, (String, Value)>,
+    islands: &mut std::collections::HashMap<String, (String, Value, String)>,
     http: &reqwest::Client,
     sidecar_port: u16,
     version: &str,
@@ -165,7 +165,13 @@ async fn handle_text(
                         .unwrap_or("")
                         .to_string();
                     let st = it.get("state").cloned().unwrap_or_else(|| json!({}));
-                    islands.insert(nid.to_string(), (name, st));
+                    // 初期 state の署名（SSR で発行）。サイドカーがハンドラ実行前に検証する。
+                    let sig = it
+                        .get("sig")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    islands.insert(nid.to_string(), (name, st, sig));
                 }
             }
             true
@@ -176,12 +182,13 @@ async fn handle_text(
                 .and_then(|x| x.as_str())
                 .unwrap_or("")
                 .to_string();
-            let Some((name, st)) = islands.get(&nid).cloned() else {
+            let Some((name, st, sig)) = islands.get(&nid).cloned() else {
                 return true;
             };
             let body = json!({
                 "name": name,
                 "state": st,
+                "sig": sig,
                 "handler": v.get("handler"),
                 "payload": v.get("payload"),
                 "version": version,
@@ -201,10 +208,20 @@ async fn handle_text(
             let Ok(rv) = serde_json::from_str::<Value>(&txt) else {
                 return true;
             };
+            // 署名検証失敗などで html が無い（サイドカーがエラーを返した）場合は
+            // state を更新せず patch も送らない（偽造 state を握らせない / 空描画を防ぐ）。
+            let Some(html) = rv.get("html").and_then(|h| h.as_str()) else {
+                return true;
+            };
+            // 新 state とその新しい署名を保持（次イベントで検証が続くように）。
             if let Some(ns) = rv.get("state") {
-                islands.insert(nid.clone(), (name, ns.clone()));
+                let nsig = rv
+                    .get("sig")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                islands.insert(nid.clone(), (name, ns.clone(), nsig));
             }
-            let html = rv.get("html").and_then(|h| h.as_str()).unwrap_or("");
             let patch = json!({ "type": "patch", "nid": nid, "html": html });
             socket
                 .send(Message::Text(patch.to_string().into()))

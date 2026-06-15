@@ -91,7 +91,8 @@ document.addEventListener("submit", async (ev) => {
   try {
     const res = await fetch("/__nowaki/fn", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      // x-nowaki-rpc はサーバーの CSRF ゲート（functions.mjs）が要求する。
+      headers: { "content-type": "application/json", "x-nowaki-rpc": "1" },
       body: JSON.stringify({ id, args: [fields] }),
     });
     let data = null;

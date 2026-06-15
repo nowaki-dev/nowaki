@@ -159,7 +159,7 @@ pub fn client_proxy(module_key: &str, exports: &[String]) -> String {
     out.push_str(&format!(
         "const __nowakiCall = (id) => {{\n  \
 const fn = async (...args) => {{\n    \
-const res = await fetch({path:?}, {{ method: \"POST\", headers: {{ \"content-type\": \"application/json\" }}, body: JSON.stringify({{ id, args: args.map(__nowakiArg) }}) }});\n    \
+const res = await fetch({path:?}, {{ method: \"POST\", headers: {{ \"content-type\": \"application/json\", \"x-nowaki-rpc\": \"1\" }}, body: JSON.stringify({{ id, args: args.map(__nowakiArg) }}) }});\n    \
 let data = null;\n    \
 try {{ data = await res.json(); }} catch {{}}\n    \
 if (!res.ok) throw new Error((data && data.error) || (\"server function failed: \" + res.status));\n    \

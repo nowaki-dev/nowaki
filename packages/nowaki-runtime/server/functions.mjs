@@ -27,6 +27,35 @@ export async function dispatchServerFn(ctx, info, sf) {
   if (ctx.method !== "POST") {
     return errBody(405, "Method Not Allowed");
   }
+  // CSRF / クロスオリジン対策。サーバー関数は cookie 認証・状態変更の口なので、
+  // 他オリジンのページから victim の cookie 付きで呼ばれないよう三重に塞ぐ:
+  //  (1) Content-Type は application/json 必須（text/plain 等の "単純リクエスト" を排除）
+  //  (2) カスタムヘッダ x-nowaki-rpc 必須（クロスサイトの単純リクエストでは付与できず、
+  //      プリフライトが要るが本サーバーは CORS 許可を返さないのでブラウザが弾く）
+  //  (3) Origin があれば Host と同一オリジンのみ許可
+  // メディアタイプ本体（パラメータ前）で厳密判定する。substring 一致だと
+  // `multipart/form-data; boundary=application/json` のような CORS 単純リクエストを
+  // 取りこぼすため、`;` より前を正規化して application/json のみ許可する。
+  const ct = String(ctx.get("content-type") ?? "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  if (ct !== "application/json") {
+    return errBody(415, "Unsupported Media Type");
+  }
+  if (ctx.get("x-nowaki-rpc") !== "1") {
+    return errBody(403, "Forbidden");
+  }
+  // Rust フロント(dev/prod)はサイドカーへ転送する際に Host を剥がすので、元 Host は
+  // x-forwarded-host で受け取る。どちらも無ければ比較不能なので Origin 検証は省略し、
+  // 上の rpc ヘッダ + JSON 必須（プリフライト強制）でクロスオリジンを防ぐ。
+  const origin = ctx.get("origin");
+  // プロキシ経由では上流クライアントが Host を上書きするので、転送された
+  // x-forwarded-host（元のブラウザ Host）を優先する。直結時は素の Host。
+  const host = ctx.get("x-forwarded-host") ?? ctx.get("host");
+  if (origin && host && !sameOrigin(origin, host)) {
+    return errBody(403, "cross-origin request forbidden");
+  }
   let payload = null;
   try {
     payload = await ctx.bodyJson();
@@ -62,4 +91,12 @@ export async function dispatchServerFn(ctx, info, sf) {
 
 function errBody(status, message) {
   return { status, headers: JSON_CT, body: JSON.stringify({ error: message }) };
+}
+
+// Origin ヘッダ（"scheme://host[:port]"）の host:port が Host ヘッダと一致するか。
+function sameOrigin(origin, host) {
+  if (!host) return false;
+  const i = origin.indexOf("://");
+  const originHost = i >= 0 ? origin.slice(i + 3).replace(/\/$/, "") : origin;
+  return originHost === host;
 }

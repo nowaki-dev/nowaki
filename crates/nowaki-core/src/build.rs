@@ -317,7 +317,8 @@ fn transform_for_server(
             if let Ok(resolution) = core.resolver.resolve(dir, spec) {
                 let full = resolution.full_path();
                 if let Ok(css) = fs::read_to_string(&full) {
-                    let id = full.to_string_lossy();
+                    // クライアントと同じ id（ルート相対）でスコープ化し、クラス名を一致させる。
+                    let id = css_scope_id(&core.root, &full);
                     let (_scoped, map) = crate::css::scope_css(&id, &css);
                     let body = format!("export default {}", crate::css::mapping_object(&map));
                     let data = crate::transform::data_module(&body);
@@ -352,7 +353,8 @@ fn transform_for_server(
     }
 
     // SSR は minify しないのでインラインソースマップが正確（node --enable-source-maps 用）。
-    let rel = path.strip_prefix(&core.root).unwrap_or(path).to_path_buf();
+    // ルート外依存の絶対パスは晒さない（dist/server は配信しないが整合のため統一）。
+    let rel = client_source_name(&core.root, path);
     let ret = Codegen::new()
         .with_options(CodegenOptions {
             source_map_path: Some(rel),
@@ -427,6 +429,31 @@ struct EmitCtx {
 /// 1モジュールを（依存を先に処理してから）出力し、出力ファイル名を返す。
 /// 非循環は最終内容のハッシュで命名（immutable キャッシュが正しい）。循環は
 /// pre-rewrite ハッシュの暫定名にフォールバックして解決する（後順DFSのまま）。
+/// CSS のスコープ ID。`data-nowaki-css` 属性やスコープハッシュとしてクライアントへ
+/// 同梱されるため、絶対パス（OS ユーザー名・内部ディレクトリ構造）を晒さないよう
+/// ルート相対化する。ルート外（pnpm ストア等）は安定ハッシュにフォールバックする。
+/// SSR 側(build.rs:transform_for_server)とクライアント側で同じ id を使う必要がある。
+fn css_scope_id(root: &Path, abs: &Path) -> String {
+    match abs.strip_prefix(root) {
+        Ok(rel) => rel.to_string_lossy().replace('\\', "/"),
+        Err(_) => format!("ext/{:016x}", xxh3_64(abs.to_string_lossy().as_bytes())),
+    }
+}
+
+/// ソースマップの `sources` に載せる名前。クライアント同梱の .map に絶対パス
+/// （OS ユーザー名・ホーム配下の構造）を晒さないよう、ルート相対化する。ルート外
+/// （pnpm ストア等）は `node_modules/...` 以降へ切り詰め、無ければファイル名のみにする。
+fn client_source_name(root: &Path, path: &Path) -> PathBuf {
+    if let Ok(rel) = path.strip_prefix(root) {
+        return rel.to_path_buf();
+    }
+    let s = path.to_string_lossy();
+    if let Some(idx) = s.rfind("node_modules/") {
+        return PathBuf::from(&s[idx..]);
+    }
+    PathBuf::from(path.file_name().unwrap_or(path.as_os_str()))
+}
+
 fn emit(core: &NowakiCore, abs: &Path, out_dir: &Path, ctx: &mut EmitCtx) -> Result<String> {
     if let Some(name) = ctx.emitted.get(abs) {
         return Ok(name.clone());
@@ -456,11 +483,11 @@ fn emit(core: &NowakiCore, abs: &Path, out_dir: &Path, ctx: &mut EmitCtx) -> Res
         return Ok(mod_name);
     }
     // .css は <style> 注入の JS シムとして出力（依存なし）。
-    // *.module.css はスコープ化 + クラス名マップ export。id は絶対パス（SSR と一致）。
+    // *.module.css はスコープ化 + クラス名マップ export。id はルート相対（SSR と一致 + 絶対パス非露出）。
     if crate::css::is_css(abs) {
         let css =
             fs::read_to_string(abs).with_context(|| format!("読み込み失敗: {}", abs.display()))?;
-        let id = abs.to_string_lossy();
+        let id = css_scope_id(&core.root, abs);
         let code = if crate::css::is_css_module(abs) {
             let (scoped, map) = crate::css::scope_css(&id, &css);
             crate::css::css_module_client_js(&id, &scoped, &map)
@@ -715,8 +742,9 @@ fn transform_for_bundle(path: &Path, source: &str, core: &NowakiCore) -> Result<
         });
     }
 
-    // sources はルート相対にして prod で絶対パスを晒さない（sourcesContent は埋まる）。
-    let rel = path.strip_prefix(&core.root).unwrap_or(path).to_path_buf();
+    // sources はルート相対/合成名にして prod で絶対パスを晒さない（sourcesContent は埋まる）。
+    // ルート外依存（pnpm ストア）の絶対パス露出を防ぐ。
+    let rel = client_source_name(&core.root, path);
     let ret = Codegen::new()
         .with_options(CodegenOptions {
             minify: true,

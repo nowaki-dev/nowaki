@@ -31,14 +31,16 @@ const server = createServer(async (req, res) => {
     try {
       const chunks = [];
       for await (const c of req) chunks.push(c);
-      const { name, state, handler, payload } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      const { name, state, handler, payload, sig } = JSON.parse(
+        Buffer.concat(chunks).toString("utf8"),
+      );
       const entry = [...liveRegistry.values()].find((e) => e.name === name);
       if (!entry) {
         res.writeHead(404, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: "live island not found" }));
         return;
       }
-      const result = await liveRender(entry.mod, state, handler, payload);
+      const result = await liveRender(entry.mod, state, handler, payload, name, sig);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(result));
     } catch (err) {

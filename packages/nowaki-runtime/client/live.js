@@ -26,6 +26,7 @@ function connect() {
             nid: el.getAttribute("nid"),
             name: el.getAttribute("name"),
             state: parse(el.getAttribute("state")),
+            sig: el.getAttribute("sig"),
           })),
         }),
       );

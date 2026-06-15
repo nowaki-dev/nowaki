@@ -17,6 +17,7 @@ import { scanRoutes } from "./router.mjs";
 import { handleRequest, sendResult } from "./handler.mjs";
 import { prodDocument, prodShell } from "./document.mjs";
 import { liveInitialState } from "./live.mjs";
+import { liveProps } from "./live-sign.mjs";
 
 const CONTENT_TYPE = {
   js: "text/javascript; charset=utf-8",
@@ -96,9 +97,11 @@ export async function createApp({ clientDir, serverDir, loadDotenv = true } = {}
           const { state: propState, ...rest } = props;
           const state = propState ?? liveInitialState(info.mod, rest);
           const nid = `L${liveCounter++}`;
+          // liveProps が初期 state を HMAC 署名する（dev/prod 共通。prod で署名漏れ＝
+          // verify 必失敗でライブ島が死ぬのを防ぐため render.mjs と同じヘルパーを使う）。
           return h(
             "nowaki-live",
-            { name: info.name, nid, state: JSON.stringify(state), style: "display:contents" },
+            liveProps(info.name, nid, state),
             h(Original, { state, __nowakiLiveInner: true }),
           );
         };

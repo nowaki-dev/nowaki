@@ -71,7 +71,7 @@ const server = createServer(async (req, res) => {
     try {
       const chunks = [];
       for await (const c of req) chunks.push(c);
-      const { name, state, handler, payload, version } = JSON.parse(
+      const { name, state, handler, payload, version, sig } = JSON.parse(
         Buffer.concat(chunks).toString("utf8"),
       );
       const reg = await loadIslandRegistry(appRoot, String(version ?? "0"));
@@ -81,7 +81,7 @@ const server = createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "live island not found" }));
         return;
       }
-      const result = await liveRender(entry.mod, state, handler, payload);
+      const result = await liveRender(entry.mod, state, handler, payload, name, sig);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(result));
     } catch (err) {
