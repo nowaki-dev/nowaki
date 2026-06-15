@@ -161,16 +161,19 @@ jobs:
           curl -sf "$B/actions/todos.ts" | grep -q '__nowakiCall'
           ! curl -sf "$B/actions/todos.ts" | grep -q 'nowaki-server-only-secret'
           curl -sf "$B/__nowaki/server-functions" | grep -q '"export":"listTodos"'
-          curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn | grep -q 'learn nowaki'
-          curl -sf -XPOST -H 'content-type: application/json' -H 'cookie: user=alice' -d '{"id":"781de5a7f5ba2469","args":[]}' $B/__nowaki/fn | grep -q 'alice'
-          test "$(status -XPOST -H 'content-type: application/json' -d '{"id":"deadbeefdeadbeef","args":[]}' $B/__nowaki/fn)" = "404"
+          curl -sf -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn | grep -q 'learn nowaki'
+          curl -sf -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -H 'cookie: user=alice' -d '{"id":"781de5a7f5ba2469","args":[]}' $B/__nowaki/fn | grep -q 'alice'
+          test "$(status -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -d '{"id":"deadbeefdeadbeef","args":[]}' $B/__nowaki/fn)" = "404"
+          # CSRF gate: missing x-nowaki-rpc header is rejected (403); cross-origin too.
+          test "$(status -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn)" = "403"
+          test "$(status -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -H 'origin: http://evil.example' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn)" = "403"
           curl -sf $B/server-fn | grep -q 'nowaki-island name="ServerTodos"'
 
           # server fn as a <form action>: the islands runtime intercepts the submit and
           # posts the form to the fn. Here we exercise the server side (addTodoForm) and
           # confirm the runtime ships the form interceptor.
-          curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"5591e6fc8d31a200","args":[{"text":"ci-form-action"}]}' $B/__nowaki/fn >/dev/null
-          curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn | grep -q 'ci-form-action'
+          curl -sf -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -d '{"id":"5591e6fc8d31a200","args":[{"text":"ci-form-action"}]}' $B/__nowaki/fn >/dev/null
+          curl -sf -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn | grep -q 'ci-form-action'
           curl -sf "$B/server-fn" | grep -q 'fa-form'
 
           # v0.9 virtual modules: a plugin resolveId/load provides virtual:build-info,
@@ -247,7 +250,7 @@ jobs:
           test -f examples/hello/dist/server/functions.json
           grep -q '"export": "addTodo"' examples/hello/dist/server/functions.json
           ! grep -rl 'nowaki-server-only-secret' examples/hello/dist/client >/dev/null 2>&1
-          curl -sf -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' http://127.0.0.1:3300/__nowaki/fn | grep -q 'learn nowaki'
+          curl -sf -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -d '{"id":"6c90d7dc921a9a3f","args":[]}' http://127.0.0.1:3300/__nowaki/fn | grep -q 'learn nowaki'
           # v0.9 virtual modules: SSR inlines the plugin-generated module (data:)
           curl -sf http://127.0.0.1:3300/virtual | grep -q 'VIRTUAL_OK · nowaki-plugin'
           # ISR (export const revalidate=2): the Rust front caches assembled HTML and
