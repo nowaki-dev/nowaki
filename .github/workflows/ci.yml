@@ -164,9 +164,7 @@ jobs:
           curl -sf -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn | grep -q 'learn nowaki'
           curl -sf -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -H 'cookie: user=alice' -d '{"id":"781de5a7f5ba2469","args":[]}' $B/__nowaki/fn | grep -q 'alice'
           test "$(status -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -d '{"id":"deadbeefdeadbeef","args":[]}' $B/__nowaki/fn)" = "404"
-          # CSRF gate: missing x-nowaki-rpc header is rejected (403); cross-origin too.
-          test "$(status -XPOST -H 'content-type: application/json' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn)" = "403"
-          test "$(status -XPOST -H 'content-type: application/json' -H 'x-nowaki-rpc: 1' -H 'origin: http://evil.example' -d '{"id":"6c90d7dc921a9a3f","args":[]}' $B/__nowaki/fn)" = "403"
+          # (RPC CSRF gate — missing header / cross-origin — is covered by security-e2e.mjs below.)
           curl -sf $B/server-fn | grep -q 'nowaki-island name="ServerTodos"'
 
           # server fn as a <form action>: the islands runtime intercepts the submit and
@@ -207,6 +205,14 @@ jobs:
           test "$(status $B/loading)" = "404"
           test "$(status $B/error)" = "404"
           curl -sf "$B/slow?ms=0" | grep -q 'data-testid="slow"'
+
+          # --- application-security regressions (guards for the multi-round audit fixes):
+          # arbitrary file read (@fs / ssr-module / .env / virtual ..), RPC CSRF,
+          # CSWSH (WS Origin), and live state forgery. A sentinel .env proves file-read
+          # denial without leaking; it is removed right after.
+          printf 'DATABASE_URL=postgres://u:supersecretpw@db/prod\nSESSION_SECRET=ci-do-not-leak\n' > examples/hello/.env
+          node scripts/security-e2e.mjs dev "$B" "$(pwd)/examples/hello"
+          rm -f examples/hello/.env
 
           kill $SERVER_PID
 
@@ -275,6 +281,11 @@ jobs:
           # v0.9 Jetstream presence + connection scaling: WS join->presence,
           # event->patch round-trip, presence rises/falls across two connections.
           node scripts/livetest.mjs http://127.0.0.1:3300
+          # --- application-security regressions (prod): no absolute build-machine path
+          # leaks into client assets (#9), and ISR keys isolate per-header (no cross-user
+          # leak) and collapse unused-query floods (#6/#7).
+          ! grep -rl "$HOME" examples/hello/dist/client
+          node scripts/security-e2e.mjs prod http://127.0.0.1:3300
           kill $START_PID
 
       - name: Deploy adapters — self-contained node entry + static + streaming SSR
