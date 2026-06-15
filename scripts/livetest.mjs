@@ -7,16 +7,19 @@
 const base = process.argv[2] ?? "http://127.0.0.1:3300";
 const wsUrl = base.replace(/^http/, "ws") + "/__nowaki/live";
 
-// /live ページから LiveCounter の nid と初期 state を拾う。
+// /live ページから LiveCounter の nid / 初期 state / 署名(sig)を拾う。
+// sig は HMAC 署名で、join 時にサーバーが検証する（無いと弾かれる）。属性順に依らず抽出。
 const html = await (await fetch(base + "/live")).text();
-const m = html.match(/<nowaki-live name="LiveCounter" nid="([^"]+)" state="([^"]*)"/);
-if (!m) {
-  console.error("FAIL: <nowaki-live> が /live に見つかりません");
+const tag = html.match(/<nowaki-live\b[^>]*>/)?.[0];
+if (!tag || !/name="LiveCounter"/.test(tag)) {
+  console.error("FAIL: <nowaki-live name=LiveCounter> が /live に見つかりません");
   process.exit(1);
 }
-const nid = m[1];
-const state = JSON.parse(m[2].replace(/&quot;/g, '"'));
-console.log(`live island nid=${nid} state=${JSON.stringify(state)}`);
+const attr = (n) => tag.match(new RegExp(`${n}="([^"]*)"`))?.[1];
+const nid = attr("nid");
+const state = JSON.parse((attr("state") ?? "{}").replace(/&quot;/g, '"'));
+const sig = attr("sig") ?? "";
+console.log(`live island nid=${nid} state=${JSON.stringify(state)} sig=${sig.slice(0, 8)}…`);
 
 const recvUntil = (ws, pred, timeout = 5000) =>
   new Promise((resolve, reject) => {
@@ -55,7 +58,7 @@ const a = await open(wsUrl);
 const p1 = await recvUntil(a, (m) => m.type === "presence");
 check(p1.count >= 1, `presence after first connect (count=${p1.count})`);
 
-a.send(JSON.stringify({ type: "join", islands: [{ nid, name: "LiveCounter", state }] }));
+a.send(JSON.stringify({ type: "join", islands: [{ nid, name: "LiveCounter", state, sig }] }));
 
 // event（inc）→ patch。LiveCounter は count を +1 する（live: 0 → live: 1）。
 a.send(JSON.stringify({ type: "event", nid, handler: "inc" }));

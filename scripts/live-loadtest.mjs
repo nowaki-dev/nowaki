@@ -23,15 +23,17 @@ const rssKB = () => {
   return total;
 };
 
-// /live から LiveCounter の nid と初期 state を拾う。
+// /live から LiveCounter の nid / 初期 state / 署名(sig)を拾う（属性順に依らず）。
 const html = await (await fetch(base + "/live")).text();
-const m = html.match(/<nowaki-live name="LiveCounter" nid="([^"]+)" state="([^"]*)"/);
-if (!m) {
+const tag = html.match(/<nowaki-live\b[^>]*>/)?.[0];
+if (!tag || !/name="LiveCounter"/.test(tag)) {
   console.error("no <nowaki-live> on /live");
   process.exit(1);
 }
-const nid = m[1];
-const state = JSON.parse(m[2].replace(/&quot;/g, '"'));
+const attr = (n) => tag.match(new RegExp(`${n}="([^"]*)"`))?.[1];
+const nid = attr("nid");
+const state = JSON.parse((attr("state") ?? "{}").replace(/&quot;/g, '"'));
+const sig = attr("sig") ?? "";
 
 const open = (url) =>
   new Promise((resolve, reject) => {
@@ -56,7 +58,7 @@ for (let i = 0; i < N; i += BATCH) {
 const connMs = now() - t0;
 // join を送る（接続ごとに独立した state を持たせる）
 for (const ws of conns) {
-  ws.send(JSON.stringify({ type: "join", islands: [{ nid, name: "LiveCounter", state }] }));
+  ws.send(JSON.stringify({ type: "join", islands: [{ nid, name: "LiveCounter", state, sig }] }));
 }
 await new Promise((r) => setTimeout(r, 1500)); // 安定待ち（presence 配信など）
 const afterRss = rssKB();
